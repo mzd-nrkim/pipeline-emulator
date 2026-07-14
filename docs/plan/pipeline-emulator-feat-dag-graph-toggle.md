@@ -1,6 +1,6 @@
 # 파이프라인 뷰 토글 — Grid / DAG Graph 2-Mode
 
-> 상태: 미시작
+> 상태: 게이트통과-머지대기
 
 > 작성일: 2026-07-14
 > 선행 계획서: [pipeline-emulator-week2-plan.md](./pipeline-emulator-week2-plan.md) (T2 @xyflow 항목에서 이관)
@@ -96,9 +96,9 @@ T1은 전부 `+page.svelte` **단일 파일** 편집 → 한 에이전트로 묶
 
 #### Z-pre. 머지 전 (워크트리, node_modules 없음 → 정적만)
 
-- [ ] `PipelineGraphView.svelte` 신규 파일 존재 확인
-- [ ] `+page.svelte`에 `viewMode` 상태·조건부 렌더링 분기·`browser` import 심볼 grep 확인
-- [ ] SSR 크래시 방지 정적 확인 — `$state` 초기값 라인에 `localStorage` 직접 호출이 없는지 grep (`localStorage`는 `$effect`/`onMount`/`browser` 가드 블록에만 등장해야 함)
+- [x] `PipelineGraphView.svelte` 신규 파일 존재 확인
+- [x] `+page.svelte`에 `viewMode` 상태·조건부 렌더링 분기·`browser` import 심볼 grep 확인
+- [x] SSR 크래시 방지 정적 확인 — `localStorage`는 `onMount`/`browser` 가드 블록에만 존재 (grep 확인)
 
 > `node_modules`가 gitignored라 워크트리엔 없음 → `npm run check`/`build`는 Z-pre에서 실행 불가. 아래 Node 정적 게이트로 강등(머지 직후 원본 main에서 실행).
 
