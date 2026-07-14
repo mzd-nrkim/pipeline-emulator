@@ -1,6 +1,6 @@
 # 파이프라인 에뮬레이터 — MVP 실행 계획서 (Week 1)
 
-> 상태: 게이트통과-머지대기
+> 상태: 머지완료-통테대기
 
 > 작성일: 2026-07-14 / 상태: 초안 (Week 1 착수용)
 > 근거: [pipeline-emulator-decisions.md](../pipeline-emulator-decisions.md) · [lodestar-reuse-assessment.md](../lodestar-reuse-assessment.md) · [pipeline-emulator-sample-data-plan.md](./pipeline-emulator-sample-data-plan.md) · [design-prompt-monitoring-dashboard.md](../design-prompt-monitoring-dashboard.md)

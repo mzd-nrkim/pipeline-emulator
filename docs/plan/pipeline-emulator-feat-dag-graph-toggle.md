@@ -1,6 +1,6 @@
 # 파이프라인 뷰 토글 — Grid / DAG Graph 2-Mode
 
-> 상태: 게이트통과-머지대기
+> 상태: 머지완료-통테대기
 
 > 작성일: 2026-07-14
 > 선행 계획서: [pipeline-emulator-week2-plan.md](./pipeline-emulator-week2-plan.md) (T2 @xyflow 항목에서 이관)
@@ -104,8 +104,8 @@ T1은 전부 `+page.svelte` **단일 파일** 편집 → 한 에이전트로 묶
 
 #### Node 정적 게이트 (머지 직후 원본 main, node_modules 상주)
 
-- [ ] `npm run check` 오류 0건 (svelte-check 타입/문법)
-- [ ] `npm run build` 성공 (프로덕션 빌드 — @xyflow import·SSR 안전성까지 검증)
+- [x] `npm run check` 오류 0건 (svelte-check 타입/문법) — @xyflow Writable store API 수정 후 오류 0건 확인
+- [x] `npm run build` 성공 (프로덕션 빌드 — @xyflow import·SSR 안전성까지 검증)
 
 #### Z-post. push 후 (앱 기동, 브라우저 수동 검증)
 
