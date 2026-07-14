@@ -38,7 +38,7 @@
     if (priorityFilter) params.set('importance', priorityFilter);
     if (vehicleFilter) params.set('vehicle', vehicleFilter);
     const qs = params.toString();
-    goto(`/search${qs ? '?' + qs : ''}`, { replaceState: true, noScroll: true });
+    goto(`/${page.params.mode}/search${qs ? '?' + qs : ''}`, { replaceState: true, noScroll: true });
   }
 </script>
 

@@ -32,7 +32,7 @@
     if (selectedStageId) params.set('stage', selectedStageId);
     if (selectedRunId) params.set('runA', selectedRunId);
     const qs = params.toString();
-    goto(`/pipeline${qs ? '?' + qs : ''}`, { replaceState: true, noScroll: true });
+    goto(`/${page.params.mode}/pipeline${qs ? '?' + qs : ''}`, { replaceState: true, noScroll: true });
   }
 
   const durationLabel = (ms: number | null) => ms ? `${(ms / 1000).toFixed(1)}s` : '—';
@@ -211,7 +211,7 @@
 
           <div>
             <a
-              href="/documents"
+              href={`/${page.params.mode}/documents`}
               class="text-xs font-mono font-bold text-primary underline underline-offset-4 hover:text-primary/80"
             >
               이 단계를 통과한 문서 보기 →

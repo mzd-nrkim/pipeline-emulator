@@ -33,7 +33,7 @@
     if (maskedOnly) params.set('masked', 'true');
     if (selectedId) params.set('doc', selectedId);
     const qs = params.toString();
-    goto(`/documents${qs ? '?' + qs : ''}`, { replaceState: true, noScroll: true });
+    goto(`/${page.params.mode}/documents${qs ? '?' + qs : ''}`, { replaceState: true, noScroll: true });
   }
 
   const priorityColor: Record<string, string> = {
