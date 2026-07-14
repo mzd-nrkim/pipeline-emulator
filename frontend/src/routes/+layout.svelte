@@ -8,14 +8,14 @@
   const currentPath = $derived(page.url.pathname);
   const mode = $derived(page.params.mode ?? 'sample');
 
-  const subPath = $derived(() => {
+  const subPath = $derived.by(() => {
     const parts = currentPath.split('/');
     if (parts.length > 2 && (parts[1] === 'sample' || parts[1] === 'real')) {
       const rest = parts.slice(2).join('/');
       return rest ? '/' + rest : '';
     }
     return '';
-  })();
+  });
 
   const navItems = $derived([
     { href: `/${mode}`, label: '개요', id: 'overview' },
