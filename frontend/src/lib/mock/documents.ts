@@ -1,0 +1,67 @@
+import type { Document } from '../api/types.js';
+
+export const mockDocuments: Document[] = [
+  {
+    id: 'AP00005928||1',
+    priority: 'S',
+    security: 'RESTRICTED',
+    stageReached: 'gold_staged',
+    masked: true,
+    vehicleModel: 'NX01',
+    title: 'CFT 문제이력 NX01 우선순위S 1번',
+    piiCounts: [
+      { type: 'KR_PHONE', label: '전화번호', count: 2, planned: false },
+      { type: 'KR_RRN', label: '주민번호', count: 1, planned: false },
+      { type: 'KR_EMAIL', label: '이메일', count: 1, planned: false },
+      { type: 'KR_NAME', label: '이름', count: 3, planned: true },
+      { type: 'KR_ADDRESS', label: '주소', count: 1, planned: true },
+    ],
+  },
+  {
+    id: 'AP00005929||1',
+    priority: 'A',
+    security: 'INTERNAL',
+    stageReached: 'gold_staged',
+    masked: true,
+    vehicleModel: 'NX01',
+    title: 'CFT 문제이력 NX01 우선순위A 1번',
+    piiCounts: [
+      { type: 'KR_PHONE', label: '전화번호', count: 1, planned: false },
+      { type: 'KR_EMAIL', label: '이메일', count: 2, planned: false },
+      { type: 'KR_BANK_ACCOUNT', label: '계좌번호', count: 1, planned: false },
+      { type: 'KR_NAME', label: '이름', count: 2, planned: true },
+    ],
+  },
+  {
+    id: 'AP00005930||1',
+    priority: 'B',
+    security: 'INTERNAL',
+    stageReached: 'gold_staged',
+    masked: false,
+    vehicleModel: 'NX02',
+    title: 'CFT 문제이력 NX02 우선순위B 1번',
+    piiCounts: [
+      { type: 'KR_NAME', label: '이름', count: 1, planned: true },
+    ],
+  },
+  {
+    id: 'AP00005931||1',
+    priority: 'C',
+    security: 'PUBLIC',
+    stageReached: 'gold_staged',
+    masked: false,
+    vehicleModel: 'NX02',
+    title: 'CFT 문제이력 NX02 우선순위C 1번',
+    piiCounts: [],
+  },
+  {
+    id: 'AP00005932||1',
+    priority: 'D',
+    security: 'PUBLIC',
+    stageReached: 'gold_staged',
+    masked: false,
+    vehicleModel: 'GN01',
+    title: 'CFT 문제이력 GN01 우선순위D 1번',
+    piiCounts: [],
+  },
+];
