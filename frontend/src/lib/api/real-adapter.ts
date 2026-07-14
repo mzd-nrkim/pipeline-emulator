@@ -28,5 +28,6 @@ export function subscribePipelineStatus(onChange: (event: unknown) => void): () 
   es.onmessage = (e: MessageEvent) => {
     try { onChange(JSON.parse(e.data)); } catch { /* ignore */ }
   };
+  es.onerror = () => es.close();
   return () => es.close();
 }
