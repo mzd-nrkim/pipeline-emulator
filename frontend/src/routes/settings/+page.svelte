@@ -4,9 +4,11 @@
   import type { Dimension } from '$lib/api/types.js';
 
   let dims = $state<Dimension[]>(mockDimensions.map(d => ({ ...d })));
+  let pendingRestart = $state(false);
 
   function setDim(key: string, value: string) {
     dims = dims.map(d => d.key === key ? { ...d, current: value } : d);
+    pendingRestart = true;
   }
 
   function isEnabled(d: Dimension): boolean {
@@ -23,6 +25,12 @@
 </svelte:head>
 
 <div class="space-y-6">
+  {#if pendingRestart}
+    <div class="border border-amber-500/40 bg-amber-500/10 text-amber-600 text-xs font-mono p-3 rounded-xs flex items-center gap-2">
+      <span class="font-bold uppercase">재시작 필요</span>
+      <span class="text-muted-foreground">— 변경 사항은 에뮬레이터 재시작 후 적용됩니다. 백엔드 즉시 반영은 지원되지 않습니다.</span>
+    </div>
+  {/if}
   <header class="space-y-2">
     <div class="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest border-l-2 border-primary pl-2">구성</div>
     <h1 class="text-2xl font-extrabold tracking-tighter">에뮬레이터 차원</h1>
