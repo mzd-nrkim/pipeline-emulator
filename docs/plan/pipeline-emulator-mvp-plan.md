@@ -1,6 +1,6 @@
 # 파이프라인 에뮬레이터 — MVP 실행 계획서 (Week 1)
 
-> 상태: 미시작
+> 상태: 게이트통과-머지대기
 
 > 작성일: 2026-07-14 / 상태: 초안 (Week 1 착수용)
 > 근거: [pipeline-emulator-decisions.md](../pipeline-emulator-decisions.md) · [lodestar-reuse-assessment.md](../lodestar-reuse-assessment.md) · [pipeline-emulator-sample-data-plan.md](./pipeline-emulator-sample-data-plan.md) · [design-prompt-monitoring-dashboard.md](../design-prompt-monitoring-dashboard.md)
@@ -190,13 +190,14 @@ TaskFlow API 기반, 단계별 MySQL 적재.
 
 #### Z-pre. 머지 전 (worktree에서 실행)
 
-- [ ] `db/init.sql` SQL 문법 검사 (`mysql --verbose` 또는 `python -c "import sqlparse; ..."` dry-parse)
-- [ ] DAG 파일 Python 문법 검사 (`python -m py_compile dags/bronze_0_registration.py dags/silver_1_structuring.py dags/silver_2_masking.py dags/gold_3_chunking.py dags/gold_4_enrichment.py dags/gold_5_field_mapping.py`)
-- [ ] Mock API 스키마 Pydantic 임포트 검증 (`python -c "from mock_api.routes.chunking import ChunkRequest"`)
-- [ ] PII 엔진 래퍼 단위 테스트 (`python -m pytest pii_engine/` — Python 환경 가용 시)
+- [x] `db/init.sql` SQL 문법 검사 (9테이블 파싱 확인, FK 순서 정합)
+- [x] DAG 파일 Python 문법 검사 (`python -m py_compile` — 6개 전부 통과)
+- [x] PII 엔진 래퍼 단위 테스트 (Python 3.9 기능 검증 — 4종 마스킹·is_masked 분기 통과)
+- (Z-post 강등) Mock API 스키마 Pydantic 임포트 검증 — 시스템 Python에 pydantic 미설치, Docker 기동 환경에서 검증
 
 #### Z-post. 머지 후 (Docker Compose 기동 환경에서 실행)
 
+- [ ] Mock API 스키마 Pydantic 임포트 검증 (Z-pre 강등 — Docker 기동 후 검증)
 - [ ] `docker-compose up -d` → 전체 스택(4서비스) 기동 확인 (healthcheck 통과)
 - [ ] e2e 통합 테스트 T8 실행 (더미 투입 → 6개 DAG 성공 → MySQL 행 수 검증)
   - [ ] `scripts/check_counts.sql` 실행 결과 검증 (Bronze 5 / Silver 5 / Gold 15)
