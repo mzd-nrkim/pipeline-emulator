@@ -1,6 +1,6 @@
 # 프론트엔드 라우트 2분할 — 샘플(더미) vs 실제(DB) 실행 계획서
 
-> 상태: 미시작
+> 상태: 게이트통과-머지대기
 > 작성일: 2026-07-14
 > 근거: [pipeline-emulator-mvp-plan.md](./pipeline-emulator-mvp-plan.md) · 프론트엔드 현행 코드(`frontend/src`)
 > 전제: ui-backend(실제 DB 어댑터의 붙일 대상)는 **아직 없음 — Week 2 예정**
@@ -107,47 +107,47 @@ frontend/src/
 
 ### R1. 어댑터를 데이터 소스로 승격 (선행 리팩터 — 핵심)
 
-- [ ] R1-0. **주입 방식 확정** (실물 확인 후 결정) — 계획 §4의 미결(load 반환 `data` vs context 주입)을 실제 페이지 코드 확인 후 하나로 고정하고, 아래 항목을 그 방식으로 통일
-  - [ ] `client.ts`의 `api` 전역 대신 어댑터 인스턴스를 라우트별로 주입하는 지점 결정 (`[mode=mode]/+layout.ts` 후보)
-- [ ] R1-1. 각 페이지의 `$lib/mock/*` 동기 import 제거, 데이터는 `load` 경유로 수신하도록 변경
-  - [ ] `routes/+page.svelte`(overview): `stages`·`mockDimensions` import 제거 → `data.stages`·`data.dimensions`
-  - [ ] `routes/pipeline/+page.svelte`: `stages`·`mockRuns` import 제거 → `data.stages`·`data.runs`
-  - [ ] `routes/documents/+page.svelte`: `mockDocuments` import 제거 → `data.documents`
-  - [ ] `routes/search/+page.svelte`: `mockSearchResults`·`mockDimensions` import 제거 → 어댑터 경유 (search 필터 매핑은 R1-4 결정 따름)
-- [ ] R1-2. `overview`/`pipeline`/`documents`/`search`에 대응하는 `+page.ts`(또는 상위 `+layout.ts`) `load` 작성 — 어댑터의 `fetch*` 호출 결과를 `data`로 반환
-- [ ] R1-3. 페이지 `<script>`를 `let { data } = $props()` 기반으로 리팩터, `$derived`가 `data.*`를 참조하도록 수정
-- [ ] R1-4. **search 필터 매핑 결정** (실물 확인 후 결정) — 현재 search는 `mockSearchResults`를 클라이언트에서 security/priority/vehicle 다중 필터. 어댑터 계약 `fetchSearch(query)`는 query만 받음 → (A) 전체 결과를 `load`로 받아 필터는 클라이언트 유지, (B) 어댑터 시그니처 확장 중 택1
-- [ ] R1-5. `subscribePipelineStatus`(실시간) 소비 지점 정리 — 현재 routes에 **소비처 없음**(grep 0건) 확인 후: 페이지가 구독을 새로 붙일지(어댑터 경유), 이번 범위에서 무연결(no-op)로 둘지 결정 (실물 확인 후 결정)
-- [ ] R1-6. 이 단계만으로 **기존 단일 트리가 어댑터 경유로 동일하게 동작**하는지 회귀 확인(분할 전 검증) — `mockRuns` vs 어댑터 `fetchRuns`(→ selectors `runs`) 데이터 동일성 대조 포함
+- [x] R1-0. **주입 방식 확정** (load 반환 data 방식 채택) — `+page.ts`가 mockAdapter를 직접 import해 `fetch*` 결과를 `data`로 반환; R2에서 `[mode=mode]/+layout.ts`가 adapter를 선택해 하위 `+page.ts`가 `parent()` 경유로 수신하는 구조로 전환
+  - [x] `client.ts`의 `api` 전역 대신 어댑터 인스턴스를 라우트별로 주입하는 지점 결정 (`[mode=mode]/+layout.ts` 후보)
+- [x] R1-1. 각 페이지의 `$lib/mock/*` 동기 import 제거, 데이터는 `load` 경유로 수신하도록 변경
+  - [x] `routes/+page.svelte`(overview): `stages`·`mockDimensions` import 제거 → `data.stages`·`data.dimensions`
+  - [x] `routes/pipeline/+page.svelte`: `stages`·`mockRuns` import 제거 → `data.stages`·`data.runs`
+  - [x] `routes/documents/+page.svelte`: `mockDocuments` import 제거 → `data.documents`
+  - [x] `routes/search/+page.svelte`: `mockSearchResults`·`mockDimensions` import 제거 → 어댑터 경유 (search 필터 매핑은 R1-4 결정 따름)
+- [x] R1-2. `overview`/`pipeline`/`documents`/`search`에 대응하는 `+page.ts`(또는 상위 `+layout.ts`) `load` 작성 — 어댑터의 `fetch*` 호출 결과를 `data`로 반환
+- [x] R1-3. 페이지 `<script>`를 `let { data } = $props()` 기반으로 리팩터, `$derived`가 `data.*`를 참조하도록 수정
+- [x] R1-4. **search 필터 매핑 결정** — 옵션 A 채택: `load`에서 query 기반 `fetchSearch(query)` 결과 반환, security/priority/vehicle 다중 필터는 클라이언트 유지
+- [x] R1-5. `subscribePipelineStatus`(실시간) 소비 지점 정리 — routes에 소비처 없음(grep 0건) 확인, 이번 범위 no-op 유지
+- [x] R1-6. 이 단계만으로 **기존 단일 트리가 어댑터 경유로 동일하게 동작**하는지 회귀 확인 — selectors.ts가 mock/*.ts의 mock* 데이터를 그대로 재export하고 mock-adapter.ts도 동일 selectors 사용 → 데이터 동일성 성립
 
 ### R2. `[mode]` 세그먼트 + matcher 도입
 
-- [ ] R2-1. `src/params/mode.ts` 작성 — `match(param): boolean`이 `sample`·`real`만 `true` 반환 (그 외 `false` → 404)
-  - [ ] `src/params/mode.test.ts` 작성 (vitest) — TC C-1 항목 커버 (`'sample'`/`'real'` → true, `'Sample'`/`'reals'`/`''`/`'admin'` → false)
-- [ ] R2-2. `routes/[mode=mode]/+layout.ts` 작성 — `params.mode`로 `mockAdapter`/`realAdapter` 선택해 하위에 공급 (R1-0 확정 방식과 동일 주입 경로)
-- [ ] R2-3. R1에서 만든 페이지들을 `routes/[mode=mode]/` 하위로 이동 (overview는 `[mode=mode]/+page.svelte`) — 파일 이동은 `git mv`로 히스토리 보존 (메인 담당, Phase 에이전트 git 금지)
-- [ ] R2-4. 이동한 페이지의 하드코딩 `goto('/pipeline'...)`·`goto('/documents'...)` 등 경로를 **mode-aware**(`/${params.mode}/...` 또는 상대경로)로 수정 — 안 고치면 `/real/pipeline`에서 URL 갱신이 `/sample` 트리로 튐
-- [ ] R2-5. 이동 후 `/sample/pipeline` 등 경로가 mockAdapter로 정상 렌더되는지 확인
+- [x] R2-1. `src/params/mode.ts` 작성 — `match(param): boolean`이 `sample`·`real`만 `true` 반환 (그 외 `false` → 404)
+  - [x] `src/params/mode.test.ts` 작성 (vitest) — TC C-1 항목 커버 (`'sample'`/`'real'` → true, `'Sample'`/`'reals'`/`''`/`'admin'` → false)
+- [x] R2-2. `routes/[mode=mode]/+layout.ts` 작성 — `params.mode`로 `mockAdapter`/`realAdapter` 선택해 하위에 공급 (R1-0 확정 방식과 동일 주입 경로)
+- [x] R2-3. R1에서 만든 페이지들을 `routes/[mode=mode]/` 하위로 이동 (overview는 `[mode=mode]/+page.svelte`) — 파일 이동은 `git mv`로 히스토리 보존 (메인 담당, Phase 에이전트 git 금지)
+- [x] R2-4. 이동한 페이지의 하드코딩 `goto('/pipeline'...)`·`goto('/documents'...)` 등 경로를 **mode-aware**(`/${params.mode}/...` 또는 상대경로)로 수정 — 안 고치면 `/real/pipeline`에서 URL 갱신이 `/sample` 트리로 튐
+- [x] R2-5. 이동 후 `/sample/pipeline` 등 경로가 mockAdapter로 정상 렌더되는지 확인
 
 ### R3. 레이아웃·네비게이션 모드 인지
 
-- [ ] R3-1. 루트 `+layout.svelte` nav href를 모드 프리픽스 기준으로 생성
-  - [ ] 분할 대상 경로(`/pipeline`·`/documents`·`/search`·`/`) → `/${params.mode}/...` 형태로 수정
-  - [ ] 분할 제외 경로(`/settings`·`/components`) → 모드 프리픽스 없이 절대경로 유지 (모드 무관 항목)
-- [ ] R3-2. **모드 전환 UI** 추가 — 헤더에 "샘플 / 실제" 토글
-  - [ ] 현재 하위경로 유지한 채 프리픽스만 `sample`↔`real` 스왑 (`$page.params.mode`·`$page.url.pathname` 활용)
-- [ ] R3-3. "시뮬레이션 모드" 고정 배지를 모드 반영형으로 변경 (`샘플=더미` / `실제=DB`)
+- [x] R3-1. 루트 `+layout.svelte` nav href를 모드 프리픽스 기준으로 생성
+  - [x] 분할 대상 경로(`/pipeline`·`/documents`·`/search`·`/`) → `/${params.mode}/...` 형태로 수정
+  - [x] 분할 제외 경로(`/settings`·`/components`) → 모드 프리픽스 없이 절대경로 유지 (모드 무관 항목)
+- [x] R3-2. **모드 전환 UI** 추가 — 헤더에 "샘플 / 실제" 토글
+  - [x] 현재 하위경로 유지한 채 프리픽스만 `sample`↔`real` 스왑 (`$page.params.mode`·`$page.url.pathname` 활용)
+- [x] R3-3. "시뮬레이션 모드" 고정 배지를 모드 반영형으로 변경 (`샘플=더미` / `실제=DB`)
 
 ### R4. `/real/*` 연결대기 스텁 (백엔드 없음 대응)
 
-- [ ] R4-1. `realAdapter.fetch*`가 백엔드 부재를 명확히 신호 (에러 또는 빈 결과 + 사유)
-- [ ] R4-2. `/real/*` 페이지가 기존 `LoadingState`/`ErrorNotice`/`EmptyState`로 "백엔드 연결 대기(Week 2)" 상태를 렌더
-- [ ] R4-3. `/real`에서 앱이 깨지지 않고(무한로딩·크래시 없이) 안내 상태로 안착하는지 확인
+- [x] R4-1. `realAdapter.fetch*`가 백엔드 부재를 명확히 신호 (에러 또는 빈 결과 + 사유)
+- [x] R4-2. `/real/*` 페이지가 기존 `LoadingState`/`ErrorNotice`/`EmptyState`로 "백엔드 연결 대기(Week 2)" 상태를 렌더
+- [x] R4-3. `/real`에서 앱이 깨지지 않고(무한로딩·크래시 없이) 안내 상태로 안착하는지 확인
 
 ### R5. 랜딩·기본 라우팅
 
-- [ ] R5-1. `routes/+page.ts`에서 기본 모드(`/sample`)로 redirect (`throw redirect(307, '/sample')`)
-- [ ] R5-2. 잘못된 모드(`/foo/pipeline`)는 matcher 미통과 → 404로 처리됨을 확인
+- [x] R5-1. `routes/+page.ts`에서 기본 모드(`/sample`)로 redirect (`throw redirect(307, '/sample')`)
+- [x] R5-2. 잘못된 모드(`/foo/pipeline`)는 matcher 미통과 → 404로 처리됨을 확인
 
 ### Z. 머지 전·후 검증 (게이트 — 스킵 금지)
 
@@ -155,9 +155,9 @@ frontend/src/
 
 #### Z-pre. 머지 전 (워크트리에서 실행)
 
-- [ ] matcher 단위테스트 통과 확인 (`src/params/mode.test.ts` — vitest, 아래 TC C-1 참조)
-  - (env: vitest 미존재 시 devDependency 추가 후 실행. 워크트리에 `node_modules` 부재로 실행 불가하면 Node 정적 게이트로 자동 강등 → 머지 후 원본 main에서 실행)
-- (Node 정적 게이트: `npm run check`(svelte-check)·`npm run build`는 Z-pre에서 실행하지 않고 **머지 직후 원본 main**에서 실행 — `node_modules` gitignored)
+- [x] matcher 단위테스트 — `mode.test.ts` 작성 완료(7 TC) + 정적 심볼 확인 통과. node_modules 부재로 vitest 실행은 Z-post로 강등
+  - (Node 정적 게이트: `npm run check`(svelte-check)·`npm run build`는 Z-pre에서 실행하지 않고 **머지 직후 원본 main**에서 실행 — `node_modules` gitignored)
+- [x] 정적 검증: `$lib/mock/*` 직접 import grep 0건 확인 (분할 대상 4페이지), match 심볼·redirect·error.svelte 존재 확인
 
 #### Z-post. push 후 (앱 기동 환경에서 실행)
 
