@@ -1,6 +1,6 @@
 # 파이프라인 뷰 토글 — Grid / DAG Graph 2-Mode
 
-> 상태: 머지완료-통테대기
+> 상태: 통테통과-완료
 
 > 작성일: 2026-07-14
 > 선행 계획서: [pipeline-emulator-week2-plan.md](./pipeline-emulator-week2-plan.md) (T2 @xyflow 항목에서 이관)
@@ -109,15 +109,15 @@ T1은 전부 `+page.svelte` **단일 파일** 편집 → 한 에이전트로 묶
 
 #### Z-post. push 후 (앱 기동, 브라우저 수동 검증)
 
-- [ ] `/pipeline` 접속 → Grid 뷰(기본) 렌더링 정상 — 기존 UI 회귀 없음
-- [ ] Graph 뷰 토글 → @xyflow 그래프 표시, 노드 8개(Bronze2·Silver2·Gold3·Serving1) + 엣지 방향 렌더
-- [ ] Graph 뷰 노드 클릭 → 인스펙터 패널·URL(`?stage=`) 갱신 (Grid와 동일 동작)
-- [ ] Grid→Graph→Grid 재토글 → 원복 정상 (Inverse)
-- [ ] localStorage 저장 확인 — Graph 선택 후 새로고침 시 Graph 유지, 콘솔에 SSR 크래시/hydration 경고 없음
-- [ ] Serving(planned) 노드 Graph 뷰에서 구분 표시(점선/흐림) 확인
-- [ ] 모바일 레이아웃 — Grid 반응형 유지, Graph 스크롤/핀치 동작
-  - teardown: 검증 후 DevTools > Application > Local Storage에서 `pipelineViewMode` 키 삭제 (기본값 재현 상태로 복귀)
-- [ ] (결정) 자동 Playwright e2e 하네스 도입 여부 — 현재 test 하네스 전무(고려사항 ④). 도입 시 `frontend/e2e/pipeline-view-toggle.spec.ts`(토글·localStorage 복원·노드 클릭) 작성, 미도입 시 위 수동 검증으로 대체 (실물 확인 후 결정)
+- [x] `/pipeline` 접속 → Grid 뷰(기본) 렌더링 정상 — 기존 UI 회귀 없음 (Playwright: 기본값은 Grid 뷰)
+- [x] Graph 뷰 토글 → @xyflow 그래프 표시, 노드 8개(Bronze2·Silver2·Gold3·Serving1) + 엣지 방향 렌더 (Playwright: Graph 토글 클릭·Graph 노드 수 = 8)
+- [x] Graph 뷰 노드 클릭 → 인스펙터 패널·URL(`?stage=`) 갱신 (Grid와 동일 동작) (Playwright: Graph 뷰 노드 클릭)
+- [x] Grid→Graph→Grid 재토글 → 원복 정상 (Inverse) (Playwright: Grid→Graph→Grid 재토글)
+- [x] localStorage 저장 확인 — Graph 선택 후 새로고침 시 Graph 유지, 콘솔에 SSR 크래시/hydration 경고 없음 (Playwright: localStorage 복원·SSR 에러 없음)
+- [x] Serving(planned) 노드 Graph 뷰에서 구분 표시(점선/흐림) 확인 (Playwright: Serving planned 노드 스타일)
+- [x] 모바일 레이아웃 — Grid 반응형 유지, Graph 스크롤/핀치 동작 (Playwright: 모바일 뷰포트 390px)
+  - teardown: 검증 후 DevTools > Application > Local Storage에서 `pipelineViewMode` 키 삭제 (기본값 재현 상태로 복귀) — Playwright afterEach로 자동 처리
+- [x] (결정) 자동 Playwright e2e 하네스 도입 — `frontend/e2e/pipeline-view-toggle.spec.ts` 작성 완료 (11개 테스트, 11 passed)
 
 ---
 
