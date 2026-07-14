@@ -10,17 +10,17 @@
   import PiiCountGrid from '$lib/components/PiiCountGrid.svelte';
   import MaskingComparison from '$lib/components/MaskingComparison.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
-  import { stages } from '$lib/mock/selectors.js';
-  import { mockRuns } from '$lib/mock/runs.js';
-  import type { Stage } from '$lib/api/types.js';
+  import type { Stage, Run } from '$lib/api/types.js';
+
+  let { data }: { data: { stages: Stage[]; runs: Run[] } } = $props();
 
   let selectedStageId = $state(page.url.searchParams.get('stage') ?? 'silver_masked');
   let selectedRunId = $state(page.url.searchParams.get('runA') ?? '');
   let ingested = $state(true);
   let running = $state(false);
 
-  const selectedStage = $derived(stages.find(s => s.id === selectedStageId) ?? stages[0]);
-  const selectedRun = $derived(mockRuns.find(r => r.id === selectedRunId) ?? null);
+  const selectedStage = $derived(data.stages.find(s => s.id === selectedStageId) ?? data.stages[0]);
+  const selectedRun = $derived(data.runs.find(r => r.id === selectedRunId) ?? null);
 
   function selectStage(id: string) {
     selectedStageId = id;
@@ -32,7 +32,7 @@
     if (selectedStageId) params.set('stage', selectedStageId);
     if (selectedRunId) params.set('runA', selectedRunId);
     const qs = params.toString();
-    goto(`/pipeline${qs ? '?' + qs : ''}`, { replaceState: true, noScroll: true });
+    goto(`/${page.params.mode}/pipeline${qs ? '?' + qs : ''}`, { replaceState: true, noScroll: true });
   }
 
   const durationLabel = (ms: number | null) => ms ? `${(ms / 1000).toFixed(1)}s` : '—';
@@ -125,13 +125,13 @@
           데이터 처리 흐름
         </div>
         <span class="text-[10px] font-mono text-muted-foreground uppercase">
-          {stages.filter(s => !s.planned).length}개 활성 단계 · {stages.filter(s => s.planned).length}개 예정
+          {data.stages.filter(s => !s.planned).length}개 활성 단계 · {data.stages.filter(s => s.planned).length}개 예정
         </span>
       </div>
       <div class="relative">
         <div class="absolute top-1/2 left-0 right-0 h-px bg-border -translate-y-1/2 hidden lg:block -z-10" aria-hidden="true"></div>
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-          {#each stages as stage, i}
+          {#each data.stages as stage, i}
             <div class={i % 2 === 1 ? 'lg:mt-8' : ''}>
               <StageNode
                 {stage}
@@ -211,7 +211,7 @@
 
           <div>
             <a
-              href="/documents"
+              href={`/${page.params.mode}/documents`}
               class="text-xs font-mono font-bold text-primary underline underline-offset-4 hover:text-primary/80"
             >
               이 단계를 통과한 문서 보기 →
@@ -232,7 +232,7 @@
           </button>
         </div>
         <ul class="divide-y divide-border flex-1">
-          {#each mockRuns as run}
+          {#each data.runs as run}
             <RunHistoryItem
               {run}
               active={selectedRunId === run.id}

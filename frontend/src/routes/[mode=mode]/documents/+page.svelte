@@ -4,22 +4,23 @@
   import PlannedBadge from '$lib/components/PlannedBadge.svelte';
   import MaskingComparison from '$lib/components/MaskingComparison.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
-  import { mockDocuments } from '$lib/mock/documents.js';
   import type { Document } from '$lib/api/types.js';
+
+  let { data }: { data: { documents: Document[] } } = $props();
 
   let priorityFilter = $state(page.url.searchParams.get('priority') ?? 'all');
   let maskedOnly = $state(page.url.searchParams.get('masked') === 'true');
-  let selectedId = $state(page.url.searchParams.get('doc') ?? mockDocuments[0]?.id ?? '');
+  let selectedId = $state(page.url.searchParams.get('doc') ?? data.documents[0]?.id ?? '');
 
   const filtered = $derived(
-    mockDocuments.filter(d => {
+    data.documents.filter(d => {
       if (priorityFilter !== 'all' && d.priority !== priorityFilter) return false;
       if (maskedOnly && !d.masked) return false;
       return true;
     })
   );
 
-  const selected = $derived(mockDocuments.find(d => d.id === selectedId) ?? mockDocuments[0]);
+  const selected = $derived(data.documents.find(d => d.id === selectedId) ?? data.documents[0]);
 
   function selectDoc(id: string) {
     selectedId = id;
@@ -32,7 +33,7 @@
     if (maskedOnly) params.set('masked', 'true');
     if (selectedId) params.set('doc', selectedId);
     const qs = params.toString();
-    goto(`/documents${qs ? '?' + qs : ''}`, { replaceState: true, noScroll: true });
+    goto(`/${page.params.mode}/documents${qs ? '?' + qs : ''}`, { replaceState: true, noScroll: true });
   }
 
   const priorityColor: Record<string, string> = {
