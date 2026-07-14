@@ -72,25 +72,25 @@ T1은 전부 `+page.svelte` **단일 파일** 편집 → 한 에이전트로 묶
 
 ### T1. 토글 상태 + 버튼 UI (`pipeline/+page.svelte` — 단일 파일, 한 에이전트)
 
-- [ ] T1-1. `viewMode` 상태 변수 추가 (SSR 안전)
-  - [ ] `$state<'grid' | 'graph'>('grid')`로 초기값을 'grid' 고정 (localStorage 직접 호출 금지 — 고려사항 ①)
-  - [ ] `$app/environment`의 `browser` import 후, `$effect` 또는 `onMount`에서 `localStorage.getItem('pipelineViewMode')`를 읽어 화이트리스트(`'grid'|'graph'`) 통과 값만 `viewMode`에 반영
-- [ ] T1-2. `viewMode` 변경 핸들러 — `browser` 가드 하에 `localStorage.setItem('pipelineViewMode', viewMode)` 동기화 (`$effect` 또는 토글 콜백 내)
-- [ ] T1-3. 섹션 헤더("데이터 처리 흐름", `<section>` 첫 `<div>`) 우측에 `Grid | Graph` 2-way 버튼 그룹 삽입 (active 강조, aria-pressed)
-- [ ] T1-4. 흐름도 영역 조건부 렌더링 분기 — `{#if viewMode === 'graph'}<PipelineGraphView {stages} onselect={selectStage} />{:else}...기존 grid...{/if}` (T2 컴포넌트 존재 후 배선)
+- [x] T1-1. `viewMode` 상태 변수 추가 (SSR 안전)
+  - [x] `$state<'grid' | 'graph'>('grid')`로 초기값을 'grid' 고정 (localStorage 직접 호출 금지 — 고려사항 ①)
+  - [x] `$app/environment`의 `browser` import 후, `$effect` 또는 `onMount`에서 `localStorage.getItem('pipelineViewMode')`를 읽어 화이트리스트(`'grid'|'graph'`) 통과 값만 `viewMode`에 반영
+- [x] T1-2. `viewMode` 변경 핸들러 — `browser` 가드 하에 `localStorage.setItem('pipelineViewMode', viewMode)` 동기화 (`$effect` 또는 토글 콜백 내)
+- [x] T1-3. 섹션 헤더("데이터 처리 흐름", `<section>` 첫 `<div>`) 우측에 `Grid | Graph` 2-way 버튼 그룹 삽입 (active 강조, aria-pressed)
+- [x] T1-4. 흐름도 영역 조건부 렌더링 분기 — `{#if viewMode === 'graph'}<PipelineGraphView {stages} onselect={selectStage} />{:else}...기존 grid...{/if}` (T2 컴포넌트 존재 후 배선)
 
 ### T2. DAG Graph 뷰 컴포넌트 (`PipelineGraphView.svelte` — 신규 파일, 독립)
 
-- [ ] T2-1. `@xyflow/svelte`에서 `SvelteFlow` · `Background` · `Controls` import + 필요 시 `dist/style.css` import (실물 export 확인 후 결정)
-- [ ] T2-2. `stages: Stage[]` prop 수신 → nodes/edges 배열 변환 로직
-  - [ ] 레이어별 x 좌표 고정: Bronze(index 0–1) / Silver(2–3) / Gold(4–6, 3노드) / Serving(7) — 실측 인덱스(고려사항 ②)
-  - [ ] 순차 엣지 정의 (`stages[i] → stages[i+1]`, animated 옵션)
-  - [ ] 빈 `stages`(0노드)에서 크래시 없이 빈 그래프 반환 (TC Cardinality)
-- [ ] T2-3. 커스텀 노드 표시 — 단계 이름·레이어 색상·상태 배지·문서 수, `planned` 노드는 점선/흐림 구분
-  - [ ] `StageNode.svelte`(props `stage`, `compact`, `onclick`) 재사용 or 인라인 축소판 (실물 확인 후 결정)
-- [ ] T2-4. 노드 클릭 핸들러 → 부모로부터 받은 `onselect(id)` 콜백 호출 (부모의 `selectStage(id)` → 인스펙터 + URL 갱신)
-- [ ] T2-5. `nodesDraggable={false}` · `nodesConnectable={false}` · `elementsSelectable` 읽기전용 설정
-- [ ] T2-6. 컨테이너 높이 고정 (`height: 420px` 또는 `min-h-[420px]`) — xyflow 필수 요건
+- [x] T2-1. `@xyflow/svelte`에서 `SvelteFlow` · `Background` · `Controls` import + 필요 시 `dist/style.css` import (실물 export 확인 후 결정)
+- [x] T2-2. `stages: Stage[]` prop 수신 → nodes/edges 배열 변환 로직
+  - [x] 레이어별 x 좌표 고정: Bronze(index 0–1) / Silver(2–3) / Gold(4–6, 3노드) / Serving(7) — 실측 인덱스(고려사항 ②)
+  - [x] 순차 엣지 정의 (`stages[i] → stages[i+1]`, animated 옵션)
+  - [x] 빈 `stages`(0노드)에서 크래시 없이 빈 그래프 반환 (TC Cardinality)
+- [x] T2-3. 커스텀 노드 표시 — 단계 이름·레이어 색상·상태 배지·문서 수, `planned` 노드는 점선/흐림 구분
+  - [x] `StageNode.svelte`(props `stage`, `compact`, `onclick`) 재사용 or 인라인 축소판 (실물 확인 후 결정)
+- [x] T2-4. 노드 클릭 핸들러 → 부모로부터 받은 `onselect(id)` 콜백 호출 (부모의 `selectStage(id)` → 인스펙터 + URL 갱신)
+- [x] T2-5. `nodesDraggable={false}` · `nodesConnectable={false}` · `elementsSelectable` 읽기전용 설정
+- [x] T2-6. 컨테이너 높이 고정 (`height: 420px` 또는 `min-h-[420px]`) — xyflow 필수 요건
 
 ### Z. 머지 전·후 검증 (게이트 — 스킵 금지)
 
