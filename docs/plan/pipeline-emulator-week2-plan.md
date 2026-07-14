@@ -1,6 +1,6 @@
 # 파이프라인 에뮬레이터 — Week 2 확장 계획서
 
-> 상태: 미시작
+> 상태: 게이트통과-머지대기
 
 > 작성일: 2026-07-14 / 상태: 초안 (MVP 완료 후 착수)
 > 선행: [pipeline-emulator-mvp-plan.md](./pipeline-emulator-mvp-plan.md) (Week 1 MVP 완료가 전제)
