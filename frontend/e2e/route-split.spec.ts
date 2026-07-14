@@ -34,9 +34,9 @@ test.describe('route split smoke tests', () => {
 
   test('header toggle preserves subpath when switching modes', async ({ page }) => {
     await page.goto('/sample/pipeline');
-    await page.getByRole('link', { name: '실제' }).click();
+    await page.getByRole('link', { name: '실제', exact: true }).click();
     await expect(page).toHaveURL('/real/pipeline');
-    await page.getByRole('link', { name: '샘플' }).click();
+    await page.getByRole('link', { name: '샘플', exact: true }).click();
     await expect(page).toHaveURL('/sample/pipeline');
   });
 
