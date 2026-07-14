@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { browser } from '$app/environment';
+  import { onMount } from 'svelte';
   import StageNode from '$lib/components/StageNode.svelte';
   import StatusBadge from '$lib/components/StatusBadge.svelte';
   import StatusDot from '$lib/components/StatusDot.svelte';
@@ -10,6 +11,7 @@
   import PiiCountGrid from '$lib/components/PiiCountGrid.svelte';
   import MaskingComparison from '$lib/components/MaskingComparison.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
+  import PipelineGraphView from '$lib/components/PipelineGraphView.svelte';
   import type { Stage, Run } from '$lib/api/types.js';
 
   let { data }: { data: { stages: Stage[]; runs: Run[] } } = $props();
@@ -18,6 +20,9 @@
   let selectedRunId = $state(page.url.searchParams.get('runA') ?? '');
   let ingested = $state(true);
   let running = $state(false);
+  let viewMode = $state<'grid' | 'graph'>('grid');
+
+  onMount(() => { if (browser) { const saved = localStorage.getItem('pipelineViewMode'); if (saved === 'grid' || saved === 'graph') viewMode = saved; } });
 
   const selectedStage = $derived(data.stages.find(s => s.id === selectedStageId) ?? data.stages[0]);
   const selectedRun = $derived(data.runs.find(r => r.id === selectedRunId) ?? null);
@@ -33,6 +38,11 @@
     if (selectedRunId) params.set('runA', selectedRunId);
     const qs = params.toString();
     goto(`/${page.params.mode}/pipeline${qs ? '?' + qs : ''}`, { replaceState: true, noScroll: true });
+  }
+
+  function setViewMode(mode: 'grid' | 'graph') {
+    viewMode = mode;
+    if (browser) localStorage.setItem('pipelineViewMode', mode);
   }
 
   const durationLabel = (ms: number | null) => ms ? `${(ms / 1000).toFixed(1)}s` : '—';
@@ -124,24 +134,40 @@
         <div class="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest border-l-2 border-primary pl-2">
           데이터 처리 흐름
         </div>
-        <span class="text-[10px] font-mono text-muted-foreground uppercase">
-          {data.stages.filter(s => !s.planned).length}개 활성 단계 · {data.stages.filter(s => s.planned).length}개 예정
-        </span>
-      </div>
-      <div class="relative">
-        <div class="absolute top-1/2 left-0 right-0 h-px bg-border -translate-y-1/2 hidden lg:block -z-10" aria-hidden="true"></div>
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-          {#each data.stages as stage, i}
-            <div class={i % 2 === 1 ? 'lg:mt-8' : ''}>
-              <StageNode
-                {stage}
-                active={selectedStageId === stage.id}
-                onclick={() => selectStage(stage.id)}
-              />
-            </div>
-          {/each}
+        <div class="flex items-center gap-3">
+          <div class="flex border border-border rounded-xs overflow-hidden">
+            <button type="button" onclick={() => setViewMode('grid')} aria-pressed={viewMode === 'grid'}
+              class={['px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-tight transition-colors', viewMode === 'grid' ? 'bg-foreground text-background' : 'bg-surface text-muted-foreground hover:bg-surface-muted'].join(' ')}>
+              Grid
+            </button>
+            <button type="button" onclick={() => setViewMode('graph')} aria-pressed={viewMode === 'graph'}
+              class={['px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-tight transition-colors border-l border-border', viewMode === 'graph' ? 'bg-foreground text-background' : 'bg-surface text-muted-foreground hover:bg-surface-muted'].join(' ')}>
+              Graph
+            </button>
+          </div>
+          <span class="text-[10px] font-mono text-muted-foreground uppercase">
+            {data.stages.filter(s => !s.planned).length}개 활성 단계 · {data.stages.filter(s => s.planned).length}개 예정
+          </span>
         </div>
       </div>
+      {#if viewMode === 'graph'}
+        <PipelineGraphView stages={data.stages} onselect={selectStage} />
+      {:else}
+        <div class="relative">
+          <div class="absolute top-1/2 left-0 right-0 h-px bg-border -translate-y-1/2 hidden lg:block -z-10" aria-hidden="true"></div>
+          <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+            {#each data.stages as stage, i}
+              <div class={i % 2 === 1 ? 'lg:mt-8' : ''}>
+                <StageNode
+                  {stage}
+                  active={selectedStageId === stage.id}
+                  onclick={() => selectStage(stage.id)}
+                />
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </section>
 
     <!-- 단계 인스펙터 + 실행 이력 -->
