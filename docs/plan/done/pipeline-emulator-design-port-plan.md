@@ -1,6 +1,6 @@
 # 파이프라인 에뮬레이터 — Design Port 실행 계획서 (프론트엔드 이식)
 
-> 상태: 구현완료-게이트대기 / plan-review 보강 반영
+> 상태: 통테통과-완료 / plan-review 보강 반영
 > 작성일: 2026-07-14 / 원본 상태: 초안 (착수용)
 > 스킬: `/design-port` (그린필드 모드)
 > 소스: `pipeline-explorer` (Lovable 생성 React/Next.js) — https://github.com/mzd-nrkim/pipeline-explorer.git
@@ -392,6 +392,6 @@ design-port 6단계 체크리스트 + 정적 검증 + (가능 시) 시각 대조
 
 ### Z-post (머지 후, root main)
 
-- [ ] root `pipeline-emulator/frontend`에서 `npm run check` · `npm run build` 재실행(수치 근거: 0 error)
+- [x] root `pipeline-emulator/frontend`에서 `npm run check` · `npm run build` 재실행(수치 근거: 184 files 0 ERRORS, build 2.06s)
 - [ ] root `pipeline-emulator/frontend`에서 Playwright smoke 재실행(6라우트·주요 조작·콘솔 에러 0)
 - [ ] (Week 2 연계 전) `npm run dev`로 6탭 smoke — compose `ui` 서비스 편입은 Week 2 계획
