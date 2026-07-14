@@ -1,5 +1,7 @@
 # 파이프라인 에뮬레이터 — MVP 실행 계획서 (Week 1)
 
+> 상태: 미시작
+
 > 작성일: 2026-07-14 / 상태: 초안 (Week 1 착수용)
 > 근거: [pipeline-emulator-decisions.md](../pipeline-emulator-decisions.md) · [lodestar-reuse-assessment.md](../lodestar-reuse-assessment.md) · [pipeline-emulator-sample-data-plan.md](./pipeline-emulator-sample-data-plan.md) · [design-prompt-monitoring-dashboard.md](../design-prompt-monitoring-dashboard.md)
 
@@ -71,64 +73,195 @@ SeaweedFS Bronze (Parquet + row_hash)
 
 ---
 
+## 실행 시 필수 고려사항
+
+1. **DAG 실행 순서 의존성**: bronze_0 → silver_1 → silver_2 → gold_3 → gold_4 → gold_5 순서 강제. 앞 단계 실패 시 이후 DAG 실행 안 됨 — depends_on 또는 sensor 설정 필수. Phase 병렬화 시 DAG 파일 간 의존성은 없어도 런타임 실행은 직렬.
+2. **T8 e2e 테스트 전제**: Docker Compose 전체 스택(seaweedfs·mysql·airflow·mock-api)이 기동된 상태에서만 실행 가능 → Z-post에 배치. worktree 서브에이전트에서 실행 불가.
+3. **MySQL init.sql 테이블 생성 순서**: FK 참조 테이블이 참조 대상보다 뒤에 생성되어야 함. 순서: `bronze_document_hub` → `bronze_rdb_events` → `bronze_document_rdb_link` → `bronze_document_assembly_sat` → silver 테이블 → gold 테이블.
+4. **T6 Layer2 스텁 기본값 고정**: MVP에서 `_create_nlp_engine()`은 빈 스텁. `MASK` 환경변수 기본값을 `regex`로 고정해 Layer2 미구현 상태에서 의도하지 않은 동작 방지.
+
 ## 5. 작업 항목 (Week 1)
 
 ### T1. 샘플 데이터 생성 (착수 전 선행)
 
 > 상세: [pipeline-emulator-sample-data-plan.md](./pipeline-emulator-sample-data-plan.md)
 
-- [ ] Python 생성 스크립트 (`scripts/sample_data/`) — `faker(ko_KR)` + 고정 시드로 결정적 생성
-- [ ] 원천 더미 → Parquet(pyarrow) → SeaweedFS 업로드(boto3, S3 호환)
-- [ ] 볼륨: CFT 문제 5건 · 문제당 부품 3 · 단계 2 · 청크 3 (Bronze 5 → Gold 15행)
-- [ ] PII 시드: 패턴형 4종(전화·주민번호·이메일·계좌)으로 4건 임계 충족, is_masked TRUE/FALSE 혼합
-- [ ] 중요도 S/A/B/C/D/E 골고루 (pclrty_class 3분류 모두 출현)
+- [ ] T1-1. Python 생성 스크립트 (`scripts/sample_data/generate.py`) 작성
+  - [ ] `faker(ko_KR)` + 고정 시드(`SEED=42`) 설정
+  - [ ] CFT 문제 5건 생성 — 문제당 부품 3 × 단계 2 × 청크 3 (Bronze 5 → Gold 15행)
+  - [ ] PII 필드 4종 임베딩 (전화·주민번호·이메일·계좌) — 4건 임계 충족, `is_masked` TRUE/FALSE 혼합
+  - [ ] 중요도 S/A/B/C/D/E 배분 (`pclrty_class` RESTRICTED/INTERNAL/PUBLIC 3분류 전부 출현)
+- [ ] T1-2. Parquet 변환 + SeaweedFS 업로드 스크립트 (`scripts/sample_data/upload.py`) 작성
+  - [ ] `pyarrow`로 Parquet 직렬화 (원본 PDIS 컬럼명 일치 확인)
+  - [ ] `boto3` S3 호환 업로드 (`bronze/pdis/pcqlty/rdb/cft_problem_history_b/{batch_id}/part-00000.parquet`)
+  - [ ] `row_hash` MD5 계산·컬럼 삽입
 
 ### T2. Docker Compose 골격
 
-- [ ] compose 파일 작성 — seaweedfs · mysql · airflow(LocalExecutor) · mock-api 4서비스
-- [ ] healthcheck / depends_on 기동 순서 (lodestar 골격 차용)
-- [ ] MySQL 초기 스키마 — Bronze 메타 / Silver / Gold 단계 테이블 DDL (원본 PDIS DDL 기준)
-- [ ] Airflow 환경변수 뼈대: `AIRFLOW__CORE__EXECUTOR=LocalExecutor`, `CHUNKING_API_URL` / `ENRICH_API_URL` (어댑터 경계 선점)
+- [ ] T2-1. `docker-compose.yml` 작성 (4서비스: seaweedfs · mysql · airflow · mock-api)
+  - [ ] seaweedfs 서비스 정의 — S3 호환 포트(8333), 볼륨 마운트
+  - [ ] mysql 서비스 정의 — 포트(3306), 초기 스키마 마운트 (`db/init.sql`)
+  - [ ] airflow 서비스 정의 — LocalExecutor, DAG 폴더 마운트, 환경변수 주입
+  - [ ] mock-api 서비스 정의 — 포트(8000), `CHUNKING_API_URL`/`ENRICH_API_URL` 환경변수
+  - [ ] healthcheck + depends_on 기동 순서 정의 (lodestar 골격 차용)
+- [ ] T2-2. MySQL 초기 스키마 DDL 파일 (`db/init.sql`) 작성 (원본 PDIS DDL 기준)
+  - [ ] Bronze 단계 테이블: `bronze_document_hub` / `bronze_rdb_events` / `bronze_document_rdb_link` / `bronze_document_assembly_sat`
+  - [ ] Silver 단계 테이블: `silver_structured_documents` / `silver_masked_documents`
+  - [ ] Gold 단계 테이블: `gold_chunked_documents` / `gold_enriched_documents` / `gold_staged_documents`
+  - [ ] 테이블 생성 순서 고려 (hub 먼저, FK 참조 테이블 나중)
+- [ ] T2-3. Airflow 환경변수 뼈대 정의 (`.env` 또는 compose `environment`)
+  - [ ] `AIRFLOW__CORE__EXECUTOR=LocalExecutor`
+  - [ ] `CHUNKING_API_URL` / `ENRICH_API_URL` 어댑터 경계 선점
 
 ### T3. Python 수집 스크립트 (Bronze 투입)
 
-- [ ] 더미 Parquet를 SeaweedFS Bronze 경로 규칙으로 업로드
-      (`bronze/pdis/pcqlty/rdb/cft_problem_history_b/{batch_id}/part-00000.parquet`)
-- [ ] `row_hash`(MD5) 규칙 중앙화 (수집기 교체 시 계약 유지)
-- [ ] **CDC 계약 선점**: `bronze_rdb_events.change_operation="snapshot"` 채움 (향후 Debezium 어댑터가 동일 필드 재사용)
+- [ ] T3-1. Bronze 투입 스크립트 (`scripts/ingest.py`) 작성
+  - [ ] 더미 Parquet를 SeaweedFS Bronze 경로 규칙으로 업로드 (`bronze/pdis/pcqlty/rdb/cft_problem_history_b/{batch_id}/part-00000.parquet`)
+  - [ ] `row_hash`(MD5) 규칙 중앙화 함수 분리 (수집기 교체 시 계약 유지)
+  - [ ] **CDC 계약 선점**: `bronze_rdb_events.change_operation="snapshot"` 채움 (향후 Debezium 어댑터가 동일 필드 재사용)
 
 ### T4. Airflow DAG 6개 (단순화)
 
 TaskFlow API 기반, 단계별 MySQL 적재.
 
-- [ ] `bronze_0_registration` — Parquet 메타 → `bronze_document_hub` / `bronze_rdb_events` / `bronze_document_rdb_link` / `bronze_document_assembly_sat`
-- [ ] `silver_1_structuring` — 표준 JSON 스키마(`data` + `display`)로 구조화 → `silver_structured_documents` (SCD Type2)
-- [ ] `silver_2_masking` — 정규식 마스킹 → `silver_masked_documents` (`pii_detection_count`, `pii_pattern_types`, `is_masked`(≥4), `masking_method="regex"`)
-- [ ] `gold_3_chunking` — Mock API 호출(환경변수 URL) → `gold_chunked_documents`
-- [ ] `gold_4_enrichment` — Mock API 호출 → `gold_enriched_documents` (keywords·entities·summary·category)
-- [ ] `gold_5_field_mapping` — `es_field_info`·`role_ids`·`metadata_tags`·`pclrty_class`(중요도→보안분류) → `gold_staged_documents` (`indexing_status="staged"`)
+- [ ] T4-1. `dags/bronze_0_registration.py` 작성 (TaskFlow API)
+  - [ ] Parquet 읽기 태스크 (SeaweedFS Bronze 경로)
+  - [ ] `bronze_document_hub` 적재 태스크
+  - [ ] `bronze_rdb_events` / `bronze_document_rdb_link` / `bronze_document_assembly_sat` 적재 태스크
+- [ ] T4-2. `dags/silver_1_structuring.py` 작성 (TaskFlow API)
+  - [ ] Bronze 읽기 태스크
+  - [ ] 표준 JSON 스키마(`data` + `display`) 변환 태스크
+  - [ ] `silver_structured_documents` SCD Type2 적재 태스크
+- [ ] T4-3. `dags/silver_2_masking.py` 작성 (TaskFlow API)
+  - [ ] PII 엔진 래퍼 `detect_and_mask(text)` 호출 태스크
+  - [ ] `silver_masked_documents` 적재 태스크 (`pii_detection_count`, `pii_pattern_types`, `is_masked`, `masking_method="regex"`)
+- [ ] T4-4. `dags/gold_3_chunking.py` 작성 (TaskFlow API)
+  - [ ] Mock API 청킹 엔드포인트 호출 (`CHUNKING_API_URL` 환경변수)
+  - [ ] `gold_chunked_documents` 적재 태스크
+- [ ] T4-5. `dags/gold_4_enrichment.py` 작성 (TaskFlow API)
+  - [ ] Mock API 엔리치 엔드포인트 호출 (`ENRICH_API_URL` 환경변수)
+  - [ ] `gold_enriched_documents` 적재 태스크 (`keywords`·`entities`·`summary`·`category`)
+- [ ] T4-6. `dags/gold_5_field_mapping.py` 작성 (TaskFlow API)
+  - [ ] `pclrty_class` 중요도→보안분류 매핑 태스크
+  - [ ] `gold_staged_documents` 적재 태스크 (`es_field_info`·`role_ids`·`metadata_tags`·`indexing_status="staged"`)
 
 ### T5. Mock API (FastAPI 규칙 기반)
 
-- [ ] 청킹 엔드포인트 — 섹션별 분할(문제/대책/부품), 요청/응답 **Pydantic 스키마 고정**(원본 API 스펙 지향)
-- [ ] 엔리치 엔드포인트 — 규칙 기반(키워드=빈도 상위, 요약=첫 문장, 개체명=심어둔 이름/차종)
-- [ ] 인터페이스를 처음부터 원본 API 스펙에 맞춰 설계 (Mock↔실 API 무비용 교체 대비)
+- [ ] T5-1. 청킹 엔드포인트 `POST /chunk` 구현 (`mock_api/routes/chunking.py`)
+  - [ ] 섹션별 분할 로직 — 문제/대책/부품 기준
+  - [ ] 요청·응답 Pydantic 스키마 고정 (원본 API 스펙 기준, Mock↔실 API 무비용 교체 대비)
+- [ ] T5-2. 엔리치 엔드포인트 `POST /enrich` 구현 (`mock_api/routes/enrichment.py`)
+  - [ ] 키워드=빈도 상위, 요약=첫 문장, 개체명=심어둔 이름·차종 (규칙 기반)
+  - [ ] 응답 Pydantic 스키마 고정
 
 ### T6. PII 엔진 래퍼 (신규 — 모듈화 유일 신규 코드)
 
-- [ ] `detect_and_mask(text)` 단일 진입점 유지
-- [ ] **Layer2(spaCy NER) on/off 스위치 래퍼** 신설 — 원본은 Layer1+2 항상 동시 실행이므로 `MASK=regex`면 Layer1(정규식)만 실행하도록 off 스위치 추가
-- [ ] `_create_nlp_engine()`만 교체 가능하게 캡슐화 (Presidio 2-Layer는 다음 계획에서 스위치 on)
+- [ ] T6-1. PII 엔진 래퍼 모듈 (`pii_engine/wrapper.py`) 작성
+  - [ ] `detect_and_mask(text)` 단일 진입점 구현
+  - [ ] `MASK` 환경변수 분기 — `regex` 시 Layer1(정규식)만 실행, 기본값 `regex`
+  - [ ] `_create_nlp_engine()` 캡슐화 (현재: 빈 스텁, Presidio 2-Layer 스위치 on 시 교체 지점)
+- [ ] T6-2. 정규식 Layer1 구현 (`pii_engine/layer1_regex.py`)
+  - [ ] 전화·주민번호·이메일·계좌 4종 정규식 패턴 정의
+  - [ ] `pii_pattern_types` 유형별 카운트 반환 로직
 
 ### T7. 최소 상태 표시
 
-- [ ] Airflow UI로 DAG 실행 현황 그대로 시연
-- [ ] 단계별 문서 수 MySQL 조회 쿼리 (Week 2 대시보드가 그대로 흡수)
+- [ ] T7-1. Airflow UI 시연 준비
+  - [ ] Airflow 웹 UI 접속 확인 (localhost 포트)
+  - [ ] DAG 목록·실행 상태 표시 확인 (투입 후 단계별 success/running 표시)
+- [ ] T7-2. MySQL 카운트 쿼리 작성 (`scripts/check_counts.sql`)
+  - [ ] 단계별 집계 쿼리 (bronze/silver/gold 테이블별 행 수)
+  - [ ] Week 2 ui-backend `/stages` 라우터가 흡수할 포맷으로 작성
 
 ### T8. end-to-end 통합 테스트
 
-- [ ] 더미 투입 → 6개 DAG 전부 성공 확인
-- [ ] 각 단계 MySQL 테이블 행 수 = 기대치(Bronze 5 → Silver 5 → 마스킹 5 → 청킹 15 → 엔리치 15 → staged 15)
+- [ ] T8-1. 더미 투입 → 6개 DAG 전부 성공 확인
+  - [ ] `python scripts/ingest.py` 실행 → SeaweedFS 업로드 확인
+  - [ ] Airflow REST API 또는 UI로 6개 DAG 상태 `success` 확인
+  - [ ] 실행 순서 확인: bronze_0 → silver_1 → silver_2 → gold_3 → gold_4 → gold_5
+- [ ] T8-2. 단계별 MySQL 행 수 검증 (`scripts/check_counts.sql` 실행)
+  - [ ] `bronze_document_hub` = 5
+  - [ ] `silver_structured_documents` = 5, `silver_masked_documents` = 5
+  - [ ] `gold_chunked_documents` = 15, `gold_enriched_documents` = 15, `gold_staged_documents` = 15
+  - [ ] `gold_staged_documents.indexing_status = "staged"` 확인
+  - [ ] teardown: 테스트 완료 후 MySQL 테스트 레코드 초기화 (`TRUNCATE` 또는 `DELETE`) — 재실행 멱등성 확보
+
+### Z. 머지 전·후 검증 (게이트 — 스킵 금지)
+
+#### Z-pre. 머지 전 (worktree에서 실행)
+
+- [ ] `db/init.sql` SQL 문법 검사 (`mysql --verbose` 또는 `python -c "import sqlparse; ..."` dry-parse)
+- [ ] DAG 파일 Python 문법 검사 (`python -m py_compile dags/bronze_0_registration.py dags/silver_1_structuring.py dags/silver_2_masking.py dags/gold_3_chunking.py dags/gold_4_enrichment.py dags/gold_5_field_mapping.py`)
+- [ ] Mock API 스키마 Pydantic 임포트 검증 (`python -c "from mock_api.routes.chunking import ChunkRequest"`)
+- [ ] PII 엔진 래퍼 단위 테스트 (`python -m pytest pii_engine/` — Python 환경 가용 시)
+
+#### Z-post. 머지 후 (Docker Compose 기동 환경에서 실행)
+
+- [ ] `docker-compose up -d` → 전체 스택(4서비스) 기동 확인 (healthcheck 통과)
+- [ ] e2e 통합 테스트 T8 실행 (더미 투입 → 6개 DAG 성공 → MySQL 행 수 검증)
+  - [ ] `scripts/check_counts.sql` 실행 결과 검증 (Bronze 5 / Silver 5 / Gold 15)
+  - teardown: `docker-compose down -v` (볼륨 포함 초기화) — 재실행 멱등성 확보
+
+---
+
+## TC (테스트 케이스)
+
+### Right-BICEP
+
+**R — Results are right:**
+- [ ] Bronze → Silver → Gold 6개 DAG 전부 성공 상태(`success`) 반환
+- [ ] 단계별 MySQL 행 수 = 기대치 (Bronze 5 / Silver 5 / 마스킹 5 / 청킹 15 / 엔리치 15 / staged 15)
+- [ ] `indexing_status = "staged"` 확인 (gold_5 완료 후, ES 미구현 확인)
+- [ ] PII 4종 (전화·주민번호·이메일·계좌) 마스킹 정확성 — 원본 값이 마스킹 문자로 치환됨
+
+**B — Boundary conditions:**
+- [ ] `is_masked = FALSE` 레코드 존재 확인 (최소 1건 — PII 미임계 문서)
+- [ ] `is_masked = TRUE` 레코드 존재 확인 (최소 4건 — 패턴형 PII 임계 충족 문서)
+- [ ] `pclrty_class` RESTRICTED / INTERNAL / PUBLIC 3분류 모두 출현
+- [ ] `gold_chunked_documents` = 문서 수 × 청크 수 (5 × 3 = 정확히 15)
+
+**I — Inverse relationships:**
+- [ ] `MASK=regex` 환경변수 설정 시 Layer2(spaCy NER)가 실행되지 않음 확인 (log 없음 또는 스텁 반환)
+- [ ] Mock API가 환경변수 `CHUNKING_API_URL`/`ENRICH_API_URL`로 호출됨 확인 (하드코딩 URL 아님)
+
+**C — Cross-check using other means:**
+- [ ] Airflow UI 표시 성공 상태와 MySQL 행 수 일치
+- [ ] `bronze_document_hub` 행 수 = 투입 Parquet `row_hash` 수 (5)
+
+**E — Error conditions:**
+- [ ] DAG 태스크 실패 시 Airflow UI에 `failed` 상태 표시 확인 (의도적 실패 주입)
+- 에러 핸들링 TC 최소화: MVP는 정상 흐름 확인 목표, 상세 에러 복구는 Week 2 이후
+
+**P — Performance characteristics:**
+- 해당 없음: MVP는 더미 5건 처리, 성능 측정 범위 밖
+
+### CORRECT
+
+**C — Conformance:**
+- [ ] Parquet 스키마 컬럼명이 원본 PDIS DDL과 일치 (필수 컬럼 누락 0)
+- [ ] `silver_structured_documents.structured_content` JSON이 표준 스키마(`data`+`display`) 파싱 통과
+
+**O — Ordering:**
+- [ ] DAG 실행 순서: bronze_0 → silver_1 → silver_2 → gold_3 → gold_4 → gold_5 (순서 위반 시 실패)
+
+**R — Range:**
+- [ ] `pii_detection_count` ≥ 0 (음수 없음)
+- [ ] `pii_pattern_types` 값이 정의된 4종 이내
+
+**R — Reference integrity:**
+- [ ] `gold_staged_documents` FK가 `silver_masked_documents` 레코드를 참조 (orphan 없음)
+- [ ] `bronze_document_assembly_sat` FK가 `bronze_document_hub`를 참조
+
+**E — Existence (null/optional handling):**
+- [ ] `is_masked = FALSE` 시 `pii_pattern_types` = NULL 또는 빈 배열 (오류 없음)
+- [ ] gold_5 완료 후 `es_field_info` 필드 NULL 불허 (적재 시 채워짐 확인)
+
+**C — Cardinality:**
+- [ ] `gold_chunked_documents` = 5(문서) × 3(청크) = 정확히 15
+- [ ] `silver_masked_documents` 행 수 = `silver_structured_documents` 행 수 (1:1)
+
+**T — Time / temporal ordering:**
+- [ ] 각 DAG의 `start_date` ≤ 다음 DAG `start_date` (실행 시각 순서 정합)
 
 ---
 

@@ -35,8 +35,11 @@
   <header class="space-y-4 max-w-3xl">
     <div class="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest">에뮬레이터 / 개요</div>
     <h1 class="text-3xl md:text-5xl font-extrabold tracking-tighter text-balance">
-      PipeScale(파이프라인 에뮬레이터) — 원시 수집에서 검색 인수까지 전 구간을 실시간으로 관찰합니다.
+      PipeScale 
     </h1>
+    <h4 class="text-xl md:text-xl font-extrabold tracking-tighter text-balance">
+       원시 수집에서 검색 인수까지 전 구간을 실시간으로 관찰합니다.
+    </h4>
     <p class="text-muted-foreground text-pretty leading-relaxed">
       PipeScale은 실제 Bronze → Silver → Gold 데이터 파이프라인을 라이브 시뮬레이션으로 재현합니다.
       샘플 레코드를 투입하고, 6개 단계를 모두 실행하고, PII 마스킹을 확인한 뒤 결과를 검색에 전달합니다.
