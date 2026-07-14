@@ -5,11 +5,11 @@
   import SearchResultItem from '$lib/components/SearchResultItem.svelte';
   import FilterControl from '$lib/components/FilterControl.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
-  import { mockSearchResults } from '$lib/mock/search.js';
-  import { mockDimensions } from '$lib/mock/config.js';
-  import type { SearchResult } from '$lib/api/types.js';
+  import type { SearchResult, Dimension } from '$lib/api/types.js';
 
-  const searchDim = $derived(mockDimensions.find(d => d.key === 'search_serving'));
+  let { data }: { data: { results: SearchResult[]; dimensions: Dimension[] } } = $props();
+
+  const searchDim = $derived(data.dimensions.find(d => d.key === 'search_serving'));
   const searchEnabled = $derived(searchDim?.current !== 'off' && !searchDim?.planned);
 
   let query = $state(page.url.searchParams.get('q') ?? '');
@@ -21,12 +21,12 @@
   let vehicleFilter = $state(page.url.searchParams.get('vehicle') ?? '');
 
   const results: SearchResult[] = $derived.by(() => {
-    if (!searchEnabled || !query.trim()) return [];
-    return mockSearchResults.filter(r => {
+    if (!searchEnabled) return [];
+    return data.results.filter(r => {
       if (securityFilter && r.security !== securityFilter) return false;
       if (priorityFilter && r.priority !== priorityFilter) return false;
       if (vehicleFilter && r.vehicleModel !== vehicleFilter) return false;
-      return r.title.includes(query) || r.summary.includes(query);
+      return true;
     });
   });
 

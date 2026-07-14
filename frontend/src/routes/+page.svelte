@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { page } from '$app/state';
   import StatusDot from '$lib/components/StatusDot.svelte';
   import PlannedBadge from '$lib/components/PlannedBadge.svelte';
-  import { stages } from '$lib/mock/selectors.js';
-  import { mockDimensions } from '$lib/mock/config.js';
+  import type { Stage, Dimension } from '$lib/api/types.js';
 
-  const activeStages = $derived(stages.filter(s => !s.planned));
+  let { data }: { data: { stages: Stage[]; dimensions: Dimension[] } } = $props();
+
+  const activeStages = $derived(data.stages.filter(s => !s.planned));
   const currentConfig = $derived(
-    mockDimensions.map(d => ({ label: d.label, value: d.current, planned: !!d.planned }))
+    data.dimensions.map(d => ({ label: d.label, value: d.current, planned: !!d.planned }))
   );
 
   const substitutions = [
