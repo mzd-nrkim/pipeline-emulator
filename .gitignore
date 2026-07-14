@@ -1,0 +1,25 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.pem
+
+# SvelteKit
+.svelte-kit/
+build/
+.vercel/
+.output/
+
+# Vite
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
