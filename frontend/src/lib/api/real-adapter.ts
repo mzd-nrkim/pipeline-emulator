@@ -1,33 +1,46 @@
-/* Week 2에서 구현 — 현재 stub */
+/* Week 2 ui-backend 실제 어댑터 */
 import type { Stage, Run, Document, SearchResult, Dimension } from './types.js';
 
-const BASE = import.meta.env.PUBLIC_UI_BACKEND_URL ?? 'http://localhost:8000';
+const BASE = import.meta.env.PUBLIC_UI_BACKEND_URL ?? 'http://localhost:8001';
 
 export async function fetchStages(): Promise<Stage[]> {
-  throw new Error('real-adapter: Week 2에서 구현 예정');
+  const res = await fetch(`${BASE}/stages`);
+  if (!res.ok) throw new Error(`fetchStages: ${res.status}`);
+  return res.json();
 }
 
 export async function fetchRuns(): Promise<Run[]> {
-  throw new Error('real-adapter: Week 2에서 구현 예정');
+  const res = await fetch(`${BASE}/runs`);
+  if (!res.ok) throw new Error(`fetchRuns: ${res.status}`);
+  return res.json();
 }
 
 export async function fetchDocuments(): Promise<Document[]> {
-  throw new Error('real-adapter: Week 2에서 구현 예정');
+  throw new Error('real-adapter: documents API — Week 2 범위 외');
 }
 
 export async function fetchSearch(_query: string): Promise<SearchResult[]> {
-  throw new Error('real-adapter: Week 2에서 구현 예정');
+  throw new Error('real-adapter: search — ES 스트레치 범위');
 }
 
 export async function fetchDimensions(): Promise<Dimension[]> {
-  throw new Error('real-adapter: Week 2에서 구현 예정');
+  const res = await fetch(`${BASE}/config`);
+  if (!res.ok) throw new Error(`fetchDimensions: ${res.status}`);
+  const { flags } = await res.json();
+  return Object.entries(flags as Record<string, string>).map(([key, val]) => ({
+    key,
+    label: key,
+    description: '',
+    values: [val],
+    current: val,
+  }));
 }
 
 export function subscribePipelineStatus(onChange: (event: unknown) => void): () => void {
-  const es = new EventSource(`${BASE}/pipeline/events`);
+  const es = new EventSource(`${BASE}/sse/stages`);
   es.onmessage = (e: MessageEvent) => {
     try { onChange(JSON.parse(e.data)); } catch { /* ignore */ }
   };
-  es.onerror = () => es.close();
+  es.onerror = () => { es.close(); };
   return () => es.close();
 }
