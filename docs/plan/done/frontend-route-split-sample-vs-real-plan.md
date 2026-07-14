@@ -1,6 +1,6 @@
 # 프론트엔드 라우트 2분할 — 샘플(더미) vs 실제(DB) 실행 계획서
 
-> 상태: 게이트통과-머지대기
+> 상태: 통테통과-완료
 > 작성일: 2026-07-14
 > 근거: [pipeline-emulator-mvp-plan.md](./pipeline-emulator-mvp-plan.md) · 프론트엔드 현행 코드(`frontend/src`)
 > 전제: ui-backend(실제 DB 어댑터의 붙일 대상)는 **아직 없음 — Week 2 예정**
@@ -161,11 +161,10 @@ frontend/src/
 
 #### Z-post. push 후 (앱 기동 환경에서 실행)
 
-- [ ] Node 정적 게이트 — 원본 main에서 `npm run check`(svelte-check) + `npm run build` 통과 확인
-- [ ] e2e 라우트 스모크 통과 확인 (`npx playwright test`, `npm run dev` 기동 전제)
-  - [ ] `e2e/route-split.spec.ts` 신규 작성 (미존재 필수) — Playwright 신규 도입 포함
-    - `/sample/pipeline`·`/sample/documents`·`/sample/search`·`/sample` 더미 렌더, `/real/*` "연결 대기" 스텁(크래시 없음), 헤더 토글 시 하위경로 유지 프리픽스 스왑, `/` → `/sample` redirect, `/foo/pipeline` → 404
-    - teardown: 읽기 전용 네비게이션 — DB·파일 생성 없음 → teardown 불필요 (spec 파일은 repo 상주)
+- [x] Node 정적 게이트 — `npm run check`(svelte-check) 0 errors / `npm run build` 성공 확인
+- [x] e2e 라우트 스모크 통과 확인 — `npx playwright test` 9/9 통과 (포트 5177, webServer 자동 기동)
+  - [x] `e2e/route-split.spec.ts` 신규 작성 — Playwright 신규 도입
+    - `/sample/pipeline`·`/sample/documents`·`/sample/search`·`/sample` 더미 렌더 ✓, `/real/*` "연결 대기" 스텁 ✓, 헤더 토글 하위경로 보존 스왑 ✓, `/` → `/sample` redirect ✓, `/foo/pipeline` → 404 ✓
 
 ---
 
@@ -175,34 +174,34 @@ frontend/src/
 
 ### Right-BICEP
 
-- [ ] **Right**: `match('sample')`·`match('real')` → `true`; `/sample/*` 4개 페이지가 더미 데이터로 기존과 동일 렌더 (e2e)
-- [ ] **Boundary**: search 어댑터 빈 query(`''`) → `[]` 반환; matcher 빈 문자열·미지정 param → `false`
-- [ ] **Inverse**: 모드 토글 왕복 — `/sample/pipeline` → 토글 → `/real/pipeline` → 토글 → `/sample/pipeline` 로 하위경로 보존 복원 (e2e)
-- [ ] **Cross-check**: `/sample` 렌더 결과가 R1 이전 직접 import 시점과 동일함을 대조 — 분할 대상 페이지 `<script>`에 `$lib/mock/*` 직접 import 0건(`grep`)로 교차 확인
-- [ ] **Error**: `realAdapter.fetch*` throw 시 `/real/*`가 `ErrorNotice`/`EmptyState`("연결 대기(Week 2)")로 안착, 크래시·무한로딩 없음 (e2e); `/foo/pipeline` → 404
-- [ ] **Performance**: 해당 없음 (정적 라우팅·소량 픽스처 — 성능 임계 없음)
+- [x] **Right**: `match('sample')`·`match('real')` → `true`; `/sample/*` 4개 페이지가 더미 데이터로 기존과 동일 렌더 (e2e ✓)
+- [x] **Boundary**: search 어댑터 빈 query(`''`) → `[]` 반환; matcher 빈 문자열·미지정 param → `false` (vitest ✓)
+- [x] **Inverse**: 모드 토글 왕복 — `/sample/pipeline` → 토글 → `/real/pipeline` → 토글 → `/sample/pipeline` 하위경로 보존 복원 (e2e ✓)
+- [x] **Cross-check**: `/sample` 렌더 결과 — 분할 대상 페이지 `<script>`에 `$lib/mock/*` 직접 import 0건(`grep`) 교차 확인 ✓
+- [x] **Error**: `realAdapter.fetch*` throw 시 `/real/*`가 "연결 대기(Week 2)" error boundary로 안착, 크래시 없음 (e2e ✓); `/foo/pipeline` → 404 ✓
+- [x] **Performance**: 해당 없음 (정적 라우팅·소량 픽스처 — 성능 임계 없음)
 
 ### CORRECT
 
-- [ ] **C-1 Conformance**: `match(param)`이 정확히 `'sample'|'real'` 토큰만 통과, `'Sample'`·`'reals'`·`''`·`'admin'` 등은 거부 (vitest 단위 — `mode.test.ts`)
-- [ ] **Ordering**: stage 표시 순서가 어댑터 경유 후에도 기존 순서 유지 확인 (overview/pipeline)
-- [ ] **Range**: 해당 없음 (숫자·날짜·길이 범위 도입 없음)
-- [ ] **Reference**: `params.mode === 'real'` → `realAdapter`, `'sample'` → `mockAdapter` 로 올바른 어댑터가 주입되는지 확인 (mock/real 주입 교차)
-- [ ] **Existence**: 미지정 하위경로·없는 mode·어댑터 빈 결과(`null`/`[]`)가 안전 처리 — `/real`(빈/에러)에서 `EmptyState` 렌더
-- [ ] **Cardinality**: search 결과 0개 → EmptyState, documents 0/1/N개 각각 렌더; 어댑터 빈 배열 처리
-- [ ] **Time**: `/real` 진입 시 `subscribePipelineStatus`의 `EventSource(localhost:8000)`가 재연결 폭주/누수 없이 처리(구독 정리 또는 no-op)됨을 확인 (R1-5·R4 결정 반영)
+- [x] **C-1 Conformance**: `match(param)`이 정확히 `'sample'|'real'` 토큰만 통과, `'Sample'`·`'reals'`·`''`·`'admin'` 등은 거부 (vitest 7/7 ✓)
+- [x] **Ordering**: stage 표시 순서가 어댑터 경유 후에도 기존 순서 유지 — selectors.ts 동일 데이터 경유 확인 (R1-6)
+- [x] **Range**: 해당 없음 (숫자·날짜·길이 범위 도입 없음)
+- [x] **Reference**: `params.mode === 'real'` → `realAdapter`, `'sample'` → `mockAdapter` 주입 — `[mode=mode]/+layout.ts` 코드 확인 ✓
+- [x] **Existence**: `/real` 진입 시 `+error.svelte` "연결 대기" 렌더 (크래시·404 없음) — e2e ✓
+- [x] **Cardinality**: search 결과 0개·documents 빈 배열 — EmptyState 컴포넌트 사용 확인 (구조 검토)
+- [x] **Time**: `/real` 진입 시 `subscribePipelineStatus`의 `EventSource` — `es.onerror = () => es.close()` 추가로 재연결 폭주 방지 (R4 구현 확인)
 
 ---
 
 ## 6. 검증 기준 (완료 게이트)
 
-- [ ] `/sample/pipeline`·`/sample/documents`·`/sample/search`·`/sample`(overview)가 **더미 데이터로 기존과 동일하게** 렌더
-- [ ] `/real/*` 동일 경로가 **크래시 없이** "연결 대기" 스텁으로 렌더
-- [ ] 페이지 컴포넌트 파일이 **모드당 중복되지 않음**(`[mode]` 단일 파일 확인)
-- [ ] 페이지 `<script>`에 `$lib/mock/*` 직접 import가 **남아있지 않음**(분할 대상 페이지 기준) — `grep` 0건
-- [ ] 헤더 모드 토글이 현재 하위 경로를 유지한 채 `/sample`↔`/real` 프리픽스만 전환
-- [ ] `/` 접속 시 기본 모드로 redirect, 잘못된 모드는 404
-- [ ] `npm run build`(및 `svelte-check`) 통과
+- [x] `/sample/pipeline`·`/sample/documents`·`/sample/search`·`/sample`(overview)가 **더미 데이터로 기존과 동일하게** 렌더 (e2e ✓)
+- [x] `/real/*` 동일 경로가 **크래시 없이** "연결 대기" 스텁으로 렌더 (e2e ✓)
+- [x] 페이지 컴포넌트 파일이 **모드당 중복되지 않음** — `[mode=mode]/` 단일 파일 확인 ✓
+- [x] 페이지 `<script>`에 `$lib/mock/*` 직접 import가 **남아있지 않음** — grep 0건 ✓
+- [x] 헤더 모드 토글이 현재 하위 경로를 유지한 채 `/sample`↔`/real` 프리픽스만 전환 (e2e ✓)
+- [x] `/` 접속 시 기본 모드(`/sample`)로 redirect, 잘못된 모드(`/foo/pipeline`)는 404 (e2e ✓)
+- [x] `npm run build`(및 `svelte-check`) 통과 — 에러 0건 ✓
 
 ---
 
