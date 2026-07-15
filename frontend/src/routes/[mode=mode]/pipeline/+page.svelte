@@ -36,7 +36,7 @@
           <div class="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">활성 실행</div>
           <div class="flex items-center gap-2 font-mono text-sm font-medium">
             <StatusDot status={activeRunId ? 'completed' : 'none'} />
-            RUN_ID: {activeRunId ?? 'RX-9042-ALPHA'}
+            RUN_ID: {activeRunId ?? '—'}
           </div>
         </div>
         <div class="hidden md:block h-10 w-px bg-border"></div>
