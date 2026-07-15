@@ -1,7 +1,8 @@
 /* Week 2 ui-backend 실제 어댑터 */
+import { PUBLIC_UI_BACKEND_URL } from '$env/static/public';
 import type { Stage, Run, Document, SearchResult, Dimension, CanvasTopology } from './types.js';
 
-const BASE = import.meta.env.PUBLIC_UI_BACKEND_URL ?? 'http://localhost:8001';
+const BASE = PUBLIC_UI_BACKEND_URL || 'http://localhost:8001';
 
 export async function fetchStages(): Promise<Stage[]> {
   const res = await fetch(`${BASE}/stages`);
