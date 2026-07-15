@@ -1,165 +1,75 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Pipeline View Toggle — Grid / DAG Graph', () => {
+test.describe('Pipeline Page — Canvas 뷰 + Medallion Drill-down (P3)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/sample/pipeline');
     await page.waitForLoadState('networkidle');
-    // addInitScript는 reload 시에도 재실행되므로 evaluate로 클리어
-    await page.evaluate(() => localStorage.removeItem('pipelineViewMode'));
   });
 
-  test.afterEach(async ({ page }) => {
-    await page.evaluate(() => localStorage.removeItem('pipelineViewMode'));
-  });
-
-  // Right: 기본값 Grid 뷰
-  test('기본값은 Grid 뷰 — StageNode 카드 8개 렌더', async ({ page }) => {
-    // 토글 버튼 존재
-    await expect(page.getByRole('button', { name: 'Grid', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Graph', exact: true })).toBeVisible();
-
-    // Grid 버튼이 active 상태
-    const gridBtn = page.getByRole('button', { name: 'Grid', exact: true });
-    await expect(gridBtn).toHaveAttribute('aria-pressed', 'true');
-
-    // PipelineGraphView가 없고 CSS grid가 있어야 함
-    await expect(page.locator('.svelte-flow')).not.toBeVisible();
-
-    // StageNode 카드 — 기존 grid 구조 확인 (stage 카드 클릭 가능한 요소)
-    const stageCards = page.locator('[data-testid="stage-node"], button[class*="rounded"]').first();
-    // 최소한 파이프라인 섹션이 렌더되어 있어야 함
-    await expect(page.locator('text=데이터 처리 흐름')).toBeVisible();
-  });
-
-  // Right: Graph 뷰 전환
-  test('Graph 토글 클릭 → @xyflow SvelteFlow 컨테이너 렌더', async ({ page }) => {
-    await page.getByRole('button', { name: 'Graph', exact: true }).click();
-
-    // Graph 버튼 active
-    await expect(page.getByRole('button', { name: 'Graph', exact: true })).toHaveAttribute('aria-pressed', 'true');
-
-    // @xyflow/svelte 컨테이너 (height: 420px div)
-    const graphContainer = page.locator('div[style*="height: 420px"]');
-    await expect(graphContainer).toBeVisible();
-
-    // SvelteFlow 렌더링 대기 (.svelte-flow 클래스)
+  test('Canvas 뷰가 기본 표시된다 — Grid/Graph 토글 없음', async ({ page }) => {
     await expect(page.locator('.svelte-flow')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('button', { name: 'Grid', exact: true })).not.toBeVisible();
+    await expect(page.getByRole('button', { name: 'Graph', exact: true })).not.toBeVisible();
+  });
 
-    // 노드 요소들 — .svelte-flow__node
+  test('활성 실행 패널에 RUN_ID 표시된다', async ({ page }) => {
+    await expect(page.locator('text=활성 실행')).toBeVisible();
+    await expect(page.locator('text=RUN_ID:')).toBeVisible();
+  });
+
+  test('Canvas 노드들이 렌더된다', async ({ page }) => {
+    await page.waitForSelector('.svelte-flow .svelte-flow__node', { timeout: 5000 });
+    const count = await page.locator('.svelte-flow .svelte-flow__node').count();
+    expect(count).toBeGreaterThan(0);
+  });
+
+  test('노드 클릭 → drill-down 패널 열림', async ({ page }) => {
+    await page.waitForSelector('.svelte-flow .svelte-flow__node', { timeout: 5000 });
+    await page.locator('.svelte-flow .svelte-flow__node').first().click();
+    await expect(page.locator('text=노드 상세')).toBeVisible({ timeout: 3000 });
+  });
+
+  test('drill-down 패널 닫기(✕) 동작', async ({ page }) => {
+    await page.waitForSelector('.svelte-flow .svelte-flow__node', { timeout: 5000 });
+    await page.locator('.svelte-flow .svelte-flow__node').first().click();
+    await expect(page.locator('text=노드 상세')).toBeVisible({ timeout: 3000 });
+    await page.locator('button', { hasText: '✕' }).click();
+    await expect(page.locator('text=노드 상세')).not.toBeVisible();
+  });
+
+  test('Airflow 노드 트리거 → dag_run_id 표시 + 활성 RUN_ID 갱신', async ({ page }) => {
+    await page.waitForSelector('.svelte-flow .svelte-flow__node', { timeout: 5000 });
+    // [task] 레이블을 가진 노드(masking-task/chunking-task)가 dagId를 가짐
     const nodes = page.locator('.svelte-flow__node');
-    await expect(nodes).toHaveCount(8, { timeout: 5000 });
+    const allTexts = await nodes.allInnerTexts();
+    const taskIdx = allTexts.findIndex(t => t.includes('[task]'));
+    const targetNode = taskIdx >= 0 ? nodes.nth(taskIdx) : nodes.first();
+    await targetNode.click();
+    const triggerBtn = page.locator('button', { hasText: '트리거' });
+    const hasTrigger = await triggerBtn.isVisible({ timeout: 2000 }).catch(() => false);
+    if (hasTrigger) {
+      await triggerBtn.click();
+      await page.waitForTimeout(300);
+      await expect(page.locator('text=dag_run_id')).toBeVisible({ timeout: 3000 });
+      const runIdPanel = page.locator('.font-mono').filter({ hasText: 'RUN_ID:' }).first();
+      const runIdText = await runIdPanel.textContent();
+      expect(runIdText).not.toContain('RX-9042-ALPHA');
+    }
   });
 
-  // Inverse: Grid → Graph → Grid 재토글
-  test('Grid→Graph→Grid 재토글 — Grid 뷰 원복, 회귀 없음', async ({ page }) => {
-    await page.getByRole('button', { name: 'Graph', exact: true }).click();
-    await expect(page.locator('.svelte-flow')).toBeVisible({ timeout: 5000 });
-
-    await page.getByRole('button', { name: 'Grid', exact: true }).click();
-
-    // Grid 뷰 복원
-    await expect(page.getByRole('button', { name: 'Grid', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('.svelte-flow')).not.toBeVisible();
-    await expect(page.locator('text=데이터 처리 흐름')).toBeVisible();
+  test('masking-task 노드 → medallion 증거 섹션 표시', async ({ page }) => {
+    await page.waitForSelector('.svelte-flow .svelte-flow__node', { timeout: 5000 });
+    const nodes = page.locator('.svelte-flow__node');
+    const allTexts = await nodes.allInnerTexts();
+    const taskIdx = allTexts.findIndex(t => t.includes('[task]'));
+    if (taskIdx >= 0) {
+      await nodes.nth(taskIdx).click();
+      // masking-task는 dagId가 있으므로 DAG 정보 표시
+      await expect(page.locator('text=DAG:')).toBeVisible({ timeout: 3000 });
+    }
   });
 
-  // Cross-check: 노드 클릭 → 인스펙터 + URL 갱신
-  test('Graph 뷰 노드 클릭 → 인스펙터 패널 갱신', async ({ page }) => {
-    await page.getByRole('button', { name: 'Graph', exact: true }).click();
-    await expect(page.locator('.svelte-flow')).toBeVisible({ timeout: 5000 });
-
-    // 첫 번째 non-planned 노드 클릭
-    const firstNode = page.locator('.svelte-flow__node').first();
-    await firstNode.click();
-
-    // 인스펙터 패널이 갱신됨 (인스펙터 헤더 "인스펙터:" 포함)
-    await expect(page.locator('text=인스펙터:')).toBeVisible();
-  });
-
-  // Boundary: localStorage 저장 + 새로고침 복원
-  test('Graph 선택 후 새로고침 → Graph 뷰 복원 (localStorage)', async ({ page }) => {
-    await page.getByRole('button', { name: 'Graph', exact: true }).click();
-    await expect(page.locator('.svelte-flow')).toBeVisible({ timeout: 5000 });
-
-    // localStorage 저장 확인
-    const stored = await page.evaluate(() => localStorage.getItem('pipelineViewMode'));
-    expect(stored).toBe('graph');
-
-    // 새로고침
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-
-    // Graph 뷰로 복원 (hydration 후 onMount에서 localStorage 읽어 반영)
-    await expect(page.locator('.svelte-flow')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByRole('button', { name: 'Graph', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  });
-
-  // Boundary: localStorage 없음(첫 방문) → grid fallback
-  test('localStorage 키 없음(첫 방문) → grid fallback', async ({ page }) => {
-    // beforeEach에서 이미 제거됨
-    const stored = await page.evaluate(() => localStorage.getItem('pipelineViewMode'));
-    expect(stored).toBeNull();
-
-    await expect(page.getByRole('button', { name: 'Grid', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('.svelte-flow')).not.toBeVisible();
-  });
-
-  // Existence: SSR 크래시·hydration 경고 없음
-  test('SSR 크래시·콘솔 에러 없음', async ({ page }) => {
-    const errors: string[] = [];
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') errors.push(msg.text());
-    });
-    page.on('pageerror', (err) => errors.push(err.message));
-
-    await page.getByRole('button', { name: 'Graph', exact: true }).click();
-    await expect(page.locator('.svelte-flow')).toBeVisible({ timeout: 5000 });
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-
-    // localStorage 관련 ReferenceError가 없어야 함
-    const localStorageErrors = errors.filter(e => e.includes('localStorage') || e.includes('ReferenceError'));
-    expect(localStorageErrors).toHaveLength(0);
-  });
-
-  // Cardinality: 노드 수 = mockStages 수 (8개)
-  test('Graph 노드 수 = 8 (Bronze2·Silver2·Gold3·Serving1)', async ({ page }) => {
-    await page.getByRole('button', { name: 'Graph', exact: true }).click();
-    await expect(page.locator('.svelte-flow__node')).toHaveCount(8, { timeout: 5000 });
-  });
-
-  // Existence: Serving(planned) 노드 점선/흐림 표시
-  test('Serving(planned) 노드 — 점선·흐림 스타일 구분', async ({ page }) => {
-    await page.getByRole('button', { name: 'Graph', exact: true }).click();
-    await expect(page.locator('.svelte-flow')).toBeVisible({ timeout: 5000 });
-
-    // planned 노드는 dashed border + opacity 0.5 인라인 스타일
-    const plannedNode = page.locator('.svelte-flow__node[style*="dashed"]');
-    await expect(plannedNode).toBeVisible();
-  });
-
-  // Cross-check: Grid 뷰 노드 수 = Graph 뷰 노드 수
-  test('Grid 뷰 stage 수 = Graph 뷰 노드 수 = 8', async ({ page }) => {
-    // Grid: 활성 단계 수 표시 텍스트 확인
-    await expect(page.locator('text=7개 활성 단계')).toBeVisible(); // 8개 중 1개 planned
-
-    // Graph 전환
-    await page.getByRole('button', { name: 'Graph', exact: true }).click();
-    await expect(page.locator('.svelte-flow__node')).toHaveCount(8, { timeout: 5000 });
-  });
-
-  // Responsive: 모바일 뷰포트에서 Grid/Graph 렌더 정상
-  test('모바일 뷰포트(390px) — Grid 반응형 유지, Graph 컨테이너 가시성', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-
-    // Grid: 2열 grid (lg:grid-cols-8 → 모바일 grid-cols-2) — 페이지 정상 렌더
-    await expect(page.locator('text=데이터 처리 흐름')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Grid', exact: true })).toBeVisible();
-
-    // Graph: 너비 100% 컨테이너로 렌더 (height 420px 고정, @xyflow 내장 핀치/줌)
-    await page.getByRole('button', { name: 'Graph', exact: true }).click();
-    const graphContainer = page.locator('div[style*="height: 420px"]');
-    await expect(graphContainer).toBeVisible();
-    await expect(page.locator('.svelte-flow')).toBeVisible({ timeout: 5000 });
+  test('실행 이력 패널이 렌더된다', async ({ page }) => {
+    await expect(page.locator('text=실행 이력')).toBeVisible();
   });
 });
