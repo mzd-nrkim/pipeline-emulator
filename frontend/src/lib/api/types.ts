@@ -89,6 +89,7 @@ export type SourceKind = 'rdb' | 's3' | 'unstructured';
 
 export interface ToolNode {
   id: string;
+  label?: string;
   kind: 'source' | 'task' | 'switch' | 'sink';
   /** 카탈로그 id 참조 — toolCatalog.ts의 ToolCatalogEntry.id 값과 일치해야 한다 */
   tool: string;

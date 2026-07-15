@@ -123,7 +123,7 @@
                 </select>
               {:else if field.type === 'boolean'}
                 <div class="flex items-center gap-1.5">
-                  <input type="checkbox" bind:checked={localConfig[field.key]}
+                  <input type="checkbox" bind:checked={localConfig[field.key] as boolean}
                     class="accent-primary" />
                   <span class="text-[10px] text-muted-foreground">{field.label}</span>
                 </div>
