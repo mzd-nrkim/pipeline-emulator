@@ -16,6 +16,7 @@ DAG_IDS = [
 ]
 
 STAGE_DAG_MAP = {
+    # 레거시 stage ID (기존 runs API 호환)
     "ingestion": None,
     "bronze_raw": "bronze_0_registration",
     "silver_structured": "silver_1_structuring",
@@ -24,6 +25,9 @@ STAGE_DAG_MAP = {
     "gold_enriched": "gold_4_enrichment",
     "gold_staged": "gold_5_field_mapping",
     "search_serving": None,
+    # 캔버스 노드 ID (CanvasTopology 기준)
+    "masking-task": "silver_2_masking",
+    "chunking-task": "gold_3_chunking",
 }
 
 def _get_dag_run_info(dag_id: str) -> dict:
