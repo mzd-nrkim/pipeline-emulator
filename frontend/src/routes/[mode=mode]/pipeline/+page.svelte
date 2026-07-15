@@ -81,8 +81,8 @@
 
   function configKeys(runA: Run, runB: Run): string[] {
     const keys = new Set([
-      ...Object.keys((runA.config ?? {}) as Record<string, unknown>),
-      ...Object.keys((runB.config ?? {}) as Record<string, unknown>),
+      ...Object.keys((runA.config ?? {}) as unknown as Record<string, unknown>),
+      ...Object.keys((runB.config ?? {}) as unknown as Record<string, unknown>),
     ]);
     return [...keys].sort();
   }
@@ -440,8 +440,7 @@
                     <!-- stageCounts 비교 -->
                     <div class="mb-3">
                       <div class="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">스테이지 카운트</div>
-                      {@const scKeys = stageCountKeys(runA, runB)}
-                      {#if scKeys.length === 0}
+                      {#if stageCountKeys(runA, runB).length === 0}
                         <div class="text-muted-foreground italic">스테이지 데이터 없음</div>
                       {:else}
                         <table class="w-full text-left border-collapse">
@@ -454,7 +453,7 @@
                             </tr>
                           </thead>
                           <tbody>
-                            {#each scKeys as key}
+                            {#each stageCountKeys(runA, runB) as key}
                               {@const va = (runA.stageCounts ?? {})[key]}
                               {@const vb = (runB.stageCounts ?? {})[key]}
                               <tr class="border-t border-border">
@@ -474,8 +473,7 @@
                     <!-- config 비교 -->
                     <div>
                       <div class="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Config</div>
-                      {@const cfgKeys = configKeys(runA, runB)}
-                      {#if cfgKeys.length === 0}
+                      {#if configKeys(runA, runB).length === 0}
                         <div class="text-muted-foreground italic">설정 데이터 없음</div>
                       {:else}
                         <table class="w-full text-left border-collapse">
@@ -488,9 +486,9 @@
                             </tr>
                           </thead>
                           <tbody>
-                            {#each cfgKeys as key}
-                              {@const va = (runA.config as Record<string, unknown>)[key]}
-                              {@const vb = (runB.config as Record<string, unknown>)[key]}
+                            {#each configKeys(runA, runB) as key}
+                              {@const va = (runA.config as unknown as Record<string, unknown>)[key]}
+                              {@const vb = (runB.config as unknown as Record<string, unknown>)[key]}
                               <tr class="border-t border-border">
                                 <td class="pr-2 py-0.5 text-muted-foreground">{key}</td>
                                 <td class="pr-2 py-0.5 max-w-[4rem] truncate">{va ?? '—'}</td>

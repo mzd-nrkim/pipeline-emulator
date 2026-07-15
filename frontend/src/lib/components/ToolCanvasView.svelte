@@ -7,7 +7,7 @@
 
   type Adapter = {
     triggerNode: (nodeId: string, conf: Record<string, unknown>) => Promise<{ dag_run_id: string }>;
-    setNodeConfig: (nodeId: string, config: Record<string, unknown>) => Promise<void>;
+    setNodeConfig: (nodeId: string, config: Record<string, unknown>) => Promise<void | Record<string, unknown>>;
   };
 
   let { topology, adapter = undefined, stages = [] as Stage[], ontrigger = undefined, view = 'data' as 'data' | 'infra', onnodeselect = undefined }: {
