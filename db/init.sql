@@ -108,3 +108,32 @@ CREATE TABLE IF NOT EXISTS gold_staged_documents (
 
 -- 2. Airflow 전용 DB (파이프라인 데이터와 분리)
 CREATE DATABASE IF NOT EXISTS pipeline_emulator_airflow;
+
+-- 3. CDC 전용 유저 (Debezium REPLICATION 권한 — 멱등)
+CREATE USER IF NOT EXISTS 'debezium'@'%' IDENTIFIED BY 'debezium_pass';
+GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'debezium'@'%';
+FLUSH PRIVILEGES;
+
+-- 4. CDC 대상 소스 테이블 — 고객 운영 RDB 모사 (멱등)
+-- 실제 원천 PDIS cft_problem_history_b 스키마를 단순화한 모사 테이블.
+-- Debezium이 이 테이블의 INSERT/UPDATE/DELETE를 binlog로 캡처하여
+-- Valkey Stream pipeline.pipeline_emulator.source_cft_problem_history 로 발행한다.
+CREATE TABLE IF NOT EXISTS source_cft_problem_history (
+  pilot_problem_no       VARCHAR(20)  NOT NULL  COMMENT 'CFT 파일럿 문제 번호 (PK 1/2)',
+  reform_numseq          INT          NOT NULL  DEFAULT 1 COMMENT '개정 순번 (PK 2/2)',
+  pilot_project_no       VARCHAR(20)           COMMENT '파일럿 프로젝트 번호',
+  pilot_vhclmodel_no     VARCHAR(10)           COMMENT '차종 코드 (NX01/NX02/NX03)',
+  pilot_step_typecd      CHAR(1)               COMMENT '단계 코드 (D=설계, P=양산)',
+  pilot_problem_importnrate_typecd CHAR(1)     COMMENT '중요도 코드 (S/A/B/C/D/E)',
+  problem_content        TEXT                  COMMENT '문제 내용',
+  cntmeasure_content     TEXT                  COMMENT '대책 내용',
+  display_content        TEXT                  COMMENT '표시용 내용',
+  dept_name              VARCHAR(100)          COMMENT '담당 부서명',
+  reg_empno              VARCHAR(10)           COMMENT '등록 사번',
+  upd_empno              VARCHAR(10)           COMMENT '수정 사번',
+  reg_dts                DATETIME    NOT NULL  DEFAULT CURRENT_TIMESTAMP COMMENT '등록 일시',
+  upd_dts                DATETIME    NOT NULL  DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정 일시',
+  row_hash               CHAR(32)              COMMENT 'MD5(pilot_problem_no||reform_numseq)',
+  PRIMARY KEY (pilot_problem_no, reform_numseq)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  COMMENT='CDC 원천 모사 테이블 — 고객 운영 RDB cft_problem_history_b 대응';
