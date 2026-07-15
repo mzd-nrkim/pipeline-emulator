@@ -1,5 +1,5 @@
-import { stages, runs, documents, searchResults, dimensions } from '../mock/selectors.js';
-import type { Stage, Run, Document, SearchResult, Dimension } from './types.js';
+import { stages, runs, documents, searchResults, dimensions, topology } from '../mock/selectors.js';
+import type { Stage, Run, Document, SearchResult, Dimension, CanvasTopology } from './types.js';
 
 export async function fetchStages(): Promise<Stage[]> {
   return stages;
@@ -22,6 +22,10 @@ export async function fetchSearch(query: string): Promise<SearchResult[]> {
 
 export async function fetchDimensions(): Promise<Dimension[]> {
   return dimensions;
+}
+
+export async function fetchCanvasTopology(): Promise<CanvasTopology> {
+  return topology;
 }
 
 /* SSE stub (Week 2 활성화) */

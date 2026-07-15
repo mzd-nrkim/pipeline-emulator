@@ -1,8 +1,9 @@
 export async function load({ parent }: { parent: () => Promise<any> }) {
   const { adapter } = await parent();
-  const [stages, runs] = await Promise.all([
+  const [stages, runs, topology] = await Promise.all([
     adapter.fetchStages(),
-    adapter.fetchRuns()
+    adapter.fetchRuns(),
+    adapter.fetchCanvasTopology()
   ]);
-  return { stages, runs };
+  return { stages, runs, topology };
 }
