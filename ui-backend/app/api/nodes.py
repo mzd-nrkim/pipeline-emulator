@@ -30,12 +30,42 @@ def config_node(node_id: str, body: ConfigRequest):
     dag_id = STAGE_DAG_MAP.get(node_id)
     if dag_id is None:
         raise HTTPException(status_code=404, detail=f"No DAG mapped for node_id '{node_id}'")
+
+    # runtime 키: is_paused, variable — Airflow REST API를 통해 즉시 적용 가능
+    RUNTIME_KEYS = {"is_paused", "variable"}
+
     applied = []
-    if "is_paused" in body.config:
-        set_paused(dag_id, bool(body.config["is_paused"]))
-        applied.append("is_paused")
-    if "variable" in body.config:
-        for key, value in body.config["variable"].items():
-            set_variable(key, str(value))
-        applied.append("variable")
-    return {"node_id": node_id, "applied": applied}
+    readonly = []
+    errors = []
+
+    for key, value in body.config.items():
+        if key not in RUNTIME_KEYS:
+            # runtime 아닌 항목 — 변경 불가 응답
+            readonly.append({"key": key, "status": "readonly", "message": "이 항목은 런타임 변경 불가"})
+            continue
+
+        if key == "is_paused":
+            try:
+                set_paused(dag_id, bool(value))
+                applied.append({"key": "is_paused", "status": "ok"})
+            except Exception as e:
+                errors.append({"key": "is_paused", "status": "error", "message": str(e)})
+
+        elif key == "variable":
+            if not isinstance(value, dict):
+                errors.append({"key": "variable", "status": "error", "message": "variable 값은 dict 이어야 합니다"})
+                continue
+            for var_key, var_value in value.items():
+                try:
+                    set_variable(var_key, str(var_value))
+                    applied.append({"key": f"variable/{var_key}", "status": "ok"})
+                except Exception as e:
+                    errors.append({"key": f"variable/{var_key}", "status": "error", "message": str(e)})
+
+    return {
+        "node_id": node_id,
+        "applied": applied,
+        "readonly": readonly,
+        "errors": errors,
+        "success": len(errors) == 0,
+    }
