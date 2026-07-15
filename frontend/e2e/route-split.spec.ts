@@ -22,15 +22,12 @@ test.describe('route split smoke tests', () => {
     await expect(page.locator('main')).toBeVisible();
   });
 
-  // TODO: real 모드에서 백엔드 미연결 시 +error.svelte("백엔드 연결 대기")가 트리거되지 않음.
-  // +page.ts load()가 fetch 실패로 throw해도 SvelteKit CSR error boundary로 전파되지 않는 것으로 보임.
-  // 수정 방향: real 모드 +page.ts에서 에러를 SvelteKit error()로 명시 래핑하거나 +layout.ts에서 연결 상태 사전 확인.
-  test.skip('/real/* shows connection-wait stub without crash', async ({ page }) => {
+  test('/real/* shows connection-wait stub without crash', async ({ page }) => {
     await page.goto('/real');
     await expect(page.getByText('백엔드 연결 대기')).toBeVisible();
   });
 
-  test.skip('/real/pipeline shows connection-wait stub', async ({ page }) => {
+  test('/real/pipeline shows connection-wait stub', async ({ page }) => {
     await page.goto('/real/pipeline');
     await expect(page.getByText('백엔드 연결 대기')).toBeVisible();
   });
