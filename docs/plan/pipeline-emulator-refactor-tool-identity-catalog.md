@@ -1,6 +1,6 @@
 # P1.5. 도구 정체성 카탈로그 — 추상 노드를 실제 인프라 도구로 교체 (hyundaimotor-lllm 기준)
 
-> 상태: 게이트통과-머지대기
+> 상태: 통테통과-완료
 > 작성일: 2026-07-15 / 우선순위: ★★★ (P1 결과 시정 — 데모 핵심 가치)
 > 인덱스: [pipeline-emulator-refactor-tool-orchestrator-canvas.md](./pipeline-emulator-refactor-tool-orchestrator-canvas.md)
 > 선행: [done/pipeline-emulator-refactor-canvas-ui.md](./done/pipeline-emulator-refactor-canvas-ui.md) (P1 — 캔버스 골격 완료)
@@ -160,11 +160,11 @@ fan-in·branch·fan-out을 실제 흐름으로 표현:
 
 ## 검증 기준
 
-- [ ] 캔버스에 `rdb_loader`/`s3_loader` 같은 추상 기능명이 **하나도 없고**, NiFi·Debezium·Airflow·Valkey·Elasticsearch·Presidio 등 실제 도구명이 노출된다(grep + e2e 텍스트 검증)
-- [ ] 각 노드가 도구 아이콘/벤더 배지로 시각 식별되고, Source/Task/Switch/Sink 4종 위계도 유지된다
-- [ ] fan-in(3 Source→S3)·branch(수집유형 Switch)·fan-out(→ES+Kibana+MySQL)이 hyundaimotor-lllm 실제 흐름으로 보인다
-- [ ] 노드 클릭 시 그 도구의 설정 파라미터가 **편집 가능한 폼**으로 뜬다(JSON 덤프 아님), 값 변경이 로컬 반영된다
-- [ ] `npm run check`/`build`/`test:unit` 통과, 기존 e2e 회귀 없음
+- [x] 캔버스에 `rdb_loader`/`s3_loader` 같은 추상 기능명이 **하나도 없고**, NiFi·Debezium·Airflow·Valkey·Elasticsearch·Presidio 등 실제 도구명이 노출된다(grep + e2e 텍스트 검증)
+- [x] 각 노드가 도구 아이콘/벤더 배지로 시각 식별되고, Source/Task/Switch/Sink 4종 위계도 유지된다
+- [x] fan-in(3 Source→S3)·branch(수집유형 Switch)·fan-out(→ES+Kibana+MySQL)이 hyundaimotor-lllm 실제 흐름으로 보인다
+- [x] 노드 클릭 시 그 도구의 설정 파라미터가 **편집 가능한 폼**으로 뜬다(JSON 덤프 아님), 값 변경이 로컬 반영된다
+- [x] `npm run check`/`build`/`test:unit` 통과, 기존 e2e 회귀 없음
 
 ## TC (Right-BICEP · CORRECT)
 
@@ -172,22 +172,22 @@ fan-in·branch·fan-out을 실제 흐름으로 표현:
 
 ### Right-BICEP
 
-- [ ] **Right**: 새 mock 토폴로지로 `buildNodesAndEdges()`가 각 노드에 카탈로그(표시명·아이콘·벤더)를 조인해 반환
-- [ ] **B(경계)**: 미등록 `tool` id, `configFields=[]`, config에 스키마에 없는 잉여 키 — 크래시 없이 폴백 렌더
-- [ ] **I(역)**: `tool`이 빈 문자열/undefined일 때 폴백 배지(id 표시), 폼은 "설정 없음"
-- [ ] **C(교차)**: 캔버스 노드 표시명 집합 == 토폴로지 각 노드의 카탈로그 표시명, 추상 기능명(`*_loader`/`*_writer`/`*_masker`) 0건(grep)
-- [ ] **E(에러)**: 카탈로그 로드 실패/부분 결손 시 캔버스는 뜨고 결손 노드만 폴백
-- [ ] **P**: 해당 없음(소규모 mock)
+- [x] **Right**: 새 mock 토폴로지로 `buildNodesAndEdges()`가 각 노드에 카탈로그(표시명·아이콘·벤더)를 조인해 반환
+- [x] **B(경계)**: 미등록 `tool` id, `configFields=[]`, config에 스키마에 없는 잉여 키 — 크래시 없이 폴백 렌더
+- [x] **I(역)**: `tool`이 빈 문자열/undefined일 때 폴백 배지(id 표시), 폼은 "설정 없음"
+- [x] **C(교차)**: 캔버스 노드 표시명 집합 == 토폴로지 각 노드의 카탈로그 표시명, 추상 기능명(`*_loader`/`*_writer`/`*_masker`) 0건(grep)
+- [x] **E(에러)**: 카탈로그 로드 실패/부분 결손 시 캔버스는 뜨고 결손 노드만 폴백
+- [x] **P**: 해당 없음(소규모 mock)
 
 ### CORRECT
 
-- [ ] **Conformance**: 카탈로그 엔트리가 `ToolCatalogEntry` 계약 만족(tsc/svelte-check)
-- [ ] **Range**: `configFields[].type`이 text|number|select|boolean 범위, `kind` 4종 범위
-- [ ] **Reference**: mock 토폴로지의 모든 `tool` id가 카탈로그에 존재(또는 명시적 폴백)
-- [ ] **Existence**: 노드 클릭 시 설정 폼이 존재/렌더, 도구 헤더에 아이콘·표시명 존재
-- [ ] **Existence(회귀)**: Airflow 노드(`config.dagId` 보유) 클릭 시 **설정 폼과 함께 선행 P2 트리거 컨트롤(`handleTrigger` 버튼)이 공존**한다 — 폼 교체가 트리거 UI를 삭제하지 않았음 확인(e2e, Z-post)
-- [ ] **Cardinality**: fan-in(N→1)·branch(Switch)·fan-out(1→N) 각 1케이스 이상, Source≥2 도구 서로 다른 벤더
-- [ ] **Ordering/Time**: 해당 없음
+- [x] **Conformance**: 카탈로그 엔트리가 `ToolCatalogEntry` 계약 만족(tsc/svelte-check)
+- [x] **Range**: `configFields[].type`이 text|number|select|boolean 범위, `kind` 4종 범위
+- [x] **Reference**: mock 토폴로지의 모든 `tool` id가 카탈로그에 존재(또는 명시적 폴백)
+- [x] **Existence**: 노드 클릭 시 설정 폼이 존재/렌더, 도구 헤더에 아이콘·표시명 존재
+- [x] **Existence(회귀)**: Airflow 노드(`config.dagId` 보유) 클릭 시 **설정 폼과 함께 선행 P2 트리거 컨트롤(`handleTrigger` 버튼)이 공존**한다 — 폼 교체가 트리거 UI를 삭제하지 않았음 확인(e2e, Z-post)
+- [x] **Cardinality**: fan-in(N→1)·branch(Switch)·fan-out(1→N) 각 1케이스 이상, Source≥2 도구 서로 다른 벤더
+- [x] **Ordering/Time**: 해당 없음
 
 ## Z. 머지 전·후 검증 (게이트 — 스킵 금지)
 
@@ -201,14 +201,14 @@ fan-in·branch·fan-out을 실제 흐름으로 표현:
 
 ### Z-static. 머지 직후 (원본 main — node_modules 상주)
 
-- [ ] `cd frontend && npm run check` (svelte-check/tsc) 통과
-- [ ] `cd frontend && npm run build` 성공
-- [ ] `cd frontend && npm run test:unit` (vitest) 통과 — 카탈로그 조인·폼 스키마 단위테스트 포함
+- [x] `cd frontend && npm run check` (svelte-check/tsc) 통과
+- [x] `cd frontend && npm run build` 성공
+- [x] `cd frontend && npm run test:unit` (vitest) 통과 — 카탈로그 조인·폼 스키마 단위테스트 포함
 
 ### Z-post. push 후 (앱 기동 환경)
 
-- [ ] `cd frontend && npm run test:e2e` — 기존 `pipeline-canvas.spec.ts`·`pipeline-view-toggle.spec.ts`·`route-split.spec.ts` 회귀 없음
-- [ ] `pipeline-canvas.spec.ts`에 케이스 추가: (1) 실제 도구명(NiFi/Debezium/Airflow/Elasticsearch 등) 노출, (2) 추상 기능명 미노출, (3) 노드 클릭→설정 폼(입력 위젯) 렌더·값 편집, (4) **Airflow 노드 클릭 시 설정 폼 + 선행 P2 트리거 컨트롤 공존**(회귀 방지)
+- [x] `cd frontend && npm run test:e2e` — 기존 `pipeline-canvas.spec.ts`·`pipeline-view-toggle.spec.ts`·`route-split.spec.ts` 회귀 없음
+- [x] `pipeline-canvas.spec.ts`에 케이스 추가: (1) 실제 도구명(NiFi/Debezium/Airflow/Elasticsearch 등) 노출, (2) 추상 기능명 미노출, (3) 노드 클릭→설정 폼(입력 위젯) 렌더·값 편집, (4) **Airflow 노드 클릭 시 설정 폼 + 선행 P2 트리거 컨트롤 공존**(회귀 방지)
   - teardown: 앱 상태 변경 없음(로컬 state mock) — 불필요
 
 ## 재사용 자산
