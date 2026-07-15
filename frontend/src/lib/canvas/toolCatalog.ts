@@ -1,4 +1,4 @@
-export type ToolKind = 'source' | 'task' | 'switch' | 'sink';
+export type ToolCategory = 'source' | 'task' | 'switch' | 'sink';
 export type FieldType = 'text' | 'number' | 'select' | 'boolean';
 
 export interface ConfigField {
@@ -14,7 +14,7 @@ export interface ToolCatalogEntry {
   id: string;
   displayName: string;
   vendor: string;
-  kind: ToolKind;
+  category: ToolCategory;
   icon: string;            // 이모지 또는 약어 배지 (svg 경로 폴백)
   accent: string;          // 벤더 브랜드 색 hex
   configFields: ConfigField[];
@@ -25,7 +25,7 @@ const catalog: ToolCatalogEntry[] = [
     id: 'apache-nifi',
     displayName: 'Apache NiFi 2.8.0',
     vendor: 'Apache',
-    kind: 'source',
+    category: 'source',
     icon: '🔄',
     accent: '#728E9B',
     configFields: [
@@ -40,7 +40,7 @@ const catalog: ToolCatalogEntry[] = [
     id: 'debezium',
     displayName: 'Debezium 3.4.0.Final',
     vendor: 'Debezium',
-    kind: 'source',
+    category: 'source',
     icon: '📡',
     accent: '#FF0000',
     configFields: [
@@ -55,7 +55,7 @@ const catalog: ToolCatalogEntry[] = [
     id: 'dam',
     displayName: 'DAM (외부 API)',
     vendor: 'External',
-    kind: 'source',
+    category: 'source',
     icon: '📁',
     accent: '#6B7280',
     configFields: [
@@ -74,7 +74,7 @@ const catalog: ToolCatalogEntry[] = [
     id: 'apache-airflow',
     displayName: 'Apache Airflow 3.1.5',
     vendor: 'Apache',
-    kind: 'task',
+    category: 'task',
     icon: '✈️',
     accent: '#017CEE',
     configFields: [
@@ -87,7 +87,7 @@ const catalog: ToolCatalogEntry[] = [
     id: 'presidio',
     displayName: 'Presidio 2-Layer',
     vendor: 'Microsoft',
-    kind: 'task',
+    category: 'task',
     icon: '🛡️',
     accent: '#00BCF2',
     configFields: [
@@ -100,7 +100,7 @@ const catalog: ToolCatalogEntry[] = [
     id: 'docling-langchain',
     displayName: 'Docling + LangChain',
     vendor: 'Docling/LangChain',
-    kind: 'task',
+    category: 'task',
     icon: '📄',
     accent: '#764ABC',
     configFields: [
@@ -119,7 +119,7 @@ const catalog: ToolCatalogEntry[] = [
     id: 'kure-embedding',
     displayName: 'KURE-v1 (ONNX INT8)',
     vendor: 'KURE',
-    kind: 'task',
+    category: 'task',
     icon: '🔢',
     accent: '#8B5CF6',
     configFields: [
@@ -132,7 +132,7 @@ const catalog: ToolCatalogEntry[] = [
     id: 'valkey',
     displayName: 'Valkey 8.1.4',
     vendor: 'Valkey',
-    kind: 'task',
+    category: 'task',
     icon: '⚡',
     accent: '#DC382D',
     configFields: [
@@ -146,7 +146,7 @@ const catalog: ToolCatalogEntry[] = [
     id: 'airflow-branch',
     displayName: '수집유형 분기',
     vendor: 'Apache',
-    kind: 'switch',
+    category: 'switch',
     icon: '🔀',
     accent: '#017CEE',
     configFields: [
@@ -158,7 +158,7 @@ const catalog: ToolCatalogEntry[] = [
     id: 's3',
     displayName: 'S3 (Bronze/아카이브)',
     vendor: 'AWS',
-    kind: 'sink',
+    category: 'sink',
     icon: '🪣',
     accent: '#FF9900',
     configFields: [
@@ -177,7 +177,7 @@ const catalog: ToolCatalogEntry[] = [
     id: 'mysql',
     displayName: 'MySQL (Silver/Gold)',
     vendor: 'Oracle',
-    kind: 'sink',
+    category: 'sink',
     icon: '🗄️',
     accent: '#4479A1',
     configFields: [
@@ -191,7 +191,7 @@ const catalog: ToolCatalogEntry[] = [
     id: 'elasticsearch',
     displayName: 'Elasticsearch 9.2.5',
     vendor: 'Elastic',
-    kind: 'sink',
+    category: 'sink',
     icon: '🔍',
     accent: '#FEC514',
     configFields: [
@@ -205,7 +205,7 @@ const catalog: ToolCatalogEntry[] = [
     id: 'kibana',
     displayName: 'Kibana 9.2.5',
     vendor: 'Elastic',
-    kind: 'sink',
+    category: 'sink',
     icon: '📊',
     accent: '#FEC514',
     configFields: [

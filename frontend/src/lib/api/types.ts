@@ -87,10 +87,20 @@ export interface PipelineStatusEvent {
 /* 캔버스 토폴로지 계약 */
 export type SourceKind = 'rdb' | 's3' | 'unstructured';
 
+export type ToolRole =
+  | 'ingest'      // 데이터 수집 (NiFi, Debezium, DAM)
+  | 'transform'   // 데이터 변환/처리 (Presidio, Docling, KURE, Airflow)
+  | 'route'       // 조건부 라우팅 (Branch - 향후 확장용)
+  | 'store'       // 데이터 저장 (S3, MySQL)
+  | 'index'       // 검색 인덱싱 (Elasticsearch)
+  | 'broker'      // 메시지 브로커 (Valkey)
+  | 'visualize';  // 시각화 (Kibana)
+
 export interface ToolNode {
   id: string;
   label?: string;
-  kind: 'source' | 'task' | 'switch' | 'sink';
+  role: ToolRole;
+  trigger?: boolean;
   /** 카탈로그 id 참조 — toolCatalog.ts의 ToolCatalogEntry.id 값과 일치해야 한다 */
   tool: string;
   config: Record<string, unknown>;
@@ -99,6 +109,7 @@ export interface ToolNode {
 export interface Edge {
   from: string;
   to: string;
+  channels: ('data' | 'dependency')[];  // 이 엣지가 나타날 뷰 집합
   condition?: string;
 }
 
