@@ -32,11 +32,14 @@ services:
       retries: 10
 
   airflow:
-    image: apache/airflow:2.9.0-python3.11
+    build:
+      context: .
+      dockerfile: DockerfileAirflow
     environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: mysql+pymysql://emulator:emulator_pass@mysql/pipeline_emulator_airflow
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/airflow.db
       AIRFLOW__WEBSERVER__SECRET_KEY: pipeline_emulator_secret
+      AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
       _AIRFLOW_DB_MIGRATE: "true"
       _AIRFLOW_WWW_USER_CREATE: "true"
       _AIRFLOW_WWW_USER_USERNAME: admin
@@ -60,7 +63,7 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-    command: ["bash", "-c", "pip install -q pymysql pyarrow boto3 sqlalchemy && airflow standalone"]
+    command: ["bash", "-c", "airflow standalone"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s

@@ -103,13 +103,20 @@ def trigger_dag(dag_id: str, conf: dict) -> str:
 
 
 def set_variable(key: str, value: str) -> None:
-    """PATCH /api/v1/variables/{key}. 실패 시 raise."""
+    """Create or update Airflow Variable (upsert: PATCH → 404 시 POST). 실패 시 raise."""
     resp = requests.patch(
         f"{AIRFLOW_BASE}/api/v1/variables/{key}",
         auth=(AIRFLOW_USER, AIRFLOW_PASS),
         json={"key": key, "value": value},
         timeout=5,
     )
+    if resp.status_code == 404:
+        resp = requests.post(
+            f"{AIRFLOW_BASE}/api/v1/variables",
+            auth=(AIRFLOW_USER, AIRFLOW_PASS),
+            json={"key": key, "value": value},
+            timeout=5,
+        )
     resp.raise_for_status()
 
 
