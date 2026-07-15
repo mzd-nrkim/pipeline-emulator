@@ -5,20 +5,21 @@ import type { CanvasTopology } from '../api/types.js';
  *
  * 구조:
  *   [debezium] ──┐
- *   [nifi]     ──┼──→ [s3-bronze] ──→ [branch] ──→ [airflow] ──→ [presidio] ──→ [docling] ──→ [kure] ──→ [valkey] ──┬──→ [es]
- *   [dam]      ──┘                                                                                                    ├──→ [kibana]
- *                                                                                                                     └──→ [mysql]
+ *   [nifi]     ──┼──→ [s3-bronze] ──→ [airflow*] ──→ [presidio] ──→ [docling] ──→ [kure] ──→ [valkey] ──┬──→ [es] ──→ [kibana](infra)
+ *   [dam]      ──┘                                                                                         └──→ [mysql]
  *
+ * (* trigger=true)
+ * data 채널: ─── / dependency 채널(infra뷰 전용): ···→
  * fan-in  : debezium + nifi + dam → s3-bronze
- * branch  : s3-bronze → branch(switch) → airflow
- * fan-out : valkey → es + kibana + mysql
+ * fan-out : valkey → es + mysql
+ * infra   : mysql-container → debezium/nifi (dependency), es → kibana (dependency)
  */
 export const mockTopology: CanvasTopology = {
   nodes: [
     /* ── Sources (fan-in 3개) ── */
     {
       id: 'node-debezium',
-      kind: 'source',
+      role: 'ingest',
       tool: 'debezium',
       label: 'Debezium CDC',
       config: {
@@ -31,7 +32,7 @@ export const mockTopology: CanvasTopology = {
     },
     {
       id: 'node-nifi',
-      kind: 'source',
+      role: 'ingest',
       tool: 'apache-nifi',
       label: 'Apache NiFi',
       config: {
@@ -42,19 +43,19 @@ export const mockTopology: CanvasTopology = {
     },
     {
       id: 'node-dam',
-      kind: 'source',
+      role: 'ingest',
       tool: 'dam',
       label: 'DAM API',
       config: {
         endpoint: 'https://dam.internal/api',
-        outputFormat: 'markdown',
+        outputFormat: 'markdown', // 'markdown' | 'html' | 'json'
       },
     },
 
     /* ── Sink - Bronze ── */
     {
       id: 'node-s3-bronze',
-      kind: 'sink',
+      role: 'store',
       tool: 's3',
       label: 'S3 Bronze',
       config: {
@@ -64,22 +65,11 @@ export const mockTopology: CanvasTopology = {
       },
     },
 
-    /* ── Switch ── */
-    {
-      id: 'node-branch',
-      kind: 'switch',
-      tool: 'airflow-branch',
-      label: '수집유형 분기',
-      config: {
-        field: 'source_type',
-        cases: ['rdb', 'unstructured', 'both'],
-      },
-    },
-
     /* ── Tasks ── */
     {
       id: 'node-airflow',
-      kind: 'task',
+      role: 'transform',
+      trigger: true,
       tool: 'apache-airflow',
       label: 'Airflow DAG',
       config: {
@@ -90,18 +80,18 @@ export const mockTopology: CanvasTopology = {
     },
     {
       id: 'node-presidio',
-      kind: 'task',
+      role: 'transform',
       tool: 'presidio',
       label: 'Presidio PII',
       config: {
-        recognizers: 'phone,email,ssn',
+        recognizers: 'phone,email,rrn',
         nlpEngine: 'spacy_ko',
         anonymizeStrategy: 'replace',
       },
     },
     {
       id: 'node-docling',
-      kind: 'task',
+      role: 'transform',
       tool: 'docling-langchain',
       label: 'Docling Chunker',
       config: {
@@ -112,7 +102,7 @@ export const mockTopology: CanvasTopology = {
     },
     {
       id: 'node-kure',
-      kind: 'task',
+      role: 'transform',
       tool: 'kure-embedding',
       label: 'KURE Embedding',
       config: {
@@ -123,7 +113,7 @@ export const mockTopology: CanvasTopology = {
     },
     {
       id: 'node-valkey',
-      kind: 'task',
+      role: 'broker',
       tool: 'valkey',
       label: 'Valkey Broker',
       config: {
@@ -137,7 +127,7 @@ export const mockTopology: CanvasTopology = {
     /* ── Sinks (fan-out 3개) ── */
     {
       id: 'node-es',
-      kind: 'sink',
+      role: 'index',
       tool: 'elasticsearch',
       label: 'Elasticsearch',
       config: {
@@ -149,7 +139,7 @@ export const mockTopology: CanvasTopology = {
     },
     {
       id: 'node-kibana',
-      kind: 'sink',
+      role: 'visualize',
       tool: 'kibana',
       label: 'Kibana',
       config: {
@@ -159,7 +149,7 @@ export const mockTopology: CanvasTopology = {
     },
     {
       id: 'node-mysql',
-      kind: 'sink',
+      role: 'store',
       tool: 'mysql',
       label: 'MySQL Archive',
       config: {
@@ -169,29 +159,47 @@ export const mockTopology: CanvasTopology = {
         batchSize: 500,
       },
     },
+
+    /* ── 인프라 컨테이너 노드 (dependency 채널 전용, 데이터뷰 미표시) ── */
+    {
+      id: 'node-mysql-container',
+      role: 'store',
+      tool: 'mysql',
+      label: 'MySQL 원본 DB',
+      config: {
+        host: 'mysql',
+        database: 'source_db',
+        port: 3306,
+        table: '*',
+        batchSize: 1000,
+      },
+    },
   ],
 
   edges: [
-    /* fan-in: 3 Source → s3-bronze */
-    { from: 'node-debezium', to: 'node-s3-bronze' },
-    { from: 'node-nifi',     to: 'node-s3-bronze' },
-    { from: 'node-dam',      to: 'node-s3-bronze' },
+    /* fan-in: 3 ingest → s3-bronze */
+    { from: 'node-debezium', to: 'node-s3-bronze', channels: ['data'] },
+    { from: 'node-nifi',     to: 'node-s3-bronze', channels: ['data'] },
+    { from: 'node-dam',      to: 'node-s3-bronze', channels: ['data'] },
 
-    /* s3-bronze → branch(switch) */
-    { from: 'node-s3-bronze', to: 'node-branch' },
-
-    /* branch → airflow */
-    { from: 'node-branch', to: 'node-airflow' },
+    /* s3-bronze → airflow (직결, branch 제거) */
+    { from: 'node-s3-bronze', to: 'node-airflow', channels: ['data'] },
 
     /* task 체인 */
-    { from: 'node-airflow',  to: 'node-presidio' },
-    { from: 'node-presidio', to: 'node-docling' },
-    { from: 'node-docling',  to: 'node-kure' },
-    { from: 'node-kure',     to: 'node-valkey' },
+    { from: 'node-airflow',  to: 'node-presidio', channels: ['data'] },
+    { from: 'node-presidio', to: 'node-docling',  channels: ['data'] },
+    { from: 'node-docling',  to: 'node-kure',     channels: ['data'] },
+    { from: 'node-kure',     to: 'node-valkey',   channels: ['data'] },
 
-    /* fan-out: valkey → 3 Sink */
-    { from: 'node-valkey', to: 'node-es' },
-    { from: 'node-valkey', to: 'node-kibana' },
-    { from: 'node-valkey', to: 'node-mysql' },
+    /* fan-out: valkey → es + mysql */
+    { from: 'node-valkey', to: 'node-es',    channels: ['data'] },
+    { from: 'node-valkey', to: 'node-mysql', channels: ['data'] },
+
+    /* infra dependency: es → kibana */
+    { from: 'node-es', to: 'node-kibana', channels: ['dependency'] as ('data' | 'dependency')[] },
+
+    /* infra: MySQL 컨테이너 → Debezium/NiFi (의존성) */
+    { from: 'node-mysql-container', to: 'node-debezium', channels: ['dependency'] as ('data' | 'dependency')[] },
+    { from: 'node-mysql-container', to: 'node-nifi',     channels: ['dependency'] as ('data' | 'dependency')[] },
   ],
 };

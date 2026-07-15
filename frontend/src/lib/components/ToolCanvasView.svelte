@@ -4,8 +4,6 @@
   import '@xyflow/svelte/dist/style.css';
   import type { ToolNode, CanvasTopology, Stage } from '$lib/api/types.js';
   import { buildNodesAndEdges } from '$lib/canvas/buildNodesAndEdges.js';
-  import PiiCountGrid from '$lib/components/PiiCountGrid.svelte';
-  import MaskingComparison from '$lib/components/MaskingComparison.svelte';
   import { getToolEntry } from '$lib/canvas/toolCatalog';
 
   type Adapter = {
@@ -13,11 +11,12 @@
     setNodeConfig: (nodeId: string, config: Record<string, unknown>) => Promise<void>;
   };
 
-  let { topology, adapter = undefined, stages = [] as Stage[], ontrigger = undefined }: {
+  let { topology, adapter = undefined, stages = [] as Stage[], ontrigger = undefined, view = 'data' as 'data' | 'infra' }: {
     topology: CanvasTopology;
     adapter?: Adapter;
     stages?: Stage[];
     ontrigger?: (runId: string) => void;
+    view?: 'data' | 'infra';
   } = $props();
 
   let selectedNode = $state<ToolNode | null>(null);
@@ -33,7 +32,7 @@
   const edgesStore = writable<FlowEdge[]>([]);
 
   $effect(() => {
-    const { nodes, edges } = buildNodesAndEdges(topology);
+    const { nodes, edges } = buildNodesAndEdges(topology, view);
     nodesStore.set(nodes);
     edgesStore.set(edges);
   });
@@ -61,7 +60,13 @@
 
 <div class="relative flex gap-4" style="height: 520px;">
   <!-- Canvas -->
-  <div class="flex-1 border border-border rounded-sm overflow-hidden">
+  <div class="flex-1 border border-border rounded-sm overflow-hidden relative">
+    <!-- 인프라 뷰 배지 -->
+    {#if view === 'infra'}
+      <div class="absolute top-2 left-2 z-10 px-2 py-0.5 bg-amber-50 border border-amber-300 rounded-xs text-[10px] font-mono font-bold text-amber-700 uppercase tracking-wide">
+        인프라 연결 뷰
+      </div>
+    {/if}
     <SvelteFlow nodes={nodesStore} edges={edgesStore} fitView on:nodeclick={handleNodeClick}>
       <Background />
       <Controls />
@@ -95,9 +100,15 @@
           <span class="ml-2 font-bold">{selectedNode.tool}</span>
         </div>
         <div>
-          <span class="text-muted-foreground">kind</span>
-          <span class="ml-2 font-bold">{selectedNode.kind}</span>
+          <span class="text-muted-foreground">role</span>
+          <span class="ml-2 font-bold">{selectedNode.role}</span>
         </div>
+        {#if selectedNode.trigger}
+          <div>
+            <span class="text-muted-foreground">trigger</span>
+            <span class="ml-2 font-bold text-amber-600">true</span>
+          </div>
+        {/if}
       </div>
 
       <!-- 설정 폼 -->
@@ -174,47 +185,14 @@
         {/if}
       </div>
 
-      <!-- Medallion 증거 (masking-task 전용 + run_id 바인딩) -->
-      {#if selectedNode.id === 'masking-task'}
-        {@const maskingStage = stages.find(s => s.id === 'silver_masked')}
-        {#if maskingStage}
-          <div class="border-t border-border pt-3 space-y-3">
-            <div class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center justify-between">
-              <span>medallion 증거</span>
-              {#if triggeredRunId}<span class="font-mono font-normal truncate max-w-[120px]" title={triggeredRunId}>{triggeredRunId}</span>{/if}
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div class="bg-surface-muted p-2 rounded-xs">
-                <div class="text-[10px] text-muted-foreground">입력 문서</div>
-                <div class="text-base font-bold tabular-nums">{maskingStage.docsIn.toLocaleString()}</div>
-              </div>
-              <div class="bg-surface-muted p-2 rounded-xs">
-                <div class="text-[10px] text-muted-foreground">출력 문서</div>
-                <div class="text-base font-bold tabular-nums">{maskingStage.docsOut.toLocaleString()}</div>
-              </div>
-            </div>
-            <div class="space-y-1">
-              <div class="text-[10px] font-mono text-muted-foreground uppercase tracking-tighter">마스킹 방식</div>
-              <span class="text-[10px] font-mono font-bold bg-surface-muted px-1.5 py-0.5 rounded-xs uppercase">REGEX_PATTERN</span>
-            </div>
-            <PiiCountGrid counts={[
-              { type: 'KR_PHONE', label: '전화번호', count: 2, planned: false },
-              { type: 'KR_RRN', label: '주민번호', count: 1, planned: false },
-              { type: 'KR_EMAIL', label: '이메일', count: 1, planned: false },
-              { type: 'KR_BANK_ACCOUNT', label: '계좌번호', count: 1, planned: false },
-              { type: 'KR_NAME', label: '이름', count: 3, planned: true },
-              { type: 'KR_ADDRESS', label: '주소', count: 1, planned: true },
-            ]} />
-            <MaskingComparison
-              title="샘플 변환 · AP00005928||1"
-              before={`고객 연락 010-1234-5678, 이메일 user@hmc.example, 계좌 123-456789-12.`}
-              after={`고객 연락 010****1234, 이메일 [이메일 마스킹], 계좌 [계좌번호 마스킹].`}
-            />
-          </div>
-        {/if}
+      <!-- 트리거 결과 표시 -->
+      {#if triggeredRunId}
+        <div class="mt-auto border-t border-border pt-3 text-[10px] text-muted-foreground leading-relaxed">
+          run: {triggeredRunId}
+        </div>
       {:else}
         <div class="mt-auto border-t border-border pt-3 text-[10px] text-muted-foreground leading-relaxed">
-          {#if triggeredRunId}run: {triggeredRunId}{:else}노드를 트리거하면 증거가 여기에 표시됩니다.{/if}
+          노드를 트리거하면 결과가 여기에 표시됩니다.
         </div>
       {/if}
     </div>
