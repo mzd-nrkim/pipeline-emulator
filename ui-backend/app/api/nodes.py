@@ -18,7 +18,10 @@ def trigger_node(node_id: str, body: TriggerRequest):
     dag_id = STAGE_DAG_MAP.get(node_id)
     if dag_id is None:
         raise HTTPException(status_code=404, detail=f"No DAG mapped for node_id '{node_id}'")
-    dag_run_id = trigger_dag(dag_id, body.conf)
+    try:
+        dag_run_id = trigger_dag(dag_id, body.conf)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     return {"dag_run_id": dag_run_id, "node_id": node_id}
 
 
