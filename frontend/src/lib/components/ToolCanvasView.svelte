@@ -2,15 +2,22 @@
   import { writable } from 'svelte/store';
   import { SvelteFlow, Background, Controls, type Node as FlowNode, type Edge as FlowEdge } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
-  import type { ToolNode, CanvasTopology } from '$lib/api/types.js';
+  import type { ToolNode, CanvasTopology, Stage } from '$lib/api/types.js';
   import { buildNodesAndEdges } from '$lib/canvas/buildNodesAndEdges.js';
+  import PiiCountGrid from '$lib/components/PiiCountGrid.svelte';
+  import MaskingComparison from '$lib/components/MaskingComparison.svelte';
 
   type Adapter = {
     triggerNode: (nodeId: string, conf: Record<string, unknown>) => Promise<{ dag_run_id: string }>;
     setNodeConfig: (nodeId: string, config: Record<string, unknown>) => Promise<void>;
   };
 
-  let { topology, adapter = undefined }: { topology: CanvasTopology; adapter?: Adapter } = $props();
+  let { topology, adapter = undefined, stages = [] as Stage[], ontrigger = undefined }: {
+    topology: CanvasTopology;
+    adapter?: Adapter;
+    stages?: Stage[];
+    ontrigger?: (runId: string) => void;
+  } = $props();
 
   let selectedNode = $state<ToolNode | null>(null);
   let triggeredRunId = $state<string | null>(null);
@@ -39,6 +46,7 @@
     try {
       const result = await adapter.triggerNode(selectedNode.id, {});
       triggeredRunId = result.dag_run_id;
+      ontrigger?.(result.dag_run_id);
     } catch (e) {
       triggerError = String(e);
     }
@@ -117,9 +125,49 @@
         {/if}
       </div>
 
-      <div class="mt-auto border-t border-border pt-3 text-[10px] text-muted-foreground leading-relaxed">
-        이 run의 증거는 P3에서 연결됩니다. (run_id 바인딩은 P3)
-      </div>
+      <!-- Medallion 증거 (masking-task 전용 + run_id 바인딩) -->
+      {#if selectedNode.id === 'masking-task'}
+        {@const maskingStage = stages.find(s => s.id === 'silver_masked')}
+        {#if maskingStage}
+          <div class="border-t border-border pt-3 space-y-3">
+            <div class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center justify-between">
+              <span>medallion 증거</span>
+              {#if triggeredRunId}<span class="font-mono font-normal truncate max-w-[120px]" title={triggeredRunId}>{triggeredRunId}</span>{/if}
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="bg-surface-muted p-2 rounded-xs">
+                <div class="text-[10px] text-muted-foreground">입력 문서</div>
+                <div class="text-base font-bold tabular-nums">{maskingStage.docsIn.toLocaleString()}</div>
+              </div>
+              <div class="bg-surface-muted p-2 rounded-xs">
+                <div class="text-[10px] text-muted-foreground">출력 문서</div>
+                <div class="text-base font-bold tabular-nums">{maskingStage.docsOut.toLocaleString()}</div>
+              </div>
+            </div>
+            <div class="space-y-1">
+              <div class="text-[10px] font-mono text-muted-foreground uppercase tracking-tighter">마스킹 방식</div>
+              <span class="text-[10px] font-mono font-bold bg-surface-muted px-1.5 py-0.5 rounded-xs uppercase">REGEX_PATTERN</span>
+            </div>
+            <PiiCountGrid counts={[
+              { type: 'KR_PHONE', label: '전화번호', count: 2, planned: false },
+              { type: 'KR_RRN', label: '주민번호', count: 1, planned: false },
+              { type: 'KR_EMAIL', label: '이메일', count: 1, planned: false },
+              { type: 'KR_BANK_ACCOUNT', label: '계좌번호', count: 1, planned: false },
+              { type: 'KR_NAME', label: '이름', count: 3, planned: true },
+              { type: 'KR_ADDRESS', label: '주소', count: 1, planned: true },
+            ]} />
+            <MaskingComparison
+              title="샘플 변환 · AP00005928||1"
+              before={`고객 연락 010-1234-5678, 이메일 user@hmc.example, 계좌 123-456789-12.`}
+              after={`고객 연락 010****1234, 이메일 [이메일 마스킹], 계좌 [계좌번호 마스킹].`}
+            />
+          </div>
+        {/if}
+      {:else}
+        <div class="mt-auto border-t border-border pt-3 text-[10px] text-muted-foreground leading-relaxed">
+          {#if triggeredRunId}run: {triggeredRunId}{:else}노드를 트리거하면 증거가 여기에 표시됩니다.{/if}
+        </div>
+      {/if}
     </div>
   {/if}
 </div>
