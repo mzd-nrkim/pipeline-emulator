@@ -13,11 +13,12 @@
     setNodeConfig: (nodeId: string, config: Record<string, unknown>) => Promise<void>;
   };
 
-  let { topology, adapter = undefined, stages = [] as Stage[], ontrigger = undefined }: {
+  let { topology, adapter = undefined, stages = [] as Stage[], ontrigger = undefined, view = 'data' as 'data' | 'infra' }: {
     topology: CanvasTopology;
     adapter?: Adapter;
     stages?: Stage[];
     ontrigger?: (runId: string) => void;
+    view?: 'data' | 'infra';
   } = $props();
 
   let selectedNode = $state<ToolNode | null>(null);
@@ -33,7 +34,7 @@
   const edgesStore = writable<FlowEdge[]>([]);
 
   $effect(() => {
-    const { nodes, edges } = buildNodesAndEdges(topology);
+    const { nodes, edges } = buildNodesAndEdges(topology, view);
     nodesStore.set(nodes);
     edgesStore.set(edges);
   });
@@ -95,9 +96,15 @@
           <span class="ml-2 font-bold">{selectedNode.tool}</span>
         </div>
         <div>
-          <span class="text-muted-foreground">kind</span>
-          <span class="ml-2 font-bold">{selectedNode.kind}</span>
+          <span class="text-muted-foreground">role</span>
+          <span class="ml-2 font-bold">{selectedNode.role}</span>
         </div>
+        {#if selectedNode.trigger}
+          <div>
+            <span class="text-muted-foreground">trigger</span>
+            <span class="ml-2 font-bold text-amber-600">true</span>
+          </div>
+        {/if}
       </div>
 
       <!-- 설정 폼 -->

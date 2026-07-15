@@ -1,79 +1,94 @@
 import { describe, it, expect } from 'vitest';
-import { buildNodesAndEdges, KIND_X, KIND_STYLE } from './buildNodesAndEdges.js';
+import { buildNodesAndEdges, ROLE_STYLE } from './buildNodesAndEdges.js';
 import type { CanvasTopology } from '$lib/api/types.js';
 import { getToolEntry } from './toolCatalog.js';
 
 /**
- * 새 토폴로지 (hyundaimotor-lllm 파이프라인 반영):
- *   fan-in  : debezium + nifi + dam → s3-bronze (3 source → 1 sink)
- *   switch  : node-branch (1개)
+ * 새 토폴로지 (hyundaimotor-lllm 파이프라인 반영, Phase B 재설계):
+ *   fan-in  : debezium + nifi + dam → s3-bronze (3 ingest → 1 store)
+ *   trigger : airflow (transform, trigger=true)
  *   task 체인: airflow → presidio → docling → kure → valkey
- *   fan-out : valkey → es + kibana + mysql (3 sink)
- *   총 노드 수: 13, 총 엣지 수: 12
+ *   fan-out : valkey → es + mysql (data 채널)
+ *   dependency: es → kibana (dependency 채널만)
+ *   총 노드 수: 12 (node-branch 제거), 총 엣지 수: 11 (data:10, dependency:1)
  */
 const sampleTopology: CanvasTopology = {
   nodes: [
-    /* Sources (fan-in 3개) */
-    { id: 'node-debezium',  kind: 'source', tool: 'debezium',       config: {} },
-    { id: 'node-nifi',      kind: 'source', tool: 'apache-nifi',    config: {} },
-    { id: 'node-dam',       kind: 'source', tool: 'dam',            config: {} },
-    /* Sink - Bronze */
-    { id: 'node-s3-bronze', kind: 'sink',   tool: 's3',             config: {} },
-    /* Switch */
-    { id: 'node-branch',    kind: 'switch', tool: 'airflow-branch', config: { field: 'source_type' } },
-    /* Tasks */
-    { id: 'node-airflow',   kind: 'task',   tool: 'apache-airflow', config: { dagId: 'lllm_pipeline' } },
-    { id: 'node-presidio',  kind: 'task',   tool: 'presidio',       config: {} },
-    { id: 'node-docling',   kind: 'task',   tool: 'docling-langchain', config: {} },
-    { id: 'node-kure',      kind: 'task',   tool: 'kure-embedding', config: {} },
-    { id: 'node-valkey',    kind: 'task',   tool: 'valkey',         config: {} },
-    /* Sinks (fan-out 3개) */
-    { id: 'node-es',        kind: 'sink',   tool: 'elasticsearch',  config: {} },
-    { id: 'node-kibana',    kind: 'sink',   tool: 'kibana',         config: {} },
-    { id: 'node-mysql',     kind: 'sink',   tool: 'mysql',          config: {} },
+    /* Ingest (fan-in 3개) */
+    { id: 'node-debezium',  role: 'ingest',     tool: 'debezium',          config: {} },
+    { id: 'node-nifi',      role: 'ingest',     tool: 'apache-nifi',       config: {} },
+    { id: 'node-dam',       role: 'ingest',     tool: 'dam',               config: {} },
+    /* Store - Bronze */
+    { id: 'node-s3-bronze', role: 'store',      tool: 's3',                config: {} },
+    /* Transform - Trigger */
+    { id: 'node-airflow',   role: 'transform',  tool: 'apache-airflow',    config: { dagId: 'lllm_pipeline' }, trigger: true },
+    /* Transform 체인 */
+    { id: 'node-presidio',  role: 'transform',  tool: 'presidio',          config: {} },
+    { id: 'node-docling',   role: 'transform',  tool: 'docling-langchain', config: {} },
+    { id: 'node-kure',      role: 'transform',  tool: 'kure-embedding',    config: {} },
+    /* Broker */
+    { id: 'node-valkey',    role: 'broker',     tool: 'valkey',            config: {} },
+    /* Index */
+    { id: 'node-es',        role: 'index',      tool: 'elasticsearch',     config: {} },
+    /* Visualize */
+    { id: 'node-kibana',    role: 'visualize',  tool: 'kibana',            config: {} },
+    /* Store - Silver/Gold */
+    { id: 'node-mysql',     role: 'store',      tool: 'mysql',             config: {} },
   ],
   edges: [
-    /* fan-in: 3 source → s3-bronze */
-    { from: 'node-debezium',  to: 'node-s3-bronze' },
-    { from: 'node-nifi',      to: 'node-s3-bronze' },
-    { from: 'node-dam',       to: 'node-s3-bronze' },
-    /* s3-bronze → branch → airflow */
-    { from: 'node-s3-bronze', to: 'node-branch' },
-    { from: 'node-branch',    to: 'node-airflow' },
-    /* task 체인 */
-    { from: 'node-airflow',   to: 'node-presidio' },
-    { from: 'node-presidio',  to: 'node-docling' },
-    { from: 'node-docling',   to: 'node-kure' },
-    { from: 'node-kure',      to: 'node-valkey' },
-    /* fan-out: valkey → 3 sink */
-    { from: 'node-valkey',    to: 'node-es',     condition: 'elasticsearch' },
-    { from: 'node-valkey',    to: 'node-kibana', condition: 'kibana' },
-    { from: 'node-valkey',    to: 'node-mysql',  condition: 'mysql' },
+    /* fan-in: 3 ingest → s3-bronze (data) */
+    { from: 'node-debezium',  to: 'node-s3-bronze', channels: ['data'] },
+    { from: 'node-nifi',      to: 'node-s3-bronze', channels: ['data'] },
+    { from: 'node-dam',       to: 'node-s3-bronze', channels: ['data'] },
+    /* s3-bronze → airflow 직결 (branch 제거) */
+    { from: 'node-s3-bronze', to: 'node-airflow',   channels: ['data'] },
+    /* transform 체인 (data) */
+    { from: 'node-airflow',   to: 'node-presidio',  channels: ['data'] },
+    { from: 'node-presidio',  to: 'node-docling',   channels: ['data'] },
+    { from: 'node-docling',   to: 'node-kure',      channels: ['data'] },
+    { from: 'node-kure',      to: 'node-valkey',    channels: ['data'] },
+    /* fan-out: valkey → es + mysql (data) */
+    { from: 'node-valkey',    to: 'node-es',        channels: ['data'],       condition: 'elasticsearch' },
+    { from: 'node-valkey',    to: 'node-mysql',     channels: ['data'],       condition: 'mysql' },
+    /* kibana: dependency 채널만 */
+    { from: 'node-es',        to: 'node-kibana',    channels: ['dependency'] },
   ],
 };
 
 describe('buildNodesAndEdges', () => {
-  it('Right: 샘플 토폴로지에서 모든 노드·엣지를 생성한다', () => {
-    const { nodes, edges } = buildNodesAndEdges(sampleTopology);
-    expect(nodes).toHaveLength(sampleTopology.nodes.length);
-    expect(edges).toHaveLength(sampleTopology.edges.length);
+  /* ── Right: 기본 동작 ────────────────────────────────────────── */
+
+  it('Right: data 뷰에서 data 채널 노드·엣지를 생성한다', () => {
+    const { nodes, edges } = buildNodesAndEdges(sampleTopology, 'data');
+    // kibana는 dependency only → data 뷰에서 미표시 (11노드)
+    expect(nodes).toHaveLength(11);
+    // data 채널 엣지 10개
+    expect(edges).toHaveLength(10);
   });
 
-  it('Right: 4종 kind가 각자 올바른 x 오프셋을 갖는다', () => {
-    const { nodes } = buildNodesAndEdges(sampleTopology);
+  it('Right: 데이터뷰 위상정렬 X좌표가 단조 증가(Ordering)', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    // 각 노드의 x 좌표는 0 이상이고 COL_GAP(280) 단위
     for (const n of nodes) {
-      const orig = sampleTopology.nodes.find(o => o.id === n.id)!;
-      expect(n.position.x).toBe(KIND_X[orig.kind]);
+      expect(n.position.x).toBeGreaterThanOrEqual(0);
+      expect(n.position.x % 280).toBe(0);
     }
+    // 소스(debezium/nifi/dam)가 최소 x, 말단(es/mysql)이 최대 x
+    const debeziumNode = nodes.find(n => n.id === 'node-debezium')!;
+    const esNode = nodes.find(n => n.id === 'node-es')!;
+    expect(debeziumNode.position.x).toBeLessThan(esNode.position.x);
   });
 
-  it('Right: 4종 kind 시각 구분 style이 적용된다', () => {
-    const { nodes } = buildNodesAndEdges(sampleTopology);
-    for (const n of nodes) {
-      const orig = sampleTopology.nodes.find(o => o.id === n.id)!;
-      expect(n.style).toBe(KIND_STYLE[orig.kind]);
-    }
+  it('Right: ROLE_STYLE에서 role별 스타일 적용', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    const debeziumNode = nodes.find(n => n.id === 'node-debezium')!;
+    expect(debeziumNode.style).toBe(ROLE_STYLE['ingest']);
+
+    const esNode = nodes.find(n => n.id === 'node-es')!;
+    expect(esNode.style).toBe(ROLE_STYLE['index']);
   });
+
+  /* ── B(경계): 빈/최소 토폴로지 ──────────────────────────────── */
 
   it('B(경계): 빈 토폴로지에서 빈 배열 반환, 크래시 없음', () => {
     const { nodes, edges } = buildNodesAndEdges({ nodes: [], edges: [] });
@@ -81,60 +96,47 @@ describe('buildNodesAndEdges', () => {
     expect(edges).toHaveLength(0);
   });
 
-  it('B(경계): 노드 1개 + 엣지 없는 최소 DAG에서 크래시 없음', () => {
-    const topo: CanvasTopology = {
-      nodes: [{ id: 'solo', kind: 'task', tool: 'Solo', config: {} }],
-      edges: [],
-    };
-    const { nodes, edges } = buildNodesAndEdges(topo);
-    expect(nodes).toHaveLength(1);
-    expect(edges).toHaveLength(0);
+  it('빈 topology 크래시 없음 (infra 뷰)', () => {
+    expect(() => buildNodesAndEdges({ nodes: [], edges: [] }, 'infra')).not.toThrow();
   });
+
+  /* ── I(역·부정): ghost 노드·채널 필터 ───────────────────────── */
 
   it('I(역·부정): 존재하지 않는 노드를 가리키는 엣지는 무시한다', () => {
     const topo: CanvasTopology = {
-      nodes: [{ id: 'a', kind: 'source', tool: 'A', config: {} }],
+      nodes: [{ id: 'a', role: 'ingest', tool: 'A', config: {} }],
       edges: [
-        { from: 'a',      to: 'ghost' },
-        { from: 'ghost2', to: 'a' },
+        { from: 'a',      to: 'ghost',  channels: ['data'] },
+        { from: 'ghost2', to: 'a',      channels: ['data'] },
       ],
     };
-    const { edges } = buildNodesAndEdges(topo);
+    const { edges } = buildNodesAndEdges(topo, 'data');
     expect(edges).toHaveLength(0);
   });
 
-  it('C(교차): 렌더된 노드 수 == topology.nodes.length', () => {
-    const { nodes } = buildNodesAndEdges(sampleTopology);
-    expect(nodes).toHaveLength(sampleTopology.nodes.length);
+  /* ── 채널 필터 ───────────────────────────────────────────────── */
+
+  it('채널 필터: data 뷰에서 kibana(dependency only) 미표시', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    const kibana = nodes.find(n => n.id === 'node-kibana');
+    expect(kibana).toBeUndefined();
   });
 
-  it('C(교차): fan-in — 3개 Source가 같은 Sink(s3-bronze)로 연결된다', () => {
-    const { edges } = buildNodesAndEdges(sampleTopology);
-    const toS3Bronze = edges.filter(e => e.target === 'node-s3-bronze');
-    expect(toS3Bronze.length).toBeGreaterThanOrEqual(3);
+  it('채널 필터: infra 뷰에서 es·kibana만 표시', () => {
+    const { nodes, edges } = buildNodesAndEdges(sampleTopology, 'infra');
+    // dependency 채널 엣지: es→kibana (1개)
+    expect(edges).toHaveLength(1);
+    // es·kibana 두 노드만
+    expect(nodes).toHaveLength(2);
+    const ids = nodes.map(n => n.id);
+    expect(ids).toContain('node-es');
+    expect(ids).toContain('node-kibana');
   });
 
-  it('C(교차): fan-out — Valkey에서 3개 Sink로 연결된다', () => {
-    const { edges } = buildNodesAndEdges(sampleTopology);
-    const fromValkey = edges.filter(e => e.source === 'node-valkey');
-    expect(fromValkey.length).toBeGreaterThanOrEqual(3);
-  });
-
-  it('C(교차): branch — Switch 엣지에 condition이 label로 전달된다', () => {
-    const { edges } = buildNodesAndEdges(sampleTopology);
-    const sw = edges.find(e => e.source === 'node-valkey' && e.target === 'node-es');
-    expect(sw?.label).toBe('elasticsearch');
-  });
-
-  it('Range: ToolNode.kind가 4종 범위 안에서만 style이 존재한다', () => {
-    const kinds: Array<'source' | 'task' | 'switch' | 'sink'> = ['source', 'task', 'switch', 'sink'];
-    expect(Object.keys(KIND_STYLE)).toEqual(expect.arrayContaining(kinds));
-  });
-
-  /* ── 카탈로그 조인 신규 TC ─────────────────────────────────── */
+  /* ── 카탈로그 조인 ───────────────────────────────────────────── */
 
   it('Right(카탈로그): 각 노드 data에 displayName·vendor·icon이 존재한다', () => {
-    const { nodes } = buildNodesAndEdges(sampleTopology);
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
     for (const n of nodes) {
       expect(n.data).toHaveProperty('displayName');
       expect(n.data).toHaveProperty('vendor');
@@ -145,7 +147,7 @@ describe('buildNodesAndEdges', () => {
   });
 
   it('Right(카탈로그): label이 "아이콘 표시명" 형태 (공백 포함, 비어있지 않음)', () => {
-    const { nodes } = buildNodesAndEdges(sampleTopology);
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
     for (const n of nodes) {
       expect(n.data.label).toMatch(/.+ .+/);
     }
@@ -153,40 +155,53 @@ describe('buildNodesAndEdges', () => {
 
   it('B(경계·폴백): 미등록 tool id → 크래시 없이 displayName=id 폴백', () => {
     const topo: CanvasTopology = {
-      nodes: [{ id: 'node-unknown', kind: 'task', tool: 'totally-unknown-tool-xyz', config: {} }],
-      edges: [],
+      nodes: [
+        { id: 'node-unknown-a', role: 'ingest', tool: 'totally-unknown-tool-xyz', config: {} },
+        { id: 'node-unknown-b', role: 'store',  tool: 'another-unknown',          config: {} },
+      ],
+      edges: [
+        { from: 'node-unknown-a', to: 'node-unknown-b', channels: ['data'] },
+      ],
     };
-    const { nodes } = buildNodesAndEdges(topo);
-    expect(nodes).toHaveLength(1);
-    expect(nodes[0].data.displayName).toBe('totally-unknown-tool-xyz');
-    expect(nodes[0].data.vendor).toBe('Unknown');
-    expect(nodes[0].data.icon).toBe('❓');
-    expect(nodes[0].data.accent).toBe('#6B7280');
+    const { nodes } = buildNodesAndEdges(topo, 'data');
+    expect(nodes).toHaveLength(2);
+    const unknownNode = nodes.find(n => n.id === 'node-unknown-a')!;
+    expect(unknownNode.data.displayName).toBe('totally-unknown-tool-xyz');
+    expect(unknownNode.data.vendor).toBe('Unknown');
+    expect(unknownNode.data.icon).toBe('❓');
+    expect(unknownNode.data.accent).toBe('#6B7280');
   });
 
   it('I(역): tool이 빈 문자열 → 폴백으로 node id 표시', () => {
     const topo: CanvasTopology = {
-      nodes: [{ id: 'node-empty-tool', kind: 'task', tool: '', config: {} }],
-      edges: [],
+      nodes: [
+        { id: 'node-empty-a', role: 'ingest', tool: '',         config: {} },
+        { id: 'node-empty-b', role: 'store',  tool: 'some-tool', config: {} },
+      ],
+      edges: [
+        { from: 'node-empty-a', to: 'node-empty-b', channels: ['data'] },
+      ],
     };
-    const { nodes } = buildNodesAndEdges(topo);
-    expect(nodes).toHaveLength(1);
+    const { nodes } = buildNodesAndEdges(topo, 'data');
+    expect(nodes).toHaveLength(2);
+    const emptyToolNode = nodes.find(n => n.id === 'node-empty-a')!;
     // tool이 빈 문자열이면 node.id로 폴백
-    expect(nodes[0].data.displayName).toBe('node-empty-tool');
-    expect(nodes[0].data.icon).toBe('❓');
+    expect(emptyToolNode.data.displayName).toBe('node-empty-a');
+    expect(emptyToolNode.data.icon).toBe('❓');
   });
 
-  it('Conformance(값범위): kind가 4종(source|task|switch|sink) 범위 내', () => {
-    const { nodes } = buildNodesAndEdges(sampleTopology);
-    const validKinds = new Set(['source', 'task', 'switch', 'sink']);
+  /* ── Conformance: role 값 범위 ───────────────────────────────── */
+
+  it('Conformance(값범위): data.role이 ToolRole 유니온 내 값', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    const validRoles = new Set(['ingest', 'transform', 'route', 'store', 'index', 'broker', 'visualize']);
     for (const n of nodes) {
-      expect(validKinds.has(n.data.kind)).toBe(true);
+      expect(validRoles.has(n.data.role)).toBe(true);
     }
   });
 
   it('Range(configFields): 카탈로그 엔트리 configFields.type이 허용 범위 내', () => {
     const allowedTypes = new Set(['text', 'number', 'select', 'boolean']);
-    // sampleTopology의 등록된 tool만 검사
     for (const toolNode of sampleTopology.nodes) {
       const entry = getToolEntry(toolNode.tool);
       if (entry && entry.configFields) {
@@ -197,34 +212,103 @@ describe('buildNodesAndEdges', () => {
     }
   });
 
-  it('Reference: sampleTopology의 모든 tool id가 카탈로그 조회 시 폴백 없이 처리된다', () => {
-    const { nodes } = buildNodesAndEdges(sampleTopology);
+  it('Reference: sampleTopology의 모든 visible tool id가 displayName을 가진다', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
     for (const n of nodes) {
-      // 등록 여부와 상관없이 모든 노드가 displayName을 가져야 함
       expect(n.data.displayName).toBeTruthy();
-      // 카탈로그 미등록이면 vendor='Unknown', 등록이면 카탈로그 값
       expect(typeof n.data.vendor).toBe('string');
     }
   });
 
+  /* ── Cardinality: fan-in / fan-out ──────────────────────────── */
+
   it('Cardinality: fan-in(3→1) — s3-bronze로 들어오는 엣지가 정확히 3개', () => {
-    const { edges } = buildNodesAndEdges(sampleTopology);
+    const { edges } = buildNodesAndEdges(sampleTopology, 'data');
     const toS3Bronze = edges.filter(e => e.target === 'node-s3-bronze');
     expect(toS3Bronze).toHaveLength(3);
   });
 
-  it('Cardinality: branch(switch 1개) — node-branch 노드가 1개', () => {
-    const { nodes } = buildNodesAndEdges(sampleTopology);
-    const switchNodes = nodes.filter(n => {
-      const orig = sampleTopology.nodes.find(o => o.id === n.id);
-      return orig?.kind === 'switch';
-    });
-    expect(switchNodes).toHaveLength(1);
+  it('fan-in 3→s3-bronze 엣지 유지 (data view)', () => {
+    const { edges } = buildNodesAndEdges(sampleTopology, 'data');
+    const sources = edges.filter(e => e.target === 'node-s3-bronze').map(e => e.source);
+    expect(sources).toContain('node-debezium');
+    expect(sources).toContain('node-nifi');
+    expect(sources).toContain('node-dam');
   });
 
-  it('Cardinality: fan-out(1→3) — valkey에서 나가는 엣지가 정확히 3개', () => {
-    const { edges } = buildNodesAndEdges(sampleTopology);
+  it('Cardinality: fan-out(1→2) — valkey에서 나가는 data 엣지가 정확히 2개 (kibana 제거로 mysql+es=2개)', () => {
+    const { edges } = buildNodesAndEdges(sampleTopology, 'data');
     const fromValkey = edges.filter(e => e.source === 'node-valkey');
-    expect(fromValkey).toHaveLength(3);
+    expect(fromValkey).toHaveLength(2);
+  });
+
+  it('fan-out valkey→es, valkey→mysql 엣지 유지 (data view)', () => {
+    const { edges } = buildNodesAndEdges(sampleTopology, 'data');
+    const fromValkey = edges.filter(e => e.source === 'node-valkey');
+    const targets = fromValkey.map(e => e.target);
+    expect(targets).toContain('node-es');
+    expect(targets).toContain('node-mysql');
+  });
+
+  /* ── trigger 스타일 ──────────────────────────────────────────── */
+
+  it('trigger=true 노드는 border가 dashed로 변경된다', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    const airflow = nodes.find(n => n.id === 'node-airflow')!;
+    expect(airflow.style).toContain('border: 2px dashed');
+  });
+
+  it('trigger 미설정 노드는 border가 solid', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    const debezium = nodes.find(n => n.id === 'node-debezium')!;
+    expect(debezium.style).toContain('border: 2px solid');
+  });
+
+  /* ── data.trigger 필드 ───────────────────────────────────────── */
+
+  it('airflow 노드 data.trigger === true', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    const airflow = nodes.find(n => n.id === 'node-airflow')!;
+    expect(airflow.data.trigger).toBe(true);
+  });
+
+  it('trigger 미설정 노드 data.trigger === false', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    const debezium = nodes.find(n => n.id === 'node-debezium')!;
+    expect(debezium.data.trigger).toBe(false);
+  });
+
+  /* ── infra 뷰 스타일 ─────────────────────────────────────────── */
+
+  it('infra 뷰에서 노드 style이 accent 색상 기반', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'infra');
+    // es 노드 (elasticsearch, accent=#FEC514)
+    const es = nodes.find(n => n.id === 'node-es')!;
+    expect(es.style).toContain('#FEC514');
+    expect(es.style).toContain('background: #f9fafb');
+  });
+
+  /* ── animated 엣지 ───────────────────────────────────────────── */
+
+  it('data 뷰 엣지 animated=true', () => {
+    const { edges } = buildNodesAndEdges(sampleTopology, 'data');
+    for (const e of edges) {
+      expect(e.animated).toBe(true);
+    }
+  });
+
+  it('infra 뷰 엣지 animated=false', () => {
+    const { edges } = buildNodesAndEdges(sampleTopology, 'infra');
+    for (const e of edges) {
+      expect(e.animated).toBe(false);
+    }
+  });
+
+  /* ── condition → label ───────────────────────────────────────── */
+
+  it('condition이 있는 엣지는 label로 전달된다', () => {
+    const { edges } = buildNodesAndEdges(sampleTopology, 'data');
+    const esEdge = edges.find(e => e.source === 'node-valkey' && e.target === 'node-es');
+    expect(esEdge?.label).toBe('elasticsearch');
   });
 });

@@ -14,6 +14,7 @@
 
   let selectedRunId = $state(page.url.searchParams.get('runA') ?? '');
   let activeRunId = $state<string | null>(null);
+  let view = $state<'data' | 'infra'>('data');
 
   function updateUrl() {
     const params = new URLSearchParams();
@@ -58,6 +59,23 @@
         >
           재실행
         </button>
+        <!-- 뷰 셀렉터 -->
+        <div class="flex items-center gap-1 border border-border rounded-xs p-0.5">
+          <button
+            type="button"
+            onclick={() => view = 'data'}
+            class="px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-tight rounded-xs transition-colors {view === 'data' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}"
+          >
+            데이터흐름
+          </button>
+          <button
+            type="button"
+            onclick={() => view = 'infra'}
+            class="px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-tight rounded-xs transition-colors {view === 'infra' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}"
+          >
+            인프라
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -70,6 +88,7 @@
         adapter={currentAdapter}
         stages={data.stages}
         ontrigger={(id) => activeRunId = id}
+        {view}
       />
     </div>
 
