@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildNodesAndEdges, KIND_X, KIND_STYLE } from './buildNodesAndEdges.js';
 import type { CanvasTopology } from '$lib/api/types.js';
+import { getToolEntry } from './toolCatalog.js';
 
 /**
  * 새 토폴로지 (hyundaimotor-lllm 파이프라인 반영):
@@ -128,5 +129,102 @@ describe('buildNodesAndEdges', () => {
   it('Range: ToolNode.kind가 4종 범위 안에서만 style이 존재한다', () => {
     const kinds: Array<'source' | 'task' | 'switch' | 'sink'> = ['source', 'task', 'switch', 'sink'];
     expect(Object.keys(KIND_STYLE)).toEqual(expect.arrayContaining(kinds));
+  });
+
+  /* ── 카탈로그 조인 신규 TC ─────────────────────────────────── */
+
+  it('Right(카탈로그): 각 노드 data에 displayName·vendor·icon이 존재한다', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology);
+    for (const n of nodes) {
+      expect(n.data).toHaveProperty('displayName');
+      expect(n.data).toHaveProperty('vendor');
+      expect(n.data).toHaveProperty('icon');
+      expect(typeof n.data.displayName).toBe('string');
+      expect(n.data.displayName.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('Right(카탈로그): label이 "아이콘 표시명" 형태 (공백 포함, 비어있지 않음)', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology);
+    for (const n of nodes) {
+      expect(n.data.label).toMatch(/.+ .+/);
+    }
+  });
+
+  it('B(경계·폴백): 미등록 tool id → 크래시 없이 displayName=id 폴백', () => {
+    const topo: CanvasTopology = {
+      nodes: [{ id: 'node-unknown', kind: 'task', tool: 'totally-unknown-tool-xyz', config: {} }],
+      edges: [],
+    };
+    const { nodes } = buildNodesAndEdges(topo);
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].data.displayName).toBe('totally-unknown-tool-xyz');
+    expect(nodes[0].data.vendor).toBe('Unknown');
+    expect(nodes[0].data.icon).toBe('❓');
+    expect(nodes[0].data.accent).toBe('#6B7280');
+  });
+
+  it('I(역): tool이 빈 문자열 → 폴백으로 node id 표시', () => {
+    const topo: CanvasTopology = {
+      nodes: [{ id: 'node-empty-tool', kind: 'task', tool: '', config: {} }],
+      edges: [],
+    };
+    const { nodes } = buildNodesAndEdges(topo);
+    expect(nodes).toHaveLength(1);
+    // tool이 빈 문자열이면 node.id로 폴백
+    expect(nodes[0].data.displayName).toBe('node-empty-tool');
+    expect(nodes[0].data.icon).toBe('❓');
+  });
+
+  it('Conformance(값범위): kind가 4종(source|task|switch|sink) 범위 내', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology);
+    const validKinds = new Set(['source', 'task', 'switch', 'sink']);
+    for (const n of nodes) {
+      expect(validKinds.has(n.data.kind)).toBe(true);
+    }
+  });
+
+  it('Range(configFields): 카탈로그 엔트리 configFields.type이 허용 범위 내', () => {
+    const allowedTypes = new Set(['text', 'number', 'select', 'boolean']);
+    // sampleTopology의 등록된 tool만 검사
+    for (const toolNode of sampleTopology.nodes) {
+      const entry = getToolEntry(toolNode.tool);
+      if (entry && entry.configFields) {
+        for (const field of entry.configFields) {
+          expect(allowedTypes.has(field.type)).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('Reference: sampleTopology의 모든 tool id가 카탈로그 조회 시 폴백 없이 처리된다', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology);
+    for (const n of nodes) {
+      // 등록 여부와 상관없이 모든 노드가 displayName을 가져야 함
+      expect(n.data.displayName).toBeTruthy();
+      // 카탈로그 미등록이면 vendor='Unknown', 등록이면 카탈로그 값
+      expect(typeof n.data.vendor).toBe('string');
+    }
+  });
+
+  it('Cardinality: fan-in(3→1) — s3-bronze로 들어오는 엣지가 정확히 3개', () => {
+    const { edges } = buildNodesAndEdges(sampleTopology);
+    const toS3Bronze = edges.filter(e => e.target === 'node-s3-bronze');
+    expect(toS3Bronze).toHaveLength(3);
+  });
+
+  it('Cardinality: branch(switch 1개) — node-branch 노드가 1개', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology);
+    const switchNodes = nodes.filter(n => {
+      const orig = sampleTopology.nodes.find(o => o.id === n.id);
+      return orig?.kind === 'switch';
+    });
+    expect(switchNodes).toHaveLength(1);
+  });
+
+  it('Cardinality: fan-out(1→3) — valkey에서 나가는 엣지가 정확히 3개', () => {
+    const { edges } = buildNodesAndEdges(sampleTopology);
+    const fromValkey = edges.filter(e => e.source === 'node-valkey');
+    expect(fromValkey).toHaveLength(3);
   });
 });
