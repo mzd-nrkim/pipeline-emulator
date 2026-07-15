@@ -84,3 +84,37 @@ def get_all_dag_runs() -> list:
             pass
     all_runs.sort(key=lambda x: x.get("startedAt") or "", reverse=True)
     return all_runs
+
+
+def trigger_dag(dag_id: str, conf: dict) -> str:
+    """POST /api/v1/dags/{dag_id}/dagRuns — dag_run_id 반환. 실패 시 raise."""
+    resp = requests.post(
+        f"{AIRFLOW_BASE}/api/v1/dags/{dag_id}/dagRuns",
+        auth=(AIRFLOW_USER, AIRFLOW_PASS),
+        json={"conf": conf},
+        timeout=5,
+    )
+    resp.raise_for_status()
+    return resp.json().get("dag_run_id", "")
+
+
+def set_variable(key: str, value: str) -> None:
+    """PATCH /api/v1/variables/{key}. 실패 시 raise."""
+    resp = requests.patch(
+        f"{AIRFLOW_BASE}/api/v1/variables/{key}",
+        auth=(AIRFLOW_USER, AIRFLOW_PASS),
+        json={"key": key, "value": value},
+        timeout=5,
+    )
+    resp.raise_for_status()
+
+
+def set_paused(dag_id: str, is_paused: bool) -> None:
+    """PATCH /api/v1/dags/{dag_id} — is_paused 설정. 실패 시 raise."""
+    resp = requests.patch(
+        f"{AIRFLOW_BASE}/api/v1/dags/{dag_id}",
+        auth=(AIRFLOW_USER, AIRFLOW_PASS),
+        json={"is_paused": is_paused},
+        timeout=5,
+    )
+    resp.raise_for_status()
