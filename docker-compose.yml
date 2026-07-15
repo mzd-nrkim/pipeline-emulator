@@ -60,7 +60,7 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-    command: ["bash", "-c", "airflow standalone"]
+    command: ["bash", "-c", "pip install -q pymysql pyarrow boto3 sqlalchemy && airflow standalone"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
