@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { writable } from 'svelte/store';
   import { SvelteFlow, Background, Controls, type Node as FlowNode, type Edge as FlowEdge } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import type { ToolNode, Edge as TopologyEdge, CanvasTopology } from '$lib/api/types.js';
@@ -50,7 +51,14 @@
     return { nodes, edges };
   }
 
-  const { nodes, edges } = $derived(buildNodesAndEdges(topology));
+  const nodesStore = writable<FlowNode[]>([]);
+  const edgesStore = writable<FlowEdge[]>([]);
+
+  $effect(() => {
+    const { nodes, edges } = buildNodesAndEdges(topology);
+    nodesStore.set(nodes);
+    edgesStore.set(edges);
+  });
 
   function handleNodeClick(event: CustomEvent<{ node: FlowNode }>) {
     const clicked = topology.nodes.find(n => n.id === event.detail.node.id) ?? null;
@@ -61,7 +69,7 @@
 <div class="relative flex gap-4" style="height: 520px;">
   <!-- Canvas -->
   <div class="flex-1 border border-border rounded-sm overflow-hidden">
-    <SvelteFlow {nodes} {edges} fitView on:nodeclick={handleNodeClick}>
+    <SvelteFlow nodes={nodesStore} edges={edgesStore} fitView on:nodeclick={handleNodeClick}>
       <Background />
       <Controls />
     </SvelteFlow>
