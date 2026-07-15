@@ -60,7 +60,13 @@
 
 <div class="relative flex gap-4" style="height: 520px;">
   <!-- Canvas -->
-  <div class="flex-1 border border-border rounded-sm overflow-hidden">
+  <div class="flex-1 border border-border rounded-sm overflow-hidden relative">
+    <!-- 인프라 뷰 배지 -->
+    {#if view === 'infra'}
+      <div class="absolute top-2 left-2 z-10 px-2 py-0.5 bg-amber-50 border border-amber-300 rounded-xs text-[10px] font-mono font-bold text-amber-700 uppercase tracking-wide">
+        인프라 연결 뷰
+      </div>
+    {/if}
     <SvelteFlow nodes={nodesStore} edges={edgesStore} fitView on:nodeclick={handleNodeClick}>
       <Background />
       <Controls />

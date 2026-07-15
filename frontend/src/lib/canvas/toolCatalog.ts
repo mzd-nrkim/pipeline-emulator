@@ -51,7 +51,7 @@ const catalog: ToolCatalogEntry[] = [
       { key: 'dbHost', label: 'DB 호스트', type: 'text', group: '연결' },
       { key: 'dbPort', label: 'DB 포트', type: 'number', group: '연결' },
       { key: 'dbUser', label: 'DB 사용자', type: 'text', group: '인증' },
-      { key: 'walMode', label: 'WAL 모드', type: 'text', group: '동작' },
+      { key: 'walMode', label: 'WAL 모드', type: 'text', placeholder: 'binlog (MySQL) / pgoutput (PG)', group: '동작' },
       { key: 'dbPassword', label: 'DB 비밀번호', type: 'text', placeholder: '***', group: '인증' },
       { key: 'serverName', label: '서버 이름', type: 'text', group: '연결' },
       { key: 'tableIncludeList', label: '포함 테이블 목록', type: 'text', placeholder: 'db.table1,db.table2', group: '동작' },
@@ -105,7 +105,7 @@ const catalog: ToolCatalogEntry[] = [
     icon: '🛡️',
     accent: '#00BCF2',
     configFields: [
-      { key: 'recognizers', label: '인식기', type: 'text', group: '동작' },
+      { key: 'recognizers', label: '인식기', type: 'text', placeholder: 'phone,email,rrn,name,address', group: '동작' },
       { key: 'nlpEngine', label: 'NLP 엔진', type: 'text', group: '동작' },
       { key: 'anonymizeStrategy', label: '익명화 전략', type: 'text', group: '동작' },
       { key: 'language', label: '언어', type: 'select', options: ['ko', 'en', 'ja', 'zh'], group: '동작' },

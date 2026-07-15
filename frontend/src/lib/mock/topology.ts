@@ -48,7 +48,7 @@ export const mockTopology: CanvasTopology = {
       label: 'DAM API',
       config: {
         endpoint: 'https://dam.internal/api',
-        outputFormat: 'markdown',
+        outputFormat: 'markdown', // 'markdown' | 'html' | 'json'
       },
     },
 
@@ -84,7 +84,7 @@ export const mockTopology: CanvasTopology = {
       tool: 'presidio',
       label: 'Presidio PII',
       config: {
-        recognizers: 'phone,email,ssn',
+        recognizers: 'phone,email,rrn',
         nlpEngine: 'spacy_ko',
         anonymizeStrategy: 'replace',
       },

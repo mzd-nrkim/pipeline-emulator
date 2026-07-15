@@ -10,7 +10,8 @@ import { getToolEntry } from './toolCatalog.js';
  *   task 체인: airflow → presidio → docling → kure → valkey
  *   fan-out : valkey → es + mysql (data 채널)
  *   dependency: es → kibana (dependency 채널만)
- *   총 노드 수: 12 (node-branch 제거), 총 엣지 수: 11 (data:10, dependency:1)
+ *              mysql-container → debezium, mysql-container → nifi (dependency 채널만)
+ *   총 노드 수: 13 (mysql-container 추가), 총 엣지 수: 13 (data:10, dependency:3)
  */
 const sampleTopology: CanvasTopology = {
   nodes: [
@@ -34,6 +35,8 @@ const sampleTopology: CanvasTopology = {
     { id: 'node-kibana',    role: 'visualize',  tool: 'kibana',            config: {} },
     /* Store - Silver/Gold */
     { id: 'node-mysql',     role: 'store',      tool: 'mysql',             config: {} },
+    /* Infra: mysql-container (dependency 소스) */
+    { id: 'node-mysql-container', role: 'store' as const, tool: 'mysql', config: { host: 'mysql', port: 3306 } },
   ],
   edges: [
     /* fan-in: 3 ingest → s3-bronze (data) */
@@ -52,6 +55,9 @@ const sampleTopology: CanvasTopology = {
     { from: 'node-valkey',    to: 'node-mysql',     channels: ['data'],       condition: 'mysql' },
     /* kibana: dependency 채널만 */
     { from: 'node-es',        to: 'node-kibana',    channels: ['dependency'] },
+    /* infra: mysql-container → debezium/nifi (dependency) */
+    { from: 'node-mysql-container', to: 'node-debezium', channels: ['dependency'] as ('data' | 'dependency')[] },
+    { from: 'node-mysql-container', to: 'node-nifi',     channels: ['dependency'] as ('data' | 'dependency')[] },
   ],
 };
 
@@ -122,15 +128,48 @@ describe('buildNodesAndEdges', () => {
     expect(kibana).toBeUndefined();
   });
 
-  it('채널 필터: infra 뷰에서 es·kibana만 표시', () => {
+  it('채널 필터: infra 뷰에서 dependency 노드만 표시 (es·kibana·mysql-container·debezium·nifi)', () => {
     const { nodes, edges } = buildNodesAndEdges(sampleTopology, 'infra');
-    // dependency 채널 엣지: es→kibana (1개)
-    expect(edges).toHaveLength(1);
-    // es·kibana 두 노드만
-    expect(nodes).toHaveLength(2);
+    // dependency 채널 엣지: es→kibana, mysql-container→debezium, mysql-container→nifi (3개)
+    expect(edges).toHaveLength(3);
+    // dependency에 관여하는 노드만: es, kibana, mysql-container, debezium, nifi
+    expect(nodes).toHaveLength(5);
     const ids = nodes.map(n => n.id);
     expect(ids).toContain('node-es');
     expect(ids).toContain('node-kibana');
+    expect(ids).toContain('node-mysql-container');
+    expect(ids).toContain('node-debezium');
+    expect(ids).toContain('node-nifi');
+  });
+
+  it('infra 뷰: dependency 엣지만 포함, mysql-container·debezium·nifi·es·kibana 표시', () => {
+    const { nodes, edges } = buildNodesAndEdges(sampleTopology, 'infra');
+    const nodeIds = nodes.map(n => n.id);
+    expect(nodeIds).toContain('node-mysql-container');
+    expect(nodeIds).toContain('node-debezium');
+    expect(nodeIds).toContain('node-nifi');
+    expect(nodeIds).toContain('node-es');
+    expect(nodeIds).toContain('node-kibana');
+    // data-only 노드는 infra 뷰에서 숨김
+    expect(nodeIds).not.toContain('node-airflow');
+    expect(nodeIds).not.toContain('node-presidio');
+    expect(edges.every(e => !e.animated)).toBe(true); // infra 뷰는 animated=false
+  });
+
+  it('infra 뷰: mysql-container의 X좌표가 debezium/nifi보다 작음 (위상 순서)', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'infra');
+    const mysqlNode = nodes.find(n => n.id === 'node-mysql-container');
+    const debeziumNode = nodes.find(n => n.id === 'node-debezium');
+    expect(mysqlNode).toBeDefined();
+    expect(debeziumNode).toBeDefined();
+    expect(mysqlNode!.position.x).toBeLessThan(debeziumNode!.position.x);
+  });
+
+  it('뷰 왕복: data→infra→data 전환 후 data 뷰 엣지 수 동일', () => {
+    const { edges: dataEdges1 } = buildNodesAndEdges(sampleTopology, 'data');
+    buildNodesAndEdges(sampleTopology, 'infra'); // infra 뷰 전환
+    const { edges: dataEdges2 } = buildNodesAndEdges(sampleTopology, 'data');
+    expect(dataEdges2.length).toBe(dataEdges1.length); // 상태 오염 없음
   });
 
   /* ── 카탈로그 조인 ───────────────────────────────────────────── */
