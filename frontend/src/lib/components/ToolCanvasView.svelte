@@ -2,7 +2,7 @@
   import { writable } from 'svelte/store';
   import { SvelteFlow, Background, Controls, type Node as FlowNode, type Edge as FlowEdge } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
-  import type { ToolNode, CanvasTopology } from '$lib/api/types.js';
+  import type { ToolNode, CanvasTopology, Stage } from '$lib/api/types.js';
   import { buildNodesAndEdges } from '$lib/canvas/buildNodesAndEdges.js';
 
   type Adapter = {
@@ -10,7 +10,12 @@
     setNodeConfig: (nodeId: string, config: Record<string, unknown>) => Promise<void>;
   };
 
-  let { topology, adapter = undefined }: { topology: CanvasTopology; adapter?: Adapter } = $props();
+  let { topology, adapter = undefined, stages = [] as Stage[], ontrigger = undefined }: {
+    topology: CanvasTopology;
+    adapter?: Adapter;
+    stages?: Stage[];
+    ontrigger?: (runId: string) => void;
+  } = $props();
 
   let selectedNode = $state<ToolNode | null>(null);
   let triggeredRunId = $state<string | null>(null);
@@ -39,6 +44,7 @@
     try {
       const result = await adapter.triggerNode(selectedNode.id, {});
       triggeredRunId = result.dag_run_id;
+      ontrigger?.(result.dag_run_id);
     } catch (e) {
       triggerError = String(e);
     }

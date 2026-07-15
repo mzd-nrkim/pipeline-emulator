@@ -23,6 +23,7 @@
 
   let selectedStageId = $state(page.url.searchParams.get('stage') ?? 'silver_masked');
   let selectedRunId = $state(page.url.searchParams.get('runA') ?? '');
+  let activeRunId = $state<string | null>(null);
   let ingested = $state(true);
   let running = $state(false);
   let viewMode = $state<'grid' | 'graph' | 'canvas'>('grid');
@@ -67,7 +68,7 @@
           <div class="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">활성 실행</div>
           <div class="flex items-center gap-2 font-mono text-sm font-medium">
             <StatusDot status={running ? 'in_progress' : ingested ? 'completed' : 'none'} />
-            RUN_ID: RX-9042-ALPHA
+            RUN_ID: {activeRunId ?? 'RX-9042-ALPHA'}
           </div>
         </div>
         <div class="hidden md:block h-10 w-px bg-border"></div>
@@ -160,7 +161,7 @@
         </div>
       </div>
       {#if viewMode === 'canvas'}
-        <ToolCanvasView topology={data.topology} adapter={currentAdapter} />
+        <ToolCanvasView topology={data.topology} adapter={currentAdapter} stages={data.stages} ontrigger={(id) => activeRunId = id} />
       {:else if viewMode === 'graph'}
         <PipelineGraphView stages={data.stages} onselect={selectStage} />
       {:else}
