@@ -1,123 +1,197 @@
 import type { CanvasTopology } from '../api/types.js';
 
 /**
- * 샘플 캔버스 토폴로지
+ * 샘플 캔버스 토폴로지 (hyundaimotor-lllm 파이프라인 반영)
  *
  * 구조:
- *   [rdb-source] ──┐
- *                  ├──→ [masking-task] ──→ [switch] ──(doc_type=structured)──→ [chunking-task] ──┬──→ [es-sink]
- *   [s3-source]  ──┘                                └──(doc_type=unstructured)──→ [raw-sink]      └──→ [s3-sink]
+ *   [debezium] ──┐
+ *   [nifi]     ──┼──→ [s3-bronze] ──→ [branch] ──→ [airflow] ──→ [presidio] ──→ [docling] ──→ [kure] ──→ [valkey] ──┬──→ [es]
+ *   [dam]      ──┘                                                                                                    ├──→ [kibana]
+ *                                                                                                                     └──→ [mysql]
  *
- * fan-in  : rdb-source + s3-source → masking-task
- * branch  : switch → chunking-task (structured) / raw-sink (unstructured)
- * fan-out : chunking-task → es-sink + s3-sink
+ * fan-in  : debezium + nifi + dam → s3-bronze
+ * branch  : s3-bronze → branch(switch) → airflow
+ * fan-out : valkey → es + kibana + mysql
  */
 export const mockTopology: CanvasTopology = {
   nodes: [
-    /* ── Sources ── */
+    /* ── Sources (fan-in 3개) ── */
     {
-      id: 'rdb-source',
+      id: 'node-debezium',
       kind: 'source',
-      tool: 'rdb_loader',
+      tool: 'debezium',
+      label: 'Debezium CDC',
       config: {
-        sourceKind: 'rdb',
-        host: 'localhost',
-        port: 5432,
-        database: 'vehicle_docs',
-        table: 'documents',
+        connectorType: 'mysql',
+        dbHost: 'mysql',
+        dbPort: 3306,
+        dbUser: 'debezium',
+        walMode: 'binlog',
       },
     },
     {
-      id: 's3-source',
+      id: 'node-nifi',
       kind: 'source',
-      tool: 's3_loader',
+      tool: 'apache-nifi',
+      label: 'Apache NiFi',
       config: {
-        sourceKind: 's3',
-        bucket: 'raw-docs-bucket',
-        prefix: 'uploads/',
+        connectionPool: 'dbcp2',
+        sqlQuery: 'SELECT * FROM docs',
+        outputFormat: 'parquet',
+      },
+    },
+    {
+      id: 'node-dam',
+      kind: 'source',
+      tool: 'dam',
+      label: 'DAM API',
+      config: {
+        endpoint: 'https://dam.internal/api',
+        outputFormat: 'markdown',
       },
     },
 
-    /* ── Tasks ── */
+    /* ── Sink - Bronze ── */
     {
-      id: 'masking-task',
-      kind: 'task',
-      tool: 'pii_masker',
+      id: 'node-s3-bronze',
+      kind: 'sink',
+      tool: 's3',
+      label: 'S3 Bronze',
       config: {
-        dagId: 'silver_2_masking',
-        fields: ['name', 'email', 'phone'],
-        strategy: 'replace',
-      },
-    },
-    {
-      id: 'chunking-task',
-      kind: 'task',
-      tool: 'text_chunker',
-      config: {
-        dagId: 'gold_3_chunking',
-        chunkSize: 512,
-        overlap: 64,
-        strategy: 'sentence',
+        bucket: 'lllm-bronze',
+        prefix: 'raw/',
+        format: 'parquet',
       },
     },
 
     /* ── Switch ── */
     {
-      id: 'doc-type-switch',
+      id: 'node-branch',
       kind: 'switch',
-      tool: 'condition_router',
+      tool: 'airflow-branch',
+      label: '수집유형 분기',
       config: {
-        field: 'doc_type',
-        cases: ['structured', 'unstructured'],
+        field: 'source_type',
+        cases: ['rdb', 'unstructured', 'both'],
       },
     },
 
-    /* ── Sinks ── */
+    /* ── Tasks ── */
     {
-      id: 'es-sink',
-      kind: 'sink',
-      tool: 'elasticsearch_writer',
+      id: 'node-airflow',
+      kind: 'task',
+      tool: 'apache-airflow',
+      label: 'Airflow DAG',
       config: {
-        index: 'vehicle-docs-v1',
+        dagId: 'lllm_pipeline',
+        conf: '{}',
+        executor: 'CeleryExecutor',
+      },
+    },
+    {
+      id: 'node-presidio',
+      kind: 'task',
+      tool: 'presidio',
+      label: 'Presidio PII',
+      config: {
+        recognizers: 'phone,email,ssn',
+        nlpEngine: 'spacy_ko',
+        anonymizeStrategy: 'replace',
+      },
+    },
+    {
+      id: 'node-docling',
+      kind: 'task',
+      tool: 'docling-langchain',
+      label: 'Docling Chunker',
+      config: {
+        chunkSize: 512,
+        chunkOverlap: 64,
+        strategy: 'parent-child',
+      },
+    },
+    {
+      id: 'node-kure',
+      kind: 'task',
+      tool: 'kure-embedding',
+      label: 'KURE Embedding',
+      config: {
+        modelPath: 'models/kure-v1.onnx',
+        outputDim: 768,
+        batchSize: 32,
+      },
+    },
+    {
+      id: 'node-valkey',
+      kind: 'task',
+      tool: 'valkey',
+      label: 'Valkey Broker',
+      config: {
+        host: 'valkey',
+        port: 6379,
+        streamKey: 'lllm:stream',
+        maxlen: 10000,
+      },
+    },
+
+    /* ── Sinks (fan-out 3개) ── */
+    {
+      id: 'node-es',
+      kind: 'sink',
+      tool: 'elasticsearch',
+      label: 'Elasticsearch',
+      config: {
+        index: 'lllm-docs',
         bulkSize: 100,
+        mlNode: 'ml-node-1',
+        esFieldInfo: 'text,vector',
       },
     },
     {
-      id: 's3-sink',
+      id: 'node-kibana',
       kind: 'sink',
-      tool: 's3_writer',
+      tool: 'kibana',
+      label: 'Kibana',
       config: {
-        bucket: 'processed-docs-bucket',
-        prefix: 'chunked/',
-        format: 'jsonl',
+        space: 'lllm',
+        dashboardId: 'pipeline-monitor',
       },
     },
     {
-      id: 'raw-sink',
+      id: 'node-mysql',
       kind: 'sink',
-      tool: 's3_writer',
+      tool: 'mysql',
+      label: 'MySQL Archive',
       config: {
-        bucket: 'raw-unstructured-bucket',
-        prefix: 'unstructured/',
-        format: 'binary',
+        host: 'mysql',
+        database: 'lllm_silver',
+        table: 'processed_docs',
+        batchSize: 500,
       },
     },
   ],
 
   edges: [
-    /* fan-in: 두 Source → masking-task */
-    { from: 'rdb-source', to: 'masking-task' },
-    { from: 's3-source', to: 'masking-task' },
+    /* fan-in: 3 Source → s3-bronze */
+    { from: 'node-debezium', to: 'node-s3-bronze' },
+    { from: 'node-nifi',     to: 'node-s3-bronze' },
+    { from: 'node-dam',      to: 'node-s3-bronze' },
 
-    /* masking → switch */
-    { from: 'masking-task', to: 'doc-type-switch' },
+    /* s3-bronze → branch(switch) */
+    { from: 'node-s3-bronze', to: 'node-branch' },
 
-    /* branch: switch 분기 */
-    { from: 'doc-type-switch', to: 'chunking-task', condition: 'doc_type=structured' },
-    { from: 'doc-type-switch', to: 'raw-sink', condition: 'doc_type=unstructured' },
+    /* branch → airflow */
+    { from: 'node-branch', to: 'node-airflow' },
 
-    /* fan-out: chunking-task → es-sink + s3-sink */
-    { from: 'chunking-task', to: 'es-sink' },
-    { from: 'chunking-task', to: 's3-sink' },
+    /* task 체인 */
+    { from: 'node-airflow',  to: 'node-presidio' },
+    { from: 'node-presidio', to: 'node-docling' },
+    { from: 'node-docling',  to: 'node-kure' },
+    { from: 'node-kure',     to: 'node-valkey' },
+
+    /* fan-out: valkey → 3 Sink */
+    { from: 'node-valkey', to: 'node-es' },
+    { from: 'node-valkey', to: 'node-kibana' },
+    { from: 'node-valkey', to: 'node-mysql' },
   ],
 };
