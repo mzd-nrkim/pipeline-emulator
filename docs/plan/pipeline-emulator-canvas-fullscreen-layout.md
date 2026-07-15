@@ -1,6 +1,6 @@
 # 파이프라인 캔버스 — n8n식 풀스크린 셸 + 오버레이 드로어 레이아웃
 
-> 상태: 통테통과-완료
+> 상태: 수정필요
 > 작성일: 2026-07-15
 
 현재 `/[mode]/pipeline`의 DAG 캔버스는 "큰 화면 안 작은 프레임"에 갇혀 있다. 세 겹의 크기 제약이 곱해진 결과다 — ① 전역 셸 `max-w-7xl`(1280px), ② 페이지 `grid grid-cols-12`에서 캔버스가 `col-span-9`(75%)·실행이력이 `col-span-3`(25%)를 상시 점유, ③ 캔버스 컨테이너 `height:520px` 하드코딩. 지향점인 n8n은 **DAG 캔버스가 화면 대부분을 edge-to-edge로 채우고, 노드 상세·실행이력 등 보조 UI는 캔버스 위에 오버레이 드로어로 뜨는** 구조다. 이 계획은 캔버스의 *내용*(노드 의미론)이 아니라 *그릇/크기*(셸 레이아웃)를 그 구조로 전환한다.
@@ -137,7 +137,7 @@
 - [x] `cd frontend && npm run check`(svelte-check) 타입 에러 0 (경고 4건 기존 존재)
 - [x] `cd frontend && npm run build` 성공
 #### Z-post. push 후 (앱 기동 환경)
-- [x] `cd frontend && npm run test:e2e` — 26/28 통과. 잔여 2건(`route-split.spec.ts:25,30` `/real/*` 백엔드 연결 대기 stub)은 이 계획 착수 전부터 존재한 기존 실패(real adapter 미연동)이며 레이아웃 변경과 무관.
+- [ ] `cd frontend && npm run test:e2e` — 현재 26/28. 잔여 2건(`route-split.spec.ts:25,30` `/real/*` 백엔드 연결 대기 stub 미구현) 미해결. `/real` 모드 +page.ts에 TODO 주석 추가됨. 구현 완료 후 재검증 필요.
   - 셀렉터 갱신: `button { hasText: '✕' }` → `getByRole('button', { name: '드로어 닫기' })` (strict mode — 드로어 닫기·노드 선택 해제 2건 충돌 해소)
   - `text=실행 이력` → `getByRole('button', { name: '실행 이력', exact: true })` (탭 버튼·h2 2건 충돌 해소)
   - 높이 체인 수정: `div.w-full.h-full` → `div.absolute.inset-0` (flex item 자식의 `h-full` 해석 불신뢰 → absolute inset으로 교체)
