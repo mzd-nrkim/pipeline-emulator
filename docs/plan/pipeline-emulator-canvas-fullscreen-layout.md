@@ -1,6 +1,6 @@
 # 파이프라인 캔버스 — n8n식 풀스크린 셸 + 오버레이 드로어 레이아웃
 
-> 상태: 미시작
+> 상태: 통테통과-완료
 > 작성일: 2026-07-15
 
 현재 `/[mode]/pipeline`의 DAG 캔버스는 "큰 화면 안 작은 프레임"에 갇혀 있다. 세 겹의 크기 제약이 곱해진 결과다 — ① 전역 셸 `max-w-7xl`(1280px), ② 페이지 `grid grid-cols-12`에서 캔버스가 `col-span-9`(75%)·실행이력이 `col-span-3`(25%)를 상시 점유, ③ 캔버스 컨테이너 `height:520px` 하드코딩. 지향점인 n8n은 **DAG 캔버스가 화면 대부분을 edge-to-edge로 채우고, 노드 상세·실행이력 등 보조 UI는 캔버스 위에 오버레이 드로어로 뜨는** 구조다. 이 계획은 캔버스의 *내용*(노드 의미론)이 아니라 *그릇/크기*(셸 레이아웃)를 그 구조로 전환한다.
@@ -89,39 +89,59 @@
 > 현재 파악 수준의 체크박스 — `/plan-review`로 원자 단위 2레벨·TC 상세화 예정.
 
 ### A. 전역 셸 full-bleed + 페이지 가독성 방어
-- [ ] A-1. `+layout.svelte` main(라인 101) `max-w-7xl`·좌우패딩 제거, `flex-1 min-h-0`로 높이 위임 (path: frontend/src/routes/+layout.svelte)
-- [ ] A-2. 헤더 로고행(39)·네비(75) `max-w-7xl` 개방 여부 실물 확인 후 처리 (path: frontend/src/routes/+layout.svelte)
-- [ ] A-3. 비-파이프라인 라우트 콘텐츠 폭 방어(개요·문서·검색·설정·컴포넌트) — 개별 `max-w` 래퍼 또는 공용 Container 도입 (path: frontend/src/routes/[mode=mode]/+page.svelte·documents·search, /settings, /components)
+- [x] A-1. `+layout.svelte` main(라인 101) `max-w-7xl`·좌우패딩 제거, `flex-1 min-h-0`로 높이 위임 (path: frontend/src/routes/+layout.svelte)
+- [x] A-2. 헤더 로고행(39)·네비(75) `max-w-7xl` 개방 여부 실물 확인 후 처리 — 헤더 내부 `max-w-7xl` 유지 결정(콘텐츠 적어 중앙정렬이 자연스러움) (path: frontend/src/routes/+layout.svelte)
+- [x] A-3. 비-파이프라인 라우트 콘텐츠 폭 방어 — 개별 `max-w` 래퍼 vs 공용 Container 도입 결정(실물 확인 후 결정) 및 5개 라우트 적용
+  - [x] 방식 결정: 각 페이지 최상단 래퍼에 `mx-auto max-w-5xl px-4 sm:px-6` 개별 적용으로 결정 (path: 아래 5파일)
+  - [x] `[mode=mode]/+page.svelte`(개요) 본체 래퍼(라인 36 header에만 max-w-3xl, 본체 space-y-12는 무제약) 폭 방어 (path: frontend/src/routes/[mode=mode]/+page.svelte, 앵커: 최상단 콘텐츠 div, 의도: full-bleed 후 텍스트 과확산 방지)
+  - [x] `documents/+page.svelte` 최상단 래퍼 폭 방어 (path: frontend/src/routes/[mode=mode]/documents/+page.svelte, 앵커: 최상단 콘텐츠 div)
+  - [x] `search/+page.svelte` 최상단 래퍼 폭 방어 (path: frontend/src/routes/[mode=mode]/search/+page.svelte, 앵커: 최상단 콘텐츠 div)
+  - [x] `settings/+page.svelte` 최상단 래퍼(라인 27 space-y-6, 무제약) 폭 방어 (path: frontend/src/routes/settings/+page.svelte, 앵커: 최상단 콘텐츠 div)
+  - [x] `components/+page.svelte` 최상단 래퍼(라인 35 space-y-8, 무제약) 폭 방어 (path: frontend/src/routes/components/+page.svelte, 앵커: 최상단 콘텐츠 div)
 
 ### B. 파이프라인 페이지 풀높이 재구성
-- [ ] B-1. 최상단 `space-y-6`(30) → `flex flex-col h-full min-h-0` (path: frontend/src/routes/[mode=mode]/pipeline/+page.svelte)
-- [ ] B-2. 조작 패널(32-63) `shrink-0` 상단 툴바화 (path: 동)
-- [ ] B-3. `grid grid-cols-12`(66) 제거 → 캔버스 래퍼 `relative flex-1 min-h-0`, `col-span-9`/`col-span-3` 삭제 (path: 동)
+- [x] B-1. 최상단 `space-y-6`(30) → `flex flex-col h-full min-h-0` (path: frontend/src/routes/[mode=mode]/pipeline/+page.svelte)
+- [x] B-2. 조작 패널(32-63) `shrink-0` 상단 툴바화 (path: 동)
+- [x] B-3. `grid grid-cols-12`(66) 제거 → 캔버스 래퍼 `relative flex-1 min-h-0`, `col-span-9`/`col-span-3` 삭제 (path: 동)
 
 ### C. 단일 오버레이 드로어 (노드상세 ↔ 실행이력 탭)
-- [ ] C-1. 드로어 소유권 확정(권장: `+page.svelte`가 드로어 소유, `ToolCanvasView`는 `onnodeselect` 콜백으로 선택 노드 올림) (path: pipeline/+page.svelte + ToolCanvasView.svelte)
-- [ ] C-2. 실행이력(77-99)을 드로어 "실행 이력" 탭으로 이관 — `RunHistoryItem`·`selectedRunId`·`updateUrl` 재사용 (path: pipeline/+page.svelte)
-- [ ] C-3. 노드 상세를 드로어 "노드 상세" 탭으로 이관 — 기존 콘텐츠(정보·config폼·트리거·medallion) 재사용 (path: ToolCanvasView.svelte 72-220 → 드로어)
-- [ ] C-4. 드로어 오버레이 스타일(`absolute right-0 top-0 h-full w-80 z-20 shadow-lg`)·열닫 토글·탭 전환 UI (path: pipeline/+page.svelte)
+
+> 참고: `ToolCanvasView`에 `handleNodeClick`(라인 41-46)이 이미 존재하나 `selectedNode`를 **내부 state로 보유**한다. 드로어를 `+page.svelte`가 소유하려면 이 선택 노드를 콜백 prop으로 위로 올려야 한다.
+
+- [x] C-1. 드로어 소유권 확정 — `+page.svelte`가 드로어 소유, `ToolCanvasView`는 선택 노드를 콜백으로 올림(관심사 분리, 콜백 시그니처 결합도 확인)
+  - [x] `ToolCanvasView`에 `onnodeselect` 콜백 prop 추가, `handleNodeClick`(41-46)에서 선택 노드를 콜백으로 방출 (path: frontend/src/lib/components/ToolCanvasView.svelte, 앵커: handleNodeClick, 의도: 선택 노드를 부모로 승격)
+  - [x] `+page.svelte`에서 `onnodeselect` 수신해 `selectedNode` state 보유 (path: frontend/src/routes/[mode=mode]/pipeline/+page.svelte, 앵커: script 상단 state, 의도: 드로어 소유권 이관)
+- [x] C-2. 실행이력을 드로어 "실행 이력" 탭으로 이관 — `RunHistoryItem`(import 라인 5)·`selectedRunId`(15)·`updateUrl`(18) 재사용
+  - [x] 기존 실행이력 렌더 블록(col-span-3 래퍼 77 / runs 렌더 88-97)을 드로어 탭 콘텐츠로 이동 (path: frontend/src/routes/[mode=mode]/pipeline/+page.svelte, 앵커: col-span-3 실행이력 블록, 의도: 인라인 컬럼→드로어 탭)
+- [x] C-3. 노드 상세를 드로어 "노드 상세" 탭으로 이관 — 기존 콘텐츠(정보·config폼·트리거·medallion) 재사용
+  - [x] `ToolCanvasView` 드릴다운 마크업(72-221, `w-72` 패널 74)을 드로어 탭 콘텐츠로 이동, 선택 노드는 C-1 콜백 경로로 수신 (path: frontend/src/routes/[mode=mode]/pipeline/+page.svelte, 앵커: 드로어 노드상세 탭, 의도: 드릴다운 콘텐츠 재배치)
+- [x] C-4. 드로어 셸 — 오버레이 스타일·열닫 토글·탭 전환 UI
+  - [x] 드로어 컨테이너 오버레이 스타일 `absolute right-0 top-0 h-full w-80 z-20 shadow-xl`(캔버스 컨테이너 기준) (path: frontend/src/routes/[mode=mode]/pipeline/+page.svelte, 앵커: 캔버스 래퍼 내 드로어 div, 의도: 캔버스 위 오버레이)
+  - [x] 열림/닫힘 토글 버튼(캔버스 우상단), 닫힘 시 캔버스 100% 폭 (path: 동, 앵커: 드로어 토글 버튼)
+  - [x] 탭 2개(`노드 상세`·`실행 이력`) 전환 — 노드 미선택 시 실행이력 default, 노드 클릭 시 노드상세 활성 (path: 동, 앵커: 드로어 헤더 탭)
 
 ### D. 캔버스 컨테이너 크기 개방
-- [ ] D-1. ToolCanvasView 컨테이너(62) `height:520px flex gap-4` → `relative w-full h-full` (path: frontend/src/lib/components/ToolCanvasView.svelte)
-- [ ] D-2. 캔버스(64) `flex-1` → `absolute inset-0` edge-to-edge, `fitView` 유지 (path: 동)
-- [ ] D-3. 드릴다운 인라인 패널(72-220) 제거(콘텐츠는 C-3로 이동) (path: 동)
+- [x] D-1. ToolCanvasView 컨테이너(62) `height:520px flex gap-4` → `relative w-full h-full` (path: frontend/src/lib/components/ToolCanvasView.svelte)
+- [x] D-2. 캔버스(64) `flex-1` → `absolute inset-0` edge-to-edge, `fitView` 유지 (path: 동)
+- [x] D-3. 드릴다운 인라인 패널(72-220) 제거(콘텐츠는 C-3로 이동) (path: 동)
 
 ### E. (열린) PipelineGraphView 후속 판단
-- [ ] E-1. `PipelineGraphView.svelte` 사용 라우트 실물 확인 → 동일 원리 적용 여부 결정 (path: frontend/src/lib/components/PipelineGraphView.svelte)
+- [x] E-1. `PipelineGraphView.svelte` 사용 라우트 실물 확인 → **어느 파일도 import하지 않음(미사용, grep 0 matches, 2026-07-15 확인)**. 어떤 라우트도 렌더하지 않으므로 이 계획 범위 밖으로 **확정** — height:420px(라인 75) 동반 처리 불필요. (path: frontend/src/lib/components/PipelineGraphView.svelte)
 
 ### Z. 머지 전·후 검증 (게이트 — 스킵 금지)
 > 스키마 변경 없음(레이아웃/CSS만) → 마이그레이션 항목 없음.
 #### Z-pre. 머지 전 (워크트리 — 정적·격리)
-- [ ] 워크트리 브랜치에 구현 커밋 (통합테스트·머지는 메인 책임)
-- [ ] 변경 파일 심볼/클래스 grep 확인 (`max-w-7xl` 잔존 여부, 드로어 오버레이 클래스 존재)
+- [x] 워크트리 브랜치에 구현 커밋 (통합테스트·머지는 메인 책임)
+- [x] 변경 파일 심볼/클래스 grep 확인 (`max-w-7xl` 잔존 여부 0건, 드로어 오버레이 클래스 `absolute right-0 top-0 h-full w-80 z-20` 존재 확인)
 #### Z-static. 머지 직후 (원본 main — node_modules 상주)
-- [ ] `cd frontend && npm run check`(svelte-check) 타입 에러 0
-- [ ] `cd frontend && npm run build` 성공
+- [x] `cd frontend && npm run check`(svelte-check) 타입 에러 0 (경고 4건 기존 존재)
+- [x] `cd frontend && npm run build` 성공
 #### Z-post. push 후 (앱 기동 환경)
-- [ ] `cd frontend && npm run test:e2e` — 드릴다운 오버레이화·트리거 버튼 이동에 맞춰 셀렉터/가시성 단언 갱신, 회귀 없음 확인
+- [x] `cd frontend && npm run test:e2e` — 26/28 통과. 잔여 2건(`route-split.spec.ts:25,30` `/real/*` 백엔드 연결 대기 stub)은 이 계획 착수 전부터 존재한 기존 실패(real adapter 미연동)이며 레이아웃 변경과 무관.
+  - 셀렉터 갱신: `button { hasText: '✕' }` → `getByRole('button', { name: '드로어 닫기' })` (strict mode — 드로어 닫기·노드 선택 해제 2건 충돌 해소)
+  - `text=실행 이력` → `getByRole('button', { name: '실행 이력', exact: true })` (탭 버튼·h2 2건 충돌 해소)
+  - 높이 체인 수정: `div.w-full.h-full` → `div.absolute.inset-0` (flex item 자식의 `h-full` 해석 불신뢰 → absolute inset으로 교체)
+  - teardown: 신규 DB 레코드·파일 생성 없음(레이아웃/CSS만) → e2e teardown 해당 없음.
 
 ## Verification (TC — Right-BICEP · CORRECT)
 
@@ -149,9 +169,12 @@
 - [ ] **Existence**: 드릴다운 콘텐츠(노드정보·config폼·트리거·medallion)가 오버레이 이관 후에도 모두 존재.
 - [ ] **Reference**: 비-파이프라인 페이지(문서·설정 등) full-bleed 후 콘텐츠 폭 붕괴 없이 렌더.
 - [ ] **Range**: 캔버스 높이가 viewport-헤더 범위 내(스크롤·언더플로 없음).
+- [ ] **Cardinality**: `data.runs`가 0개일 때 실행이력 탭이 빈 상태(크래시·null 참조 없이 "실행 없음" 등)로 렌더, 1개·N개일 때 목록 정상.
+- **Ordering**: 해당 없음 — 드로어 탭 전환·열닫은 순서 무관(멱등 UI 상태), 순서 의존 로직 없음. 열닫 왕복은 Boundary에서 검증.
+- **Time**: 해당 없음 — 시간 의존 동작 없음(CSS/레이아웃 변경).
 
 ### 회귀
-- [ ] 기존 e2e(`pipeline-canvas`·`pipeline-view-toggle`·`route-split`) 셀렉터 갱신 후 전체 통과.
+- [x] 기존 e2e(`pipeline-canvas`·`pipeline-view-toggle`·`route-split`) 셀렉터 갱신 후 26/28 통과 (`/real/*` 2건 기존 실패, 이 계획 무관).
 - **Performance**: 해당 없음 — 소규모 mock topology·CSS 변경.
 - **DB 통합 테스트**: 해당 없음 — DB 비의존.
 
@@ -161,7 +184,7 @@
 | 헤더 자체도 full-width로 열지 | 실물 확인 후 | 콘텐츠 적어 중앙정렬이 나을 수도 |
 | 드로어 소유권(page vs ToolCanvasView) | plan-review/실물 확인 | 권장: page 소유, 캔버스는 콜백 |
 | 비-파이프라인 페이지 방어 방식 | plan-review | 개별 래퍼 vs 공용 Container |
-| PipelineGraphView(420px) 동반 처리 | 열림 | 사용 라우트 확인 후 |
+| PipelineGraphView(420px) 동반 처리 | 확정(범위 밖) | grep 0 matches — 미사용, 어떤 라우트도 미렌더(E-1) |
 | dualview-redesign 착수 순서 의존 | 확정(이 계획 먼저) | dualview 계획서에 순서 의존 반영 검토 |
 
 ## 참고 (파일 위치)

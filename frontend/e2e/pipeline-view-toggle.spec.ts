@@ -43,7 +43,7 @@ test.describe('Pipeline Page — Canvas 뷰 + Medallion Drill-down (P3)', () => 
       if (node) node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
     });
     await expect(page.locator('text=노드 상세')).toBeVisible({ timeout: 3000 });
-    await page.locator('button', { hasText: '✕' }).click();
+    await page.getByRole('button', { name: '드로어 닫기' }).click();
     await expect(page.locator('text=노드 상세')).not.toBeVisible();
   });
 
@@ -82,6 +82,7 @@ test.describe('Pipeline Page — Canvas 뷰 + Medallion Drill-down (P3)', () => 
   });
 
   test('실행 이력 패널이 렌더된다', async ({ page }) => {
-    await expect(page.locator('text=실행 이력')).toBeVisible();
+    // 드로어 탭 버튼 "실행 이력" 가시성 확인 (오버레이 드로어 이관 후 탭 셀렉터로 갱신)
+    await expect(page.getByRole('button', { name: '실행 이력', exact: true })).toBeVisible();
   });
 });

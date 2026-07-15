@@ -59,7 +59,7 @@
   <title>파이프라인 — PipeScale</title>
 </svelte:head>
 
-<div class="flex flex-col h-full min-h-0">
+<div class="flex flex-col flex-1 min-h-0">
   <!-- 실행 조작 패널 -->
   <div class="shrink-0 bg-surface border border-border p-4 rounded-sm shadow-sm">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -113,7 +113,7 @@
 
   <!-- Canvas 뷰 + 실행 이력 -->
   <div class="relative flex-1 min-h-0">
-    <div class="w-full h-full">
+    <div class="absolute inset-0">
       <ToolCanvasView
         topology={data.topology}
         adapter={currentAdapter}
@@ -168,9 +168,8 @@
                   {#if toolEntry?.icon}
                     <span class="text-base leading-none">{toolEntry.icon}</span>
                   {/if}
-                  <span class="font-bold uppercase tracking-widest text-[10px]">노드 상세</span>
                 </div>
-                <button type="button" onclick={() => selectedNode = null} class="text-muted-foreground hover:text-foreground">✕</button>
+                <button type="button" onclick={() => selectedNode = null} class="text-muted-foreground hover:text-foreground" aria-label="노드 선택 해제">✕</button>
               </div>
               <div class="text-[10px] font-bold text-foreground">{toolEntry?.displayName ?? selectedNode.tool}</div>
               {#if toolEntry?.vendor}

@@ -98,7 +98,7 @@
   </header>
 
   <!-- 콘텐츠 영역 -->
-  <main class="flex-1 min-h-0 py-6">
+  <main class="flex flex-col flex-1 min-h-0 overflow-auto py-6">
     {@render children()}
   </main>
 </div>

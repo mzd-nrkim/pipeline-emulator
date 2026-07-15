@@ -63,7 +63,7 @@ test.describe('Pipeline Canvas View — ToolCanvasView (P1/P3 통합)', () => {
       if (node) node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
     });
     await expect(page.locator('text=노드 상세')).toBeVisible({ timeout: 3000 });
-    await page.locator('button', { hasText: '✕' }).click();
+    await page.getByRole('button', { name: '드로어 닫기' }).click();
     await expect(page.locator('text=노드 상세')).not.toBeVisible();
   });
 
