@@ -33,6 +33,31 @@ def get_stage_counts() -> dict:
     except Exception:
         return {}
 
+def get_gold_staged_documents() -> list:
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, title, priority, security_class, vehicle_model, is_masked, stage_reached"
+                " FROM gold_staged_documents"
+            )
+            rows = cur.fetchall()
+        conn.close()
+        result = []
+        for row in rows:
+            result.append({
+                "id": str(row.get("id", "")),
+                "title": row.get("title", ""),
+                "priority": row.get("priority", "C"),
+                "security": row.get("security_class", "INTERNAL"),
+                "vehicleModel": row.get("vehicle_model", "NX01"),
+                "masked": bool(row.get("is_masked", False)),
+                "stageReached": row.get("stage_reached", "gold_staged"),
+            })
+        return result
+    except Exception:
+        return []
+
 def get_pii_stats() -> dict:
     try:
         conn = _get_conn()

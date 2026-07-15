@@ -17,11 +17,13 @@ export async function fetchRuns(): Promise<Run[]> {
 }
 
 export async function fetchDocuments(): Promise<Document[]> {
-  throw new Error('real-adapter: documents API — Week 2 범위 외');
+  const res = await fetch(`${BASE}/documents`);
+  if (!res.ok) throw new Error(`fetchDocuments: ${res.status}`);
+  return res.json();
 }
 
 export async function fetchSearch(_query: string): Promise<SearchResult[]> {
-  throw new Error('real-adapter: search — ES 스트레치 범위');
+  throw new Error('ES 검색은 F1 계획 착수 시 활성화됩니다');
 }
 
 export async function fetchDimensions(): Promise<Dimension[]> {
