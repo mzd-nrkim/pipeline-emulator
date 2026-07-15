@@ -1,6 +1,7 @@
 # 파이프라인 에뮬레이터 — Post-MVP 기능 단위 로드맵
 
 > 작성일: 2026-07-14 / 상태: 로드맵 (트리거 발동 시 개별 착수)
+> 방향전환 판단(2026-07-15): **유지**. feature-flag 토글 구조는 도구노드 아키텍처와 호환. 개별 F 설명만 "도구 노드" 관점으로 갱신 권장(F1 경미수정 / F2·F3·F4·F5 그대로 편입 / F6·F7 보류·재평가).
 > 선행: [pipeline-emulator-mvp-plan.md](./pipeline-emulator-mvp-plan.md) · [pipeline-emulator-week2-plan.md](./pipeline-emulator-week2-plan.md)
 > 근거: [pipeline-emulator-decisions.md](../pipeline-emulator-decisions.md) "다음 계획"
 

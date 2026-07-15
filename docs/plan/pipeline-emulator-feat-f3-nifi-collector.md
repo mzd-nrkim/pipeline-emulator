@@ -1,6 +1,7 @@
 # F3. NiFi 수집기 — 기능 계획서
 
 > 작성일: 2026-07-14 / 상태: 대기 (트리거 발동 시 착수) / 우선순위: ★★
+> 방향전환 판단(2026-07-15): **그대로 도구노드 편입**. NiFi를 수집 도구 노드화, script↔nifi 토글로 전환해도 Bronze 계약 불변 → 다운스트림 영향 없음.
 > 인덱스: [pipeline-emulator-post-mvp-roadmap.md](./pipeline-emulator-post-mvp-roadmap.md)
 > 토글: `COLLECTOR=script|nifi` (기본 `script`)
 

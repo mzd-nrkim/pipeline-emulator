@@ -1,6 +1,7 @@
 # F2. 실시간 CDC (Debezium) — 기능 계획서
 
 > 작성일: 2026-07-14 / 상태: 대기 (트리거 발동 시 착수) / 우선순위: ★★★
+> 방향전환 판단(2026-07-15): **그대로 도구노드 편입**. Debezium CDC를 수집 도구 노드로 구현, Silver-1 트리거 계약 불변 → 다운스트림 영향 없음.
 > 인덱스: [pipeline-emulator-post-mvp-roadmap.md](./pipeline-emulator-post-mvp-roadmap.md)
 > 토글: `CDC=off|on` (기본 `off`)
 

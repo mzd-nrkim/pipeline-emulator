@@ -1,6 +1,7 @@
 # 파이프라인 에뮬레이터 — MVP 실행 계획서 (Week 1)
 
 > 상태: 머지완료-통테대기
+> 방향전환 판단(2026-07-15): **폐기 아님 — post-gate 통테만 마무리**. 백엔드 6DAG가 도구(n8n식) 노드 뒤에서 도는 실동작 엔진(P2 Airflow 어댑터·P3 run_id가 이미 연결). 프론트 도구캔버스 리프레임은 이 엔진을 재작성하지 않는다.
 
 > 작성일: 2026-07-14 / 상태: 초안 (Week 1 착수용)
 > 근거: [pipeline-emulator-decisions.md](../pipeline-emulator-decisions.md) · [lodestar-reuse-assessment.md](../lodestar-reuse-assessment.md) · [pipeline-emulator-sample-data-plan.md](./pipeline-emulator-sample-data-plan.md) · [design-prompt-monitoring-dashboard.md](../design-prompt-monitoring-dashboard.md)

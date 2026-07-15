@@ -1,6 +1,7 @@
 # F7. ES 다중 노드 (3-master) — 기능 계획서
 
 > 작성일: 2026-07-14 / 상태: 대기 (트리거 발동 시 착수) / 우선순위: ★ (최하위)
+> 방향전환 판단(2026-07-15): **보류**. F1 전제 + 데모 복잡도 대비 가치 불명확. HA 요구가 명시적으로 생길 때까지 연기.
 > 인덱스: [pipeline-emulator-post-mvp-roadmap.md](./pipeline-emulator-post-mvp-roadmap.md)
 > 토글: `ES=single|cluster` (기본 `single`)
 > **전제: F1(검색 서빙 ES) `on`**

@@ -1,6 +1,7 @@
 # F5. 풀 Presidio 2-Layer 마스킹 — 기능 계획서
 
 > 작성일: 2026-07-14 / 상태: 대기 (트리거 발동 시 착수) / 우선순위: ★★
+> 방향전환 판단(2026-07-15): **그대로 도구노드 편입**. Presidio Layer2 on/off를 도구 노드 config param으로 관리. 다운스트림 진입점은 `detect_and_mask()` 단일 인터페이스 유지.
 > 인덱스: [pipeline-emulator-post-mvp-roadmap.md](./pipeline-emulator-post-mvp-roadmap.md)
 > 토글: `MASK=regex|presidio` (기본 `regex`)
 

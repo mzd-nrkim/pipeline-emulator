@@ -1,6 +1,7 @@
 # F4. 청킹·엔리치 실 API 전환 — 기능 계획서
 
 > 작성일: 2026-07-14 / 상태: 대기 (트리거 발동 시 착수) / 우선순위: ★★
+> 방향전환 판단(2026-07-15): **그대로 도구노드 편입**. Mock/Real 전환이 도구 노드 URL config로 수렴 → 도구 기반 구조와 자연 정합.
 > 인덱스: [pipeline-emulator-post-mvp-roadmap.md](./pipeline-emulator-post-mvp-roadmap.md)
 > 토글: `ENRICH=mock|real` (기본 `mock`)
 

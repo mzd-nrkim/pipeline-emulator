@@ -1,6 +1,7 @@
 # 파이프라인 에뮬레이터 — 샘플(더미) 데이터 계획서
 
 > 작성일: 2026-07-14 / 상태: 초안 (Week 1 착수 전 확정 목표)
+> 방향전환 판단(2026-07-15): **거의 그대로 유효**. 데이터 스키마·행 수·기대값은 프론트 도구캔버스 리프레임과 무관하며 백엔드 DAG가 계속 소비. 수정 불요.
 > 관련: [pipeline-emulator-decisions.md](../pipeline-emulator-decisions.md) · [lodestar-reuse-assessment.md](../lodestar-reuse-assessment.md)
 > 근거: 원본 `hyundaimotor-lllm` PDIS 파이프라인 스키마 조사 (2026-07-14)
 

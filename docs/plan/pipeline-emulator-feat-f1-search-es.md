@@ -1,6 +1,7 @@
 # F1. 검색 서빙 (ES) — 기능 계획서
 
 > 작성일: 2026-07-14 / 상태: 대기 (트리거 발동 시 착수) / 우선순위: ★★★
+> 방향전환 판단(2026-07-15): **경미 수정**. DAG 기준 서술을 "검색(ES) 도구 노드" 프레이밍으로 조정. 기능 자체(BM25·벡터·하이브리드)는 유효.
 > 인덱스: [pipeline-emulator-post-mvp-roadmap.md](./pipeline-emulator-post-mvp-roadmap.md)
 > 토글: `SEARCH=off|lite|hybrid` (기본 `off`)
 
