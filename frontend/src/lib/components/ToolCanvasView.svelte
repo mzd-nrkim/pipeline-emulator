@@ -6,6 +6,7 @@
   import { buildNodesAndEdges } from '$lib/canvas/buildNodesAndEdges.js';
   import PiiCountGrid from '$lib/components/PiiCountGrid.svelte';
   import MaskingComparison from '$lib/components/MaskingComparison.svelte';
+  import { getToolEntry } from '$lib/canvas/toolCatalog';
 
   type Adapter = {
     triggerNode: (nodeId: string, conf: Record<string, unknown>) => Promise<{ dag_run_id: string }>;
@@ -22,6 +23,11 @@
   let selectedNode = $state<ToolNode | null>(null);
   let triggeredRunId = $state<string | null>(null);
   let triggerError = $state<string | null>(null);
+  let localConfig = $state<Record<string, unknown>>({});
+
+  $effect(() => {
+    localConfig = { ...(selectedNode?.config ?? {}) };
+  });
 
   const nodesStore = writable<FlowNode[]>([]);
   const edgesStore = writable<FlowEdge[]>([]);
@@ -64,11 +70,22 @@
 
   <!-- Drill-down 패널 -->
   {#if selectedNode}
+    {@const toolEntry = getToolEntry(selectedNode.tool)}
     <div class="w-72 bg-surface border border-border rounded-sm p-4 flex flex-col gap-3 overflow-auto text-xs font-mono">
       <div class="flex items-center justify-between">
-        <span class="font-bold uppercase tracking-widest text-[10px]">노드 상세</span>
+        <div class="flex items-center gap-1.5">
+          {#if toolEntry?.icon}
+            <span class="text-base leading-none">{toolEntry.icon}</span>
+          {/if}
+          <span class="font-bold uppercase tracking-widest text-[10px]">
+            {toolEntry?.displayName ?? selectedNode.tool}
+          </span>
+        </div>
         <button type="button" onclick={() => selectedNode = null} class="text-muted-foreground hover:text-foreground">✕</button>
       </div>
+      {#if toolEntry?.vendor}
+        <div class="text-[10px] text-muted-foreground -mt-1">벤더: <span class="font-bold text-foreground">{toolEntry.vendor}</span></div>
+      {/if}
       <div class="space-y-2">
         <div>
           <span class="text-muted-foreground">id</span>
@@ -82,10 +99,43 @@
           <span class="text-muted-foreground">kind</span>
           <span class="ml-2 font-bold">{selectedNode.kind}</span>
         </div>
-        <div>
-          <span class="text-muted-foreground">config</span>
-          <pre class="mt-1 bg-surface-muted p-2 rounded-xs text-[10px] overflow-auto whitespace-pre-wrap">{JSON.stringify(selectedNode.config, null, 2)}</pre>
-        </div>
+      </div>
+
+      <!-- 설정 폼 -->
+      <div class="border-t border-border pt-3 space-y-2">
+        <div class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">설정</div>
+        {#if toolEntry && toolEntry.configFields && toolEntry.configFields.length > 0}
+          {#each toolEntry.configFields as field}
+            <div class="config-field {field.group ? `group-${field.group}` : ''} space-y-0.5">
+              <label class="block text-[10px] text-muted-foreground">{field.label}</label>
+              {#if field.type === 'text'}
+                <input type="text" bind:value={localConfig[field.key]} placeholder={field.placeholder ?? ''}
+                  class="w-full bg-surface-muted border border-border rounded-xs px-2 py-1 text-[10px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary" />
+              {:else if field.type === 'number'}
+                <input type="number" bind:value={localConfig[field.key]}
+                  class="w-full bg-surface-muted border border-border rounded-xs px-2 py-1 text-[10px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary" />
+              {:else if field.type === 'select'}
+                <select bind:value={localConfig[field.key]}
+                  class="w-full bg-surface-muted border border-border rounded-xs px-2 py-1 text-[10px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary">
+                  {#each field.options ?? [] as opt}
+                    <option value={opt}>{opt}</option>
+                  {/each}
+                </select>
+              {:else if field.type === 'boolean'}
+                <div class="flex items-center gap-1.5">
+                  <input type="checkbox" bind:checked={localConfig[field.key]}
+                    class="accent-primary" />
+                  <span class="text-[10px] text-muted-foreground">{field.label}</span>
+                </div>
+              {/if}
+            </div>
+          {/each}
+          <p class="mock-notice text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-xs px-2 py-1 leading-relaxed">
+            ⚠ 설정 변경은 로컬 상태에만 반영됩니다. 실제 적용은 후속 실 API 연동 계획에서 구현 예정입니다.
+          </p>
+        {:else}
+          <div class="text-[10px] text-muted-foreground italic">설정 없음</div>
+        {/if}
       </div>
 
       <!-- 조작 영역 -->

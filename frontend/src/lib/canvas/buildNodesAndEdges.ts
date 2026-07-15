@@ -1,4 +1,5 @@
 import type { CanvasTopology, ToolNode } from '$lib/api/types.js';
+import { getToolEntry } from './toolCatalog.js';
 
 export const KIND_STYLE: Record<ToolNode['kind'], string> = {
   source: 'border: 2px solid #3b82f6; background: #eff6ff; padding: 8px; border-radius: 4px; font-size: 11px; cursor: pointer;',
@@ -18,7 +19,14 @@ export interface FlowNode {
   id: string;
   type: string;
   position: { x: number; y: number };
-  data: { label: string };
+  data: {
+    label: string;
+    displayName: string;
+    vendor: string;
+    icon: string;
+    accent: string;
+    kind: string;
+  };
   style?: string;
 }
 
@@ -37,11 +45,30 @@ export function buildNodesAndEdges(topo: CanvasTopology): { nodes: FlowNode[]; e
   const nodes: FlowNode[] = topo.nodes.map((n) => {
     const idx = kindCounters[n.kind] ?? 0;
     kindCounters[n.kind] = idx + 1;
+
+    const entry = getToolEntry(n.tool);
+    const catalogData = entry ? {
+      displayName: entry.displayName,
+      vendor: entry.vendor,
+      icon: entry.icon,
+      accent: entry.accent,
+      kind: entry.kind,
+    } : {
+      displayName: n.tool || n.id,
+      vendor: 'Unknown',
+      icon: '❓',
+      accent: '#6B7280',
+      kind: n.kind,
+    };
+
     return {
       id: n.id,
       type: 'default',
       position: { x: KIND_X[n.kind], y: idx * 140 },
-      data: { label: `${n.tool}\n[${n.kind}]` },
+      data: {
+        label: `${catalogData.icon} ${catalogData.displayName}`,
+        ...catalogData,
+      },
       style: KIND_STYLE[n.kind],
     };
   });
