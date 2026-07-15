@@ -34,6 +34,9 @@ const catalog: ToolCatalogEntry[] = [
       { key: 'inputDir', label: '입력 디렉토리', type: 'text', group: '동작' },
       { key: 'fileFilterRegex', label: '파일 필터 정규식', type: 'text', group: '동작' },
       { key: 'outputFormat', label: '출력 형식', type: 'text', group: '동작' },
+      { key: 'schedulingStrategy', label: '스케줄링 전략', type: 'select', options: ['TIMER_DRIVEN', 'CRON_DRIVEN'], group: '동작' },
+      { key: 'batchSize', label: '배치 크기', type: 'number', group: '동작' },
+      { key: 'maxConcurrentTasks', label: '최대 동시 작업', type: 'number', group: '동작' },
     ],
   },
   {
@@ -49,6 +52,10 @@ const catalog: ToolCatalogEntry[] = [
       { key: 'dbPort', label: 'DB 포트', type: 'number', group: '연결' },
       { key: 'dbUser', label: 'DB 사용자', type: 'text', group: '인증' },
       { key: 'walMode', label: 'WAL 모드', type: 'text', group: '동작' },
+      { key: 'dbPassword', label: 'DB 비밀번호', type: 'text', placeholder: '***', group: '인증' },
+      { key: 'serverName', label: '서버 이름', type: 'text', group: '연결' },
+      { key: 'tableIncludeList', label: '포함 테이블 목록', type: 'text', placeholder: 'db.table1,db.table2', group: '동작' },
+      { key: 'offsetStorageTopic', label: '오프셋 저장 토픽', type: 'text', group: '동작' },
     ],
   },
   {
@@ -68,6 +75,9 @@ const catalog: ToolCatalogEntry[] = [
         options: ['markdown', 'html', 'json'],
         group: '동작',
       },
+      { key: 'apiKey', label: 'API 키', type: 'text', placeholder: '***', group: '인증' },
+      { key: 'batchSize', label: '배치 크기', type: 'number', group: '동작' },
+      { key: 'retryCount', label: '재시도 횟수', type: 'number', group: '동작' },
     ],
   },
   {
@@ -81,6 +91,10 @@ const catalog: ToolCatalogEntry[] = [
       { key: 'dagId', label: 'DAG ID', type: 'text', group: '동작' },
       { key: 'conf', label: '설정 JSON', type: 'text', group: '동작' },
       { key: 'executor', label: '실행기', type: 'text', group: '동작' },
+      { key: 'triggerRule', label: '트리거 규칙', type: 'select', options: ['all_success', 'all_failed', 'one_success', 'none_failed'], group: '동작' },
+      { key: 'retries', label: '재시도 횟수', type: 'number', group: '동작' },
+      { key: 'retryDelay', label: '재시도 지연(분)', type: 'number', group: '동작' },
+      { key: 'poolSlots', label: '풀 슬롯', type: 'number', group: '동작' },
     ],
   },
   {
@@ -94,6 +108,9 @@ const catalog: ToolCatalogEntry[] = [
       { key: 'recognizers', label: '인식기', type: 'text', group: '동작' },
       { key: 'nlpEngine', label: 'NLP 엔진', type: 'text', group: '동작' },
       { key: 'anonymizeStrategy', label: '익명화 전략', type: 'text', group: '동작' },
+      { key: 'language', label: '언어', type: 'select', options: ['ko', 'en', 'ja', 'zh'], group: '동작' },
+      { key: 'scoreThreshold', label: '점수 임계값', type: 'number', placeholder: '0.5', group: '동작' },
+      { key: 'returnDecisionProcess', label: '판정 과정 반환', type: 'boolean', group: '동작' },
     ],
   },
   {
@@ -113,6 +130,9 @@ const catalog: ToolCatalogEntry[] = [
         options: ['structure', 'parent-child', 'contextual'],
         group: '동작',
       },
+      { key: 'splitBy', label: '분할 기준', type: 'select', options: ['sentence', 'word', 'page'], group: '동작' },
+      { key: 'maxTokens', label: '최대 토큰', type: 'number', group: '동작' },
+      { key: 'includeMetadata', label: '메타데이터 포함', type: 'boolean', group: '동작' },
     ],
   },
   {
@@ -126,6 +146,9 @@ const catalog: ToolCatalogEntry[] = [
       { key: 'modelPath', label: '모델 경로', type: 'text', group: '동작' },
       { key: 'outputDim', label: '출력 차원', type: 'number', group: '동작' },
       { key: 'batchSize', label: '배치 크기', type: 'number', group: '동작' },
+      { key: 'device', label: '디바이스', type: 'select', options: ['cpu', 'cuda', 'mps'], group: '동작' },
+      { key: 'normalize', label: '벡터 정규화', type: 'boolean', group: '동작' },
+      { key: 'precision', label: '정밀도', type: 'select', options: ['fp32', 'fp16', 'int8'], group: '동작' },
     ],
   },
   {
@@ -140,6 +163,10 @@ const catalog: ToolCatalogEntry[] = [
       { key: 'port', label: '포트', type: 'number', group: '연결' },
       { key: 'streamKey', label: '스트림 키', type: 'text', group: '동작' },
       { key: 'maxlen', label: '최대 길이', type: 'number', group: '동작' },
+      { key: 'password', label: '비밀번호', type: 'text', placeholder: '***', group: '인증' },
+      { key: 'db', label: 'DB 번호', type: 'number', group: '연결' },
+      { key: 'consumerGroup', label: '컨슈머 그룹', type: 'text', group: '동작' },
+      { key: 'ackMode', label: '수신 확인 모드', type: 'select', options: ['auto', 'manual'], group: '동작' },
     ],
   },
   {
@@ -152,6 +179,8 @@ const catalog: ToolCatalogEntry[] = [
     configFields: [
       { key: 'field', label: '분기 필드', type: 'text', group: '동작' },
       { key: 'cases', label: '분기 케이스', type: 'text', group: '동작' },
+      { key: 'defaultCase', label: '기본 케이스', type: 'text', group: '동작' },
+      { key: 'taskGroup', label: '태스크 그룹', type: 'text', group: '동작' },
     ],
   },
   {
@@ -171,6 +200,11 @@ const catalog: ToolCatalogEntry[] = [
         options: ['parquet', 'jsonl'],
         group: '동작',
       },
+      { key: 'region', label: '리전', type: 'text', placeholder: 'ap-northeast-2', group: '연결' },
+      { key: 'endpoint', label: '엔드포인트', type: 'text', placeholder: 'https://s3.amazonaws.com', group: '연결' },
+      { key: 'accessKeyId', label: 'Access Key ID', type: 'text', group: '인증' },
+      { key: 'partitionBy', label: '파티션 기준', type: 'text', placeholder: 'year/month/day', group: '동작' },
+      { key: 'compressionType', label: '압축 방식', type: 'select', options: ['none', 'snappy', 'gzip', 'zstd'], group: '동작' },
     ],
   },
   {
@@ -185,6 +219,11 @@ const catalog: ToolCatalogEntry[] = [
       { key: 'database', label: '데이터베이스', type: 'text', group: '연결' },
       { key: 'table', label: '테이블', type: 'text', group: '동작' },
       { key: 'batchSize', label: '배치 크기', type: 'number', group: '동작' },
+      { key: 'port', label: '포트', type: 'number', group: '연결' },
+      { key: 'user', label: '사용자', type: 'text', group: '인증' },
+      { key: 'password', label: '비밀번호', type: 'text', placeholder: '***', group: '인증' },
+      { key: 'ssl', label: 'SSL 사용', type: 'boolean', group: '연결' },
+      { key: 'insertMode', label: '삽입 모드', type: 'select', options: ['insert', 'upsert', 'replace'], group: '동작' },
     ],
   },
   {
@@ -199,6 +238,11 @@ const catalog: ToolCatalogEntry[] = [
       { key: 'bulkSize', label: '벌크 크기', type: 'number', group: '동작' },
       { key: 'mlNode', label: 'ML 노드', type: 'text', group: '동작' },
       { key: 'esFieldInfo', label: 'ES 필드 정보', type: 'text', group: '동작' },
+      { key: 'host', label: '호스트', type: 'text', group: '연결' },
+      { key: 'username', label: '사용자명', type: 'text', group: '인증' },
+      { key: 'password', label: '비밀번호', type: 'text', placeholder: '***', group: '인증' },
+      { key: 'pipeline', label: 'Ingest Pipeline', type: 'text', group: '동작' },
+      { key: 'refreshPolicy', label: '갱신 정책', type: 'select', options: ['false', 'true', 'wait_for'], group: '동작' },
     ],
   },
   {
@@ -211,6 +255,10 @@ const catalog: ToolCatalogEntry[] = [
     configFields: [
       { key: 'space', label: '스페이스', type: 'text', group: '동작' },
       { key: 'dashboardId', label: '대시보드 ID', type: 'text', group: '동작' },
+      { key: 'host', label: '호스트', type: 'text', group: '연결' },
+      { key: 'username', label: '사용자명', type: 'text', group: '인증' },
+      { key: 'indexPattern', label: '인덱스 패턴', type: 'text', group: '동작' },
+      { key: 'refreshInterval', label: '새로고침 간격(s)', type: 'number', group: '동작' },
     ],
   },
 ];

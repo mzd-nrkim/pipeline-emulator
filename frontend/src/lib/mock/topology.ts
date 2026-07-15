@@ -12,7 +12,7 @@ import type { CanvasTopology } from '../api/types.js';
  * data 채널: ─── / dependency 채널(infra뷰 전용): ···→
  * fan-in  : debezium + nifi + dam → s3-bronze
  * fan-out : valkey → es + mysql
- * infra   : es → kibana (dependency)
+ * infra   : mysql-container → debezium/nifi (dependency), es → kibana (dependency)
  */
 export const mockTopology: CanvasTopology = {
   nodes: [
@@ -159,6 +159,21 @@ export const mockTopology: CanvasTopology = {
         batchSize: 500,
       },
     },
+
+    /* ── 인프라 컨테이너 노드 (dependency 채널 전용, 데이터뷰 미표시) ── */
+    {
+      id: 'node-mysql-container',
+      role: 'store',
+      tool: 'mysql',
+      label: 'MySQL 원본 DB',
+      config: {
+        host: 'mysql',
+        database: 'source_db',
+        port: 3306,
+        table: '*',
+        batchSize: 1000,
+      },
+    },
   ],
 
   edges: [
@@ -181,6 +196,10 @@ export const mockTopology: CanvasTopology = {
     { from: 'node-valkey', to: 'node-mysql', channels: ['data'] },
 
     /* infra dependency: es → kibana */
-    { from: 'node-es', to: 'node-kibana', channels: ['dependency'] },
+    { from: 'node-es', to: 'node-kibana', channels: ['dependency'] as ('data' | 'dependency')[] },
+
+    /* infra: MySQL 컨테이너 → Debezium/NiFi (의존성) */
+    { from: 'node-mysql-container', to: 'node-debezium', channels: ['dependency'] as ('data' | 'dependency')[] },
+    { from: 'node-mysql-container', to: 'node-nifi',     channels: ['dependency'] as ('data' | 'dependency')[] },
   ],
 };
