@@ -11,12 +11,13 @@
     setNodeConfig: (nodeId: string, config: Record<string, unknown>) => Promise<void>;
   };
 
-  let { topology, adapter = undefined, stages = [] as Stage[], ontrigger = undefined, view = 'data' as 'data' | 'infra' }: {
+  let { topology, adapter = undefined, stages = [] as Stage[], ontrigger = undefined, view = 'data' as 'data' | 'infra', onnodeselect = undefined }: {
     topology: CanvasTopology;
     adapter?: Adapter;
     stages?: Stage[];
     ontrigger?: (runId: string) => void;
     view?: 'data' | 'infra';
+    onnodeselect?: (node: ToolNode | null) => void;
   } = $props();
 
   let selectedNode = $state<ToolNode | null>(null);
@@ -39,9 +40,10 @@
 
   function handleNodeClick(event: CustomEvent<{ node: FlowNode }>) {
     const clicked = topology.nodes.find(n => n.id === event.detail.node.id) ?? null;
-    selectedNode = clicked;
+    selectedNode = clicked;  // 내부 state 유지 (Phase D에서 제거)
     triggeredRunId = null;
     triggerError = null;
+    onnodeselect?.(clicked);
   }
 
   async function handleTrigger() {
