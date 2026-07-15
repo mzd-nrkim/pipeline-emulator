@@ -77,12 +77,24 @@ def get_all_dag_runs() -> list:
             )
             if resp.status_code == 200:
                 for r in resp.json().get("dag_runs", []):
+                    start = r.get("start_date")
+                    end = r.get("end_date")
+                    duration_ms = None
+                    if start and end:
+                        try:
+                            s = datetime.fromisoformat(start.replace("Z", "+00:00"))
+                            e = datetime.fromisoformat(end.replace("Z", "+00:00"))
+                            duration_ms = int((e - s).total_seconds() * 1000)
+                        except Exception:
+                            pass
                     all_runs.append({
                         "id": r.get("dag_run_id", ""),
                         "dagId": dag_id,
-                        "startedAt": r.get("start_date"),
-                        "durationMs": None,
+                        "startedAt": start,
+                        "durationMs": duration_ms,
                         "status": {"success": "succeeded", "running": "in_progress", "failed": "failed"}.get(r.get("state", ""), "in_progress"),
+                        "config": {"masking": False, "search": False},
+                        "stageCounts": {},
                     })
         except Exception:
             pass

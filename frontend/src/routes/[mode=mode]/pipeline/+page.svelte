@@ -14,6 +14,8 @@
   const currentAdapter = page.params.mode === 'real' ? realAdapter : mockAdapter;
 
   let selectedRunId = $state(page.url.searchParams.get('runA') ?? '');
+  let selectedRunIdB = $state(page.url.searchParams.get('runB') ?? '');
+  let compareMode = $state(false);
   let activeRunId = $state<string | null>(null);
   let view = $state<'data' | 'infra'>('data');
   let selectedNode = $state<ToolNode | null>(null);
@@ -50,8 +52,39 @@
   function updateUrl() {
     const params = new URLSearchParams();
     if (selectedRunId) params.set('runA', selectedRunId);
+    if (selectedRunIdB) params.set('runB', selectedRunIdB);
     const qs = params.toString();
     goto(`/${page.params.mode}/pipeline${qs ? '?' + qs : ''}`, { replaceState: true, noScroll: true });
+  }
+
+  function getRunById(id: string): Run | undefined {
+    return data.runs.find((r) => r.id === id);
+  }
+
+  function diffValue(a: unknown, b: unknown): string {
+    const na = Number(a);
+    const nb = Number(b);
+    if (!isNaN(na) && !isNaN(nb)) {
+      const d = nb - na;
+      return d > 0 ? `+${d}` : String(d);
+    }
+    return a === b ? '동일' : '변경';
+  }
+
+  function stageCountKeys(runA: Run, runB: Run): string[] {
+    const keys = new Set([
+      ...Object.keys(runA.stageCounts ?? {}),
+      ...Object.keys(runB.stageCounts ?? {}),
+    ]);
+    return [...keys].sort();
+  }
+
+  function configKeys(runA: Run, runB: Run): string[] {
+    const keys = new Set([
+      ...Object.keys((runA.config ?? {}) as Record<string, unknown>),
+      ...Object.keys((runB.config ?? {}) as Record<string, unknown>),
+    ]);
+    return [...keys].sort();
   }
 </script>
 
@@ -304,23 +337,176 @@
                 <h2 class="font-bold text-xs uppercase tracking-widest">실행 이력</h2>
                 <button
                   type="button"
+                  onclick={() => { compareMode = !compareMode; }}
                   class="text-[10px] font-mono text-primary underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                 >
-                  비교
+                  {compareMode ? '비교 종료' : '비교'}
                 </button>
               </div>
-              <ul class="divide-y divide-border flex-1">
+
+              {#if compareMode}
+                <!-- 비교 모드: 선택 안내 + 선택 상태 표시 -->
+                <div class="px-3 py-2 bg-surface-muted/60 border-b border-border text-[10px] font-mono text-muted-foreground shrink-0 space-y-1">
+                  <div>A: <span class="font-bold text-foreground">{selectedRunId || '(미선택)'}</span></div>
+                  <div>B: <span class="font-bold text-foreground">{selectedRunIdB || '(미선택)'}</span></div>
+                  <div class="text-[9px] text-muted-foreground/70">항목을 클릭해 A → B 순서로 선택</div>
+                </div>
+              {/if}
+
+              <ul class="divide-y divide-border flex-1 overflow-auto">
                 {#each data.runs as run}
-                  <RunHistoryItem
-                    {run}
-                    active={selectedRunId === run.id}
-                    onclick={() => {
-                      selectedRunId = run.id;
-                      updateUrl();
-                    }}
-                  />
+                  {#if compareMode}
+                    <!-- 비교 모드: A·B 선택 토글 -->
+                    <li
+                      class="px-3 py-2 flex items-center gap-2 cursor-pointer hover:bg-surface-muted/50 text-[10px] font-mono
+                             {selectedRunId === run.id ? 'bg-primary/10 border-l-2 border-primary' : selectedRunIdB === run.id ? 'bg-amber-50 border-l-2 border-amber-400' : ''}"
+                      onclick={() => {
+                        if (selectedRunId === run.id) {
+                          // A 해제
+                          selectedRunId = '';
+                          updateUrl();
+                        } else if (selectedRunIdB === run.id) {
+                          // B 해제
+                          selectedRunIdB = '';
+                          updateUrl();
+                        } else if (!selectedRunId) {
+                          selectedRunId = run.id;
+                          updateUrl();
+                        } else if (!selectedRunIdB) {
+                          selectedRunIdB = run.id;
+                          updateUrl();
+                        } else {
+                          // 둘 다 선택 상태면 A 교체
+                          selectedRunId = run.id;
+                          updateUrl();
+                        }
+                      }}
+                    >
+                      <span class="w-5 text-center font-bold text-[9px]">
+                        {selectedRunId === run.id ? 'A' : selectedRunIdB === run.id ? 'B' : ''}
+                      </span>
+                      <StatusDot status={run.status === 'succeeded' ? 'completed' : run.status as import('$lib/api/types.js').StageStatus} />
+                      <span class="truncate flex-1">{run.id}</span>
+                      <span class="text-muted-foreground">{run.durationMs != null ? `${run.durationMs}ms` : '—'}</span>
+                    </li>
+                  {:else}
+                    <RunHistoryItem
+                      {run}
+                      active={selectedRunId === run.id}
+                      onclick={() => {
+                        selectedRunId = run.id;
+                        updateUrl();
+                      }}
+                    />
+                  {/if}
                 {/each}
               </ul>
+
+              <!-- diff 뷰 -->
+              {#if compareMode}
+                {@const runA = getRunById(selectedRunId)}
+                {@const runB = getRunById(selectedRunIdB)}
+                <div class="shrink-0 border-t border-border px-3 py-3 text-[10px] font-mono overflow-auto max-h-72">
+                  {#if !runA || !runB}
+                    <div class="text-muted-foreground italic">
+                      {!runA && !runB ? '비교할 run을 A·B 모두 선택하세요.' : !runA ? 'A run을 선택하세요.' : 'B run을 선택하세요.'}
+                    </div>
+                  {:else}
+                    <!-- durationMs 비교 -->
+                    <div class="mb-3">
+                      <div class="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">실행 시간 (ms)</div>
+                      <table class="w-full text-left border-collapse">
+                        <thead>
+                          <tr class="text-muted-foreground text-[9px]">
+                            <th class="pr-2 font-normal">항목</th>
+                            <th class="pr-2 font-normal">A</th>
+                            <th class="pr-2 font-normal">B</th>
+                            <th class="font-normal">차이</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr class="border-t border-border">
+                            <td class="pr-2 py-0.5 text-muted-foreground">durationMs</td>
+                            <td class="pr-2 py-0.5">{runA.durationMs ?? '—'}</td>
+                            <td class="pr-2 py-0.5">{runB.durationMs ?? '—'}</td>
+                            <td class="py-0.5 {runA.durationMs != null && runB.durationMs != null && runB.durationMs > runA.durationMs ? 'text-status-failed' : runA.durationMs != null && runB.durationMs != null && runB.durationMs < runA.durationMs ? 'text-status-success' : 'text-muted-foreground'}">
+                              {runA.durationMs != null && runB.durationMs != null ? diffValue(runA.durationMs, runB.durationMs) : '—'}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <!-- stageCounts 비교 -->
+                    <div class="mb-3">
+                      <div class="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">스테이지 카운트</div>
+                      {@const scKeys = stageCountKeys(runA, runB)}
+                      {#if scKeys.length === 0}
+                        <div class="text-muted-foreground italic">스테이지 데이터 없음</div>
+                      {:else}
+                        <table class="w-full text-left border-collapse">
+                          <thead>
+                            <tr class="text-muted-foreground text-[9px]">
+                              <th class="pr-2 font-normal">스테이지</th>
+                              <th class="pr-2 font-normal">A</th>
+                              <th class="pr-2 font-normal">B</th>
+                              <th class="font-normal">차이</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {#each scKeys as key}
+                              {@const va = (runA.stageCounts ?? {})[key]}
+                              {@const vb = (runB.stageCounts ?? {})[key]}
+                              <tr class="border-t border-border">
+                                <td class="pr-2 py-0.5 text-muted-foreground">{key}</td>
+                                <td class="pr-2 py-0.5">{va ?? '—'}</td>
+                                <td class="pr-2 py-0.5">{vb ?? '—'}</td>
+                                <td class="py-0.5 {va != null && vb != null ? (Number(vb) > Number(va) ? 'text-status-failed' : Number(vb) < Number(va) ? 'text-status-success' : 'text-muted-foreground') : 'text-muted-foreground'}">
+                                  {va != null && vb != null ? diffValue(va, vb) : '—'}
+                                </td>
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      {/if}
+                    </div>
+
+                    <!-- config 비교 -->
+                    <div>
+                      <div class="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Config</div>
+                      {@const cfgKeys = configKeys(runA, runB)}
+                      {#if cfgKeys.length === 0}
+                        <div class="text-muted-foreground italic">설정 데이터 없음</div>
+                      {:else}
+                        <table class="w-full text-left border-collapse">
+                          <thead>
+                            <tr class="text-muted-foreground text-[9px]">
+                              <th class="pr-2 font-normal">키</th>
+                              <th class="pr-2 font-normal">A</th>
+                              <th class="pr-2 font-normal">B</th>
+                              <th class="font-normal">차이</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {#each cfgKeys as key}
+                              {@const va = (runA.config as Record<string, unknown>)[key]}
+                              {@const vb = (runB.config as Record<string, unknown>)[key]}
+                              <tr class="border-t border-border">
+                                <td class="pr-2 py-0.5 text-muted-foreground">{key}</td>
+                                <td class="pr-2 py-0.5 max-w-[4rem] truncate">{va ?? '—'}</td>
+                                <td class="pr-2 py-0.5 max-w-[4rem] truncate">{vb ?? '—'}</td>
+                                <td class="py-0.5 {String(va) !== String(vb) ? 'text-amber-600' : 'text-muted-foreground'}">
+                                  {String(va) === String(vb) ? '동일' : '변경'}
+                                </td>
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      {/if}
+                    </div>
+                  {/if}
+                </div>
+              {/if}
             </div>
           {/if}
         </div>

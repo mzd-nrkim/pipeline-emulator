@@ -40,6 +40,7 @@ export interface Run {
   status: 'succeeded' | 'failed' | 'in_progress';
   config: RunConfig;
   stageCounts?: Record<string, number>;
+  failureReason?: string;
 }
 
 export interface Document {
