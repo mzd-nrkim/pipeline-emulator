@@ -1,10 +1,13 @@
 """
-Debezium CDC 어댑터 — Valkey(Redis) Stream 소비 → Bronze 이벤트 등록.
+Debezium CDC 어댑터 — Valkey(Redis) Stream 소비 → Bronze 이벤트 등록 → Silver-1 트리거.
 
 환경변수:
   VALKEY_HOST  (기본: localhost)
   VALKEY_PORT  (기본: 6379)
   MYSQL_HOST, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD, MYSQL_PORT
+  AIRFLOW_BASE_URL  (기본: http://airflow:8080)
+  AIRFLOW_USER      (기본: admin)
+  AIRFLOW_PASS      (기본: admin)
 
 스트림 키 패턴: pipeline.pipeline_emulator.<table_name>
   (topic.prefix=pipeline, database=pipeline_emulator)
@@ -18,6 +21,12 @@ op 매핑 (Bronze change_operation 계약):
   u → update
   d → delete
   r → snapshot
+
+Silver-1 트리거:
+  Bronze 등록 직후 Airflow REST API로 silver_1_structuring DAG를 트리거.
+  conf 형태: {"source": "cdc", "table_name": <table>, "event_id": <id>}
+  — ui-backend/app/services/airflow.py:trigger_dag 와 동일한 엔드포인트·인증 사용.
+  DAG 자체는 conf를 무시(schedule=None, 트리거만 감지) — Silver-1 DAG 코드 수정 없음.
 """
 
 import json
@@ -27,6 +36,7 @@ import time
 from typing import Optional
 
 import redis
+import requests
 
 # scripts 패키지가 PYTHONPATH에 있다고 가정하고 ingest 재사용
 from scripts.ingest import get_mysql_connection, register_bronze_event
@@ -41,11 +51,49 @@ logger = logging.getLogger(__name__)
 VALKEY_HOST: str = os.environ.get("VALKEY_HOST", "localhost")
 VALKEY_PORT: int = int(os.environ.get("VALKEY_PORT", "6379"))
 
+# Airflow REST 접속 정보 (ui-backend/app/services/airflow.py 와 동일한 환경변수명)
+AIRFLOW_BASE: str = os.environ.get("AIRFLOW_BASE_URL", "http://airflow:8080")
+AIRFLOW_USER: str = os.environ.get("AIRFLOW_USER", "admin")
+AIRFLOW_PASS: str = os.environ.get("AIRFLOW_PASS", "admin")
+
+SILVER_1_DAG_ID: str = "silver_1_structuring"
+
 # Debezium topic.prefix + database → 스트림 키 프리픽스
 STREAM_PREFIX: str = "pipeline.pipeline_emulator."
 
 # XREAD block timeout (ms). 0 = 무한 대기.
 XREAD_BLOCK_MS: int = int(os.environ.get("XREAD_BLOCK_MS", "5000"))
+
+
+# ── Silver-1 트리거 함수 (순수 분리 — 단위테스트 가능) ─────────────────────
+
+def trigger_silver_1(table_name: str, event_id: int) -> str:
+    """
+    Bronze 등록 직후 silver_1_structuring DAG를 트리거한다.
+
+    conf 형태: {"source": "cdc", "table_name": <table>, "event_id": <id>}
+    — ui-backend/app/services/airflow.py:trigger_dag 와 동일한
+      POST /api/v1/dags/{dag_id}/dagRuns 엔드포인트·인증을 사용.
+      DAG는 schedule=None이므로 이 트리거 호출로만 실행됨.
+
+    반환: dag_run_id (str)
+    실패: requests.HTTPError 또는 ConnectionError — 호출자가 처리.
+    """
+    conf = {"source": "cdc", "table_name": table_name, "event_id": event_id}
+    resp = requests.post(
+        f"{AIRFLOW_BASE}/api/v1/dags/{SILVER_1_DAG_ID}/dagRuns",
+        auth=(AIRFLOW_USER, AIRFLOW_PASS),
+        json={"conf": conf},
+        timeout=5,
+    )
+    resp.raise_for_status()
+    dag_run_id = resp.json().get("dag_run_id", "")
+    logger.info(
+        "Silver-1 트리거 완료: dag_run_id=%s table=%s event_id=%d",
+        dag_run_id, table_name, event_id,
+    )
+    return dag_run_id
+
 
 # ── 순수 매핑 함수 ────────────────────────────────────────────────────────────
 
@@ -218,6 +266,16 @@ def consume_streams(
                         "Bronze 등록: table=%s op=%s→%s event_id=%d msg_id=%s",
                         table_name, op, change_operation, event_id, msg_id,
                     )
+                    # Silver-1 트리거 (Bronze 등록 직후 — DAG 수정 없음)
+                    try:
+                        trigger_silver_1(table_name, event_id)
+                    except Exception as trigger_exc:
+                        # 트리거 실패는 Bronze 등록을 무효화하지 않는다.
+                        # Airflow 미기동 상태에서도 어댑터가 계속 동작해야 함.
+                        logger.warning(
+                            "Silver-1 트리거 실패 (Bronze 등록은 완료): table=%s event_id=%d error=%s",
+                            table_name, event_id, trigger_exc,
+                        )
                 except ValueError as exc:
                     logger.error(
                         "스트림 %s 메시지 %s op 미지원: %s", stream_key, msg_id, exc
