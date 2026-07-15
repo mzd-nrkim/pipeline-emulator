@@ -77,12 +77,11 @@
           {#if toolEntry?.icon}
             <span class="text-base leading-none">{toolEntry.icon}</span>
           {/if}
-          <span class="font-bold uppercase tracking-widest text-[10px]">
-            {toolEntry?.displayName ?? selectedNode.tool}
-          </span>
+          <span class="font-bold uppercase tracking-widest text-[10px]">노드 상세</span>
         </div>
         <button type="button" onclick={() => selectedNode = null} class="text-muted-foreground hover:text-foreground">✕</button>
       </div>
+      <div class="text-[10px] font-bold text-foreground">{toolEntry?.displayName ?? selectedNode.tool}</div>
       {#if toolEntry?.vendor}
         <div class="text-[10px] text-muted-foreground -mt-1">벤더: <span class="font-bold text-foreground">{toolEntry.vendor}</span></div>
       {/if}

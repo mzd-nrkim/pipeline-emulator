@@ -66,7 +66,7 @@ export function buildNodesAndEdges(topo: CanvasTopology): { nodes: FlowNode[]; e
       type: 'default',
       position: { x: KIND_X[n.kind], y: idx * 140 },
       data: {
-        label: `${catalogData.icon} ${catalogData.displayName}`,
+        label: `${catalogData.icon} ${catalogData.displayName}\n[${n.kind}]`,
         ...catalogData,
       },
       style: KIND_STYLE[n.kind],
