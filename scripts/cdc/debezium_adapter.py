@@ -232,20 +232,28 @@ def consume_streams(
                     if isinstance(msg_id_raw, bytes)
                     else msg_id_raw
                 )
-                # Redis Stream 필드 키는 bytes 또는 str 혼용 가능
-                payload_bytes = fields.get(b"payload") or fields.get("payload")
-                if payload_bytes is None:
+                # Debezium Server Redis sink 포맷: 엔트리 = {<key-json>: <value-json>}
+                # 단일 필드. 필드 '값'이 Debezium envelope({schema,payload{op,...}}),
+                # 필드 '이름'은 Debezium key-json이므로 무시한다.
+                if not fields:
                     logger.warning(
-                        "스트림 %s 메시지 %s: 'payload' 필드 없음, 스킵",
-                        stream_key, msg_id,
+                        "스트림 %s 메시지 %s: 빈 엔트리, 스킵", stream_key, msg_id,
+                    )
+                    stream_offsets[stream_key] = msg_id
+                    continue
+                value_raw = next(iter(fields.values()))
+                if value_raw is None or value_raw in (b"", ""):
+                    # tombstone(삭제 후속 null 레코드) — 스킵
+                    logger.debug(
+                        "스트림 %s 메시지 %s: tombstone, 스킵", stream_key, msg_id,
                     )
                     stream_offsets[stream_key] = msg_id
                     continue
 
                 try:
                     envelope = _parse_envelope(
-                        payload_bytes if isinstance(payload_bytes, bytes)
-                        else payload_bytes.encode("utf-8")
+                        value_raw if isinstance(value_raw, bytes)
+                        else value_raw.encode("utf-8")
                     )
                     op = envelope["payload"]["op"]
                     change_operation = normalize_op(op)
@@ -276,6 +284,12 @@ def consume_streams(
                             "Silver-1 트리거 실패 (Bronze 등록은 완료): table=%s event_id=%d error=%s",
                             table_name, event_id, trigger_exc,
                         )
+                except json.JSONDecodeError:
+                    # tombstone(삭제 후속 null 레코드) 또는 비JSON 값 — 스킵
+                    logger.debug(
+                        "스트림 %s 메시지 %s: 비JSON/tombstone, 스킵",
+                        stream_key, msg_id,
+                    )
                 except ValueError as exc:
                     logger.error(
                         "스트림 %s 메시지 %s op 미지원: %s", stream_key, msg_id, exc

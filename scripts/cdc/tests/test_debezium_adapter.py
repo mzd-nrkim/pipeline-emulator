@@ -185,7 +185,10 @@ class TestConsumeStreams:
         """fake Redis — xread 1회 → 메시지 반환, 2회째 → None(루프 종료)."""
         msg_id = b"1700000000000-0"
         payload_bytes = _make_debezium_envelope_payload(op, table)
-        fields = {b"payload": payload_bytes}
+        # 실제 Debezium Server Redis sink 포맷: 엔트리 필드 = {key-json: value(envelope)}
+        # 필드 '이름'이 Debezium key-json, 필드 '값'이 envelope. (payload 이름 필드 아님)
+        key_json = json.dumps({"schema": {}, "payload": {"id": 42}}).encode("utf-8")
+        fields = {key_json: payload_bytes}
         messages = [(msg_id, fields)]
 
         r = MagicMock()
@@ -235,6 +238,19 @@ class TestConsumeStreams:
         self._run_consume(r, calls, "products", "u")
         assert len(calls) == 1
         assert calls[0]["change_operation"] == "update"
+
+    def test_tombstone_empty_value_skipped(self):
+        """삭제 후속 tombstone(빈 value) 엔트리는 예외 없이 스킵 — Bronze 등록 0건."""
+        stream_key = f"{STREAM_PREFIX}orders"
+        key_json = json.dumps({"payload": {"id": 1}}).encode("utf-8")
+        fields = {key_json: b""}  # tombstone: 빈 value
+        messages = [(b"1700000000000-9", fields)]
+        r = MagicMock()
+        r.scan.return_value = (0, [stream_key.encode("utf-8")])
+        r.xread.side_effect = [[(stream_key.encode("utf-8"), messages)], None]
+        calls = []
+        self._run_consume(r, calls, "orders", "d")
+        assert calls == []  # tombstone은 Bronze 등록을 만들지 않는다
 
     def test_delete_op_maps_correctly(self):
         stream_key = f"{STREAM_PREFIX}users"
