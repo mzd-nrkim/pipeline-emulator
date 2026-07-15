@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from mock_api.routes import chunking, enrichment
+from routes import chunking, enrichment
 
 app = FastAPI(title="Pipeline Emulator Mock API")
 

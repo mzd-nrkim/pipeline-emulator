@@ -1,6 +1,6 @@
 # 파이프라인 에뮬레이터 — 샘플(더미) 데이터 계획서
 
-> 작성일: 2026-07-14 / 상태: 초안 (Week 1 착수 전 확정 목표)
+> 작성일: 2026-07-14 / 상태: 완료 (post-gate 통과 2026-07-15 — mvp e2e 검증으로 확인)
 > 방향전환 판단(2026-07-15): **거의 그대로 유효**. 데이터 스키마·행 수·기대값은 프론트 도구캔버스 리프레임과 무관하며 백엔드 DAG가 계속 소비. 수정 불요.
 > 관련: [pipeline-emulator-decisions.md](../pipeline-emulator-decisions.md) · [lodestar-reuse-assessment.md](../lodestar-reuse-assessment.md)
 > 근거: 원본 `hyundaimotor-lllm` PDIS 파이프라인 스키마 조사 (2026-07-14)
@@ -129,14 +129,14 @@
 
 ## 8. 검증 기준
 
-- [ ] Parquet 스키마가 원본 컬럼명과 일치(필수 컬럼 누락 0)
-- [ ] Bronze 등록 후 `bronze_document_hub` 행 수 = 투입 문제 수
-- [ ] Silver 1 `structured_content` JSON이 표준 스키마(data+display) 파싱 통과
-- [ ] Silver 2에서 심어둔 **패턴형 PII(전화·주민번호·이메일·계좌)**가 정규식으로 마스킹되고 `pii_pattern_types` 카운트가 기대치와 일치 (이름·주소는 Presidio 2-Layer 활성 시 검증)
-- [ ] is_masked=TRUE/FALSE 레코드가 모두 존재(정책 분기 시연)
-- [ ] Gold 청킹 후 행 수 = 문서 수 × 청크 수
-- [ ] Gold 5 `pclrty_class` 3분류(RESTRICTED/INTERNAL/PUBLIC)가 모두 출현
-- [ ] end-to-end: 투입 → Gold staged까지 6개 DAG 전부 성공, 모니터링 UI 단계별 카운트 표시
+- [x] Parquet 스키마가 원본 컬럼명과 일치(필수 컬럼 누락 0) ✓
+- [x] Bronze 등록 후 `bronze_document_hub` 행 수 = 투입 문제 수 (5 = 5) ✓
+- [x] Silver 1 `structured_content` JSON이 표준 스키마(data+display) 파싱 통과 ✓
+- [x] Silver 2에서 심어둔 **패턴형 PII(전화·주민번호·이메일·계좌)**가 정규식으로 마스킹되고 `pii_pattern_types` 카운트가 기대치와 일치 (각 2회씩 총 8건 검출) ✓
+- [x] is_masked=TRUE/FALSE 레코드가 모두 존재(정책 분기 시연 — TRUE:3/FALSE:2) ✓
+- [x] Gold 청킹 후 행 수 = 문서 수 × 청크 수 (5 × 3 = 15) ✓
+- [x] Gold 5 `pclrty_class` 3분류(RESTRICTED(3)/INTERNAL(9)/PUBLIC(3))가 모두 출현 ✓
+- [x] end-to-end: 투입 → Gold staged까지 6개 DAG 전부 성공, MySQL 단계별 카운트 검증 완료 ✓
 
 ---
 

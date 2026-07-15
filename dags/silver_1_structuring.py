@@ -1,6 +1,6 @@
 """
 DAG: silver_1_structuring
-Bronze hub 조회 → JSON schema(data+display) 변환 → silver_structured_documents SCD Type2 INSERT.
+Bronze hub + SeaweedFS Parquet → JSON schema(data+display) 변환 → silver_structured_documents SCD Type2 INSERT.
 """
 
 import hashlib
@@ -16,6 +16,10 @@ MYSQL_HOST = os.environ.get("MYSQL_HOST", "mysql")
 MYSQL_DATABASE = os.environ.get("MYSQL_DATABASE", "pipeline_emulator")
 MYSQL_USER = os.environ.get("MYSQL_USER", "emulator")
 MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "emulator_pass")
+
+SEAWEEDFS_ENDPOINT = os.environ.get("SEAWEEDFS_ENDPOINT", "http://seaweedfs:8333")
+SEAWEEDFS_ACCESS_KEY = os.environ.get("SEAWEEDFS_ACCESS_KEY", "any")
+SEAWEEDFS_SECRET_KEY = os.environ.get("SEAWEEDFS_SECRET_KEY", "any")
 
 
 def _get_conn():
@@ -41,8 +45,15 @@ def _get_conn():
 def silver_structuring():
 
     @task()
-    def read_bronze() -> list[dict]:
-        """bronze_document_hub + bronze_document_assembly_sat 조회."""
+    def read_bronze_with_parquet() -> list[dict]:
+        """
+        bronze_document_hub + bronze_rdb_events 조인 → s3_path 취득 → Parquet 로드.
+        각 hub 레코드에 Parquet 원본 row를 매칭해서 반환.
+        """
+        import io
+        import boto3
+        import pyarrow.parquet as pq
+
         conn = _get_conn()
         try:
             with conn.cursor() as cur:
@@ -52,66 +63,97 @@ def silver_structuring():
                         h.document_hub_hash_key,
                         h.source_name,
                         h.source_primary_key,
-                        s.document_type,
-                        s.assembly_status
+                        e.s3_path,
+                        e.batch_id
                     FROM bronze_document_hub h
-                    JOIN bronze_document_assembly_sat s
-                      ON h.document_hub_hash_key = s.document_hub_hash_key
-                    WHERE s.assembly_status = 'assembled'
+                    JOIN bronze_document_rdb_link l
+                      ON h.document_hub_hash_key = l.document_hub_hash_key
+                    JOIN bronze_rdb_events e
+                      ON l.bronze_rdb_event_id = e.bronze_rdb_event_id
+                    JOIN bronze_document_assembly_sat sat
+                      ON h.document_hub_hash_key = sat.document_hub_hash_key
+                    WHERE sat.assembly_status = 'assembled'
                     """
                 )
-                return cur.fetchall()
+                rows = cur.fetchall()
         finally:
             conn.close()
+
+        # s3_path별로 Parquet 한 번씩만 로드
+        parquet_cache = {}
+        s3 = boto3.client(
+            "s3",
+            endpoint_url=SEAWEEDFS_ENDPOINT,
+            aws_access_key_id=SEAWEEDFS_ACCESS_KEY,
+            aws_secret_access_key=SEAWEEDFS_SECRET_KEY,
+            region_name="us-east-1",
+        )
+
+        result = []
+        for row in rows:
+            s3_path = row["s3_path"]  # s3://bronze/pdis/.../part-00000.parquet
+            if s3_path not in parquet_cache:
+                # s3://bucket/key → bucket, key
+                path_without_proto = s3_path.replace("s3://", "")
+                bucket = path_without_proto.split("/")[0]
+                key = "/".join(path_without_proto.split("/")[1:])
+                obj = s3.get_object(Bucket=bucket, Key=key)
+                buf = io.BytesIO(obj["Body"].read())
+                df = pq.read_table(buf).to_pydict()
+                # pk → row 매핑
+                pk_map = {}
+                for i in range(len(df["pilot_problem_no"])):
+                    pk = f"{df['pilot_problem_no'][i]}||{df['reform_numseq'][i]}"
+                    pk_map[pk] = {col: df[col][i] for col in df}
+                parquet_cache[s3_path] = pk_map
+
+            pk_map = parquet_cache[s3_path]
+            pk = row["source_primary_key"]
+            parquet_row = pk_map.get(pk)
+
+            result.append({
+                "document_hub_hash_key": row["document_hub_hash_key"],
+                "source_primary_key": pk,
+                "parquet_row": parquet_row,
+            })
+        return result
 
     @task()
     def build_structured_content(hub_rows: list[dict]) -> list[dict]:
         """
-        각 Hub 레코드에 대해 표준 JSON structured_content 생성.
-        실제 PDIS 데이터라면 SeaweedFS Parquet를 읽어 필드를 채우지만,
-        에뮬레이터는 hub 키로 결정적 더미 데이터를 생성한다.
+        Parquet 원본 row에서 표준 JSON structured_content 생성.
         """
-        import sys
-        sys.path.insert(0, "/opt/airflow")
+        import json, hashlib
+
+        pclrty_map = {
+            "S": "RESTRICTED", "A": "INTERNAL", "B": "INTERNAL",
+            "C": "INTERNAL", "D": "PUBLIC", "E": "PUBLIC",
+        }
 
         structured = []
         for hub in hub_rows:
-            pk = hub["source_primary_key"]  # "AP0000XXXX||1"
-            parts = pk.split("||")
-            problem_no = parts[0] if parts else pk
-            seq = int(parts[1]) if len(parts) > 1 else 1
+            pk = hub["source_primary_key"]
+            prow = hub.get("parquet_row") or {}
 
-            # 결정적 더미 값 생성 (시드 기반)
-            import hashlib
-            seed_val = int(hashlib.md5(problem_no.encode()).hexdigest()[:8], 16) % 5
-            importance_list = ["S", "A", "B", "C", "D"]
-            importance = importance_list[seed_val % len(importance_list)]
-            pclrty_map = {"S": "RESTRICTED", "A": "INTERNAL", "B": "INTERNAL",
-                          "C": "INTERNAL", "D": "PUBLIC", "E": "PUBLIC"}
+            problem_no = prow.get("pilot_problem_no", pk.split("||")[0])
+            seq = prow.get("reform_numseq", 1)
+            importance = prow.get("pilot_problem_importnrate_typecd", "A")
             pclrty_class = pclrty_map.get(importance, "INTERNAL")
-            vehicle_model = ["NX01", "NX02", "NX03"][seed_val % 3]
+            vehicle_model = prow.get("pilot_vhclmodel_no", "NX01")
+            problem_content = prow.get("problem_content", "")
+            cntmeasure_content = prow.get("cntmeasure_content", "")
+            display_content = prow.get("display_content", "")
 
-            pii_block_high = (
-                "담당자 연락처: 010-1234-5678\n"
-                "주민번호: 901231-1234567\n"
-                "이메일: test@hmc.example\n"
-                "계좌번호: 110-123456-78"
-            )
-            pii_block_low = "담당자 연락처: 010-9999-8888"
-
-            use_pii_high = seed_val < 3
-
-            problem_content = (
-                f"[{importance}등급] {vehicle_model} CFT 문제.\n"
-                f"현상: 샘플 현상 설명.\n"
-                f"원인: 샘플 원인.\n"
-                f"{pii_block_high if use_pii_high else pii_block_low}"
-            )
-            display_content = (
-                f"담당부서: 샘플품질팀\n"
-                f"담당자: 홍길동\n"
-                f"{pii_block_high if use_pii_high else pii_block_low}"
-            )
+            parts_raw = prow.get("parts", "[]")
+            steps_raw = prow.get("steps", "[]")
+            try:
+                parts = json.loads(parts_raw) if isinstance(parts_raw, str) else parts_raw
+            except Exception:
+                parts = []
+            try:
+                steps = json.loads(steps_raw) if isinstance(steps_raw, str) else steps_raw
+            except Exception:
+                steps = []
 
             content = {
                 "source": "pdis",
@@ -124,23 +166,16 @@ def silver_structuring():
                         "pilot_problem_importnrate_typecd": importance,
                         "pclrty_class": pclrty_class,
                         "problem_content": problem_content,
-                        "cntmeasure_content": "대책 샘플 내용.",
+                        "cntmeasure_content": cntmeasure_content,
                     },
-                    "step": [
-                        {"pilot_step_typecd": "D", "step_name": "설계"},
-                        {"pilot_step_typecd": "P", "step_name": "양산"},
-                    ],
-                    "part": [
-                        {"part_no": f"PART-{problem_no}-01", "part_name": "부품A"},
-                        {"part_no": f"PART-{problem_no}-02", "part_name": "부품B"},
-                        {"part_no": f"PART-{problem_no}-03", "part_name": "부품C"},
-                    ],
+                    "step": steps,
+                    "part": parts,
                     "vehiclefuse": {"pilot_vhclmodel_no": vehicle_model},
                 },
                 "display": {
                     "display_content": display_content,
-                    "dept_name": "샘플품질팀",
-                    "manager_name": "홍길동",
+                    "dept_name": prow.get("dept_name", ""),
+                    "manager_name": prow.get("reg_empno", ""),
                 },
             }
             content_str = json.dumps(content, ensure_ascii=False)
@@ -162,7 +197,6 @@ def silver_structuring():
         try:
             for doc in structured:
                 hub_hash = doc["document_hub_hash_key"]
-                # SCD Type2: 기존 is_latest=TRUE 레코드 닫기
                 with conn.cursor() as cur:
                     cur.execute(
                         """
@@ -201,7 +235,7 @@ def silver_structuring():
             conn.close()
         return inserted
 
-    hub_rows = read_bronze()
+    hub_rows = read_bronze_with_parquet()
     structured = build_structured_content(hub_rows)
     insert_silver_structured(structured)
 
