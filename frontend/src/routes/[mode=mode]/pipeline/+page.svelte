@@ -28,9 +28,9 @@
   <title>파이프라인 — PipeScale</title>
 </svelte:head>
 
-<div class="space-y-6">
+<div class="flex flex-col h-full min-h-0">
   <!-- 실행 조작 패널 -->
-  <div class="bg-surface border border-border p-4 rounded-sm shadow-sm">
+  <div class="shrink-0 bg-surface border border-border p-4 rounded-sm shadow-sm">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
       <div class="flex flex-wrap items-center gap-6">
         <div class="space-y-1">
@@ -81,8 +81,8 @@
   </div>
 
   <!-- Canvas 뷰 + 실행 이력 -->
-  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-    <div class="lg:col-span-9">
+  <div class="relative flex-1 min-h-0">
+    <div class="">
       <ToolCanvasView
         topology={data.topology}
         adapter={currentAdapter}
@@ -93,7 +93,7 @@
     </div>
 
     <!-- 실행 이력 -->
-    <div class="lg:col-span-3 bg-surface border border-border rounded-sm flex flex-col">
+    <div class="hidden bg-surface border border-border rounded-sm flex flex-col">
       <div class="px-4 py-3 bg-surface-muted border-b border-border flex items-center justify-between">
         <h2 class="font-bold text-xs uppercase tracking-widest">실행 이력</h2>
         <button
