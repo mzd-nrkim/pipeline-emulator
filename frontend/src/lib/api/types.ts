@@ -83,3 +83,24 @@ export interface PipelineStatusEvent {
   docsOut: number;
   timestamp: string;
 }
+
+/* 캔버스 토폴로지 계약 */
+export type SourceKind = 'rdb' | 's3' | 'unstructured';
+
+export interface ToolNode {
+  id: string;
+  kind: 'source' | 'task' | 'switch' | 'sink';
+  tool: string;
+  config: Record<string, unknown>;
+}
+
+export interface Edge {
+  from: string;
+  to: string;
+  condition?: string;
+}
+
+export interface CanvasTopology {
+  nodes: ToolNode[];
+  edges: Edge[];
+}
