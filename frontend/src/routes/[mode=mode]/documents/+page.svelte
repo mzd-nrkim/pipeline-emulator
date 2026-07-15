@@ -61,7 +61,7 @@
   <title>문서 — PipeScale</title>
 </svelte:head>
 
-<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<div class="mx-auto max-w-5xl px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
   <!-- 문서 목록 (좌측) -->
   <aside class="lg:col-span-4 space-y-3">
     <div class="flex items-center justify-between">
