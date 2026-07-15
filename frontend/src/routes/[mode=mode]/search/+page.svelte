@@ -46,7 +46,7 @@
   <title>검색 — PipeScale</title>
 </svelte:head>
 
-<div class="space-y-6">
+<div class="mx-auto max-w-5xl px-4 sm:px-6 space-y-6">
   <header class="space-y-2">
     <div class="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest border-l-2 border-primary pl-2">검색 데모</div>
     <h1 class="text-2xl font-extrabold tracking-tighter">Gold 레이어 질의</h1>

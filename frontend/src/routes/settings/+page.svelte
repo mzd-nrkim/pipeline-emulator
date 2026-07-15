@@ -24,7 +24,7 @@
   <title>설정 — PipeScale</title>
 </svelte:head>
 
-<div class="space-y-6">
+<div class="mx-auto max-w-5xl px-4 sm:px-6 space-y-6">
   {#if pendingRestart}
     <div class="border border-amber-500/40 bg-amber-500/10 text-amber-600 text-xs font-mono p-3 rounded-xs flex items-center gap-2">
       <span class="font-bold uppercase">재시작 필요</span>

@@ -31,7 +31,7 @@
   <title>개요 — PipeScale</title>
 </svelte:head>
 
-<div class="space-y-12">
+<div class="mx-auto max-w-5xl px-4 sm:px-6 space-y-12">
   <!-- 히어로 -->
   <header class="space-y-4 max-w-3xl">
     <div class="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest">에뮬레이터 / 개요</div>
