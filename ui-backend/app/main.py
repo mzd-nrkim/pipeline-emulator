@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import stages, runs, sse, config as config_router, nodes
+from app.api import stages, runs, sse, config as config_router, nodes, documents as documents_router
 import uvicorn
 
 app = FastAPI(title="Pipeline Emulator UI Backend")
@@ -11,6 +11,7 @@ app.include_router(runs.router, prefix="/runs", tags=["runs"])
 app.include_router(sse.router, prefix="/sse", tags=["sse"])
 app.include_router(config_router.router, prefix="/config", tags=["config"])
 app.include_router(nodes.router, prefix="/nodes", tags=["nodes"])
+app.include_router(documents_router.router, prefix="/documents", tags=["documents"])
 
 @app.get("/health")
 def health():
