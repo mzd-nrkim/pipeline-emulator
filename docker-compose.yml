@@ -123,7 +123,7 @@ services:
       - cdc
 
   debezium:
-    image: debezium/server:2.7
+    image: debezium/server:2.7.3.Final
     volumes:
       - ./debezium/conf:/debezium/conf
     environment:
