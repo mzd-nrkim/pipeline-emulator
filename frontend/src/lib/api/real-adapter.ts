@@ -41,6 +41,25 @@ export async function fetchCanvasTopology(): Promise<CanvasTopology> {
   throw new Error('real-adapter: fetchCanvasTopology — P2에서 구현 예정');
 }
 
+export async function triggerNode(nodeId: string, conf: Record<string, unknown>): Promise<{ dag_run_id: string }> {
+  const res = await fetch(`${BASE}/nodes/${nodeId}/trigger`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ conf }),
+  });
+  if (!res.ok) throw new Error(`triggerNode: ${res.status}`);
+  return res.json();
+}
+
+export async function setNodeConfig(nodeId: string, config: Record<string, unknown>): Promise<void> {
+  const res = await fetch(`${BASE}/nodes/${nodeId}/config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ config }),
+  });
+  if (!res.ok) throw new Error(`setNodeConfig: ${res.status}`);
+}
+
 export function subscribePipelineStatus(onChange: (event: unknown) => void): () => void {
   const es = new EventSource(`${BASE}/sse/stages`);
   es.onmessage = (e: MessageEvent) => {

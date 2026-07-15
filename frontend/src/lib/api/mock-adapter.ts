@@ -28,6 +28,14 @@ export async function fetchCanvasTopology(): Promise<CanvasTopology> {
   return topology;
 }
 
+export async function triggerNode(nodeId: string, _conf: Record<string, unknown>): Promise<{ dag_run_id: string }> {
+  return { dag_run_id: `mock-run-${nodeId}-${Date.now()}` };
+}
+
+export async function setNodeConfig(_nodeId: string, _config: Record<string, unknown>): Promise<void> {
+  // mock noop
+}
+
 /* SSE stub (Week 2 활성화) */
 export function subscribePipelineStatus(_onChange: (event: unknown) => void): () => void {
   return () => {}; // noop cleanup
