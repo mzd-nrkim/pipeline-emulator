@@ -14,8 +14,12 @@
   import PipelineGraphView from '$lib/components/PipelineGraphView.svelte';
   import ToolCanvasView from '$lib/components/ToolCanvasView.svelte';
   import type { Stage, Run, CanvasTopology } from '$lib/api/types.js';
+  import * as mockAdapter from '$lib/api/mock-adapter.js';
+  import * as realAdapter from '$lib/api/real-adapter.js';
 
   let { data }: { data: { stages: Stage[]; runs: Run[]; topology: CanvasTopology } } = $props();
+
+  const currentAdapter = page.params.mode === 'real' ? realAdapter : mockAdapter;
 
   let selectedStageId = $state(page.url.searchParams.get('stage') ?? 'silver_masked');
   let selectedRunId = $state(page.url.searchParams.get('runA') ?? '');
@@ -156,7 +160,7 @@
         </div>
       </div>
       {#if viewMode === 'canvas'}
-        <ToolCanvasView topology={data.topology} />
+        <ToolCanvasView topology={data.topology} adapter={currentAdapter} />
       {:else if viewMode === 'graph'}
         <PipelineGraphView stages={data.stages} onselect={selectStage} />
       {:else}

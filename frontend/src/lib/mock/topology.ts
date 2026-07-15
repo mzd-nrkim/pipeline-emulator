@@ -44,6 +44,7 @@ export const mockTopology: CanvasTopology = {
       kind: 'task',
       tool: 'pii_masker',
       config: {
+        dagId: 'silver_2_masking',
         fields: ['name', 'email', 'phone'],
         strategy: 'replace',
       },
@@ -53,6 +54,7 @@ export const mockTopology: CanvasTopology = {
       kind: 'task',
       tool: 'text_chunker',
       config: {
+        dagId: 'gold_3_chunking',
         chunkSize: 512,
         overlap: 64,
         strategy: 'sentence',
