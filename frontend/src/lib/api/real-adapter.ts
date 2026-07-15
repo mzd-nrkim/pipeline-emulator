@@ -36,9 +36,11 @@ export async function fetchDimensions(): Promise<Dimension[]> {
   }));
 }
 
-/* TODO(P2): ui-backend /canvas/topology 엔드포인트 구현 후 채움 */
+import { mockTopology } from '../mock/topology.js';
+
 export async function fetchCanvasTopology(): Promise<CanvasTopology> {
-  throw new Error('real-adapter: fetchCanvasTopology — P2에서 구현 예정');
+  // 파이프라인 토폴로지는 고정 구조 — real 모드에서도 동일한 DAG 그래프 사용
+  return mockTopology;
 }
 
 export async function triggerNode(nodeId: string, conf: Record<string, unknown>): Promise<{ dag_run_id: string }> {
