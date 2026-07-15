@@ -4,6 +4,8 @@
 > 방향전환 판단(2026-07-15): **유지**. feature-flag 토글 구조는 도구노드 아키텍처와 호환. 개별 F 설명만 "도구 노드" 관점으로 갱신 권장(F1 경미수정 / F2·F3·F4·F5 그대로 편입 / F6·F7 보류·재평가).
 > 선행: [pipeline-emulator-mvp-plan.md](./pipeline-emulator-mvp-plan.md) · [pipeline-emulator-week2-plan.md](./pipeline-emulator-week2-plan.md)
 > 근거: [pipeline-emulator-decisions.md](../pipeline-emulator-decisions.md) "다음 계획"
+>
+> **캔버스 방향 인덱스(2026-07-15 추가)**: Week 2 "고정 6단계 대시보드" → 도구 오케스트레이션 캔버스로 전환. P1·P2·P3 완료. 캔버스 기반 신규 feat 계획 3건 진행 중 — §캔버스 리팩터(완료)·§캔버스 기반 feat(활성) 참조.
 
 ---
 
@@ -66,6 +68,33 @@ valkey 브로커 + celery worker 분리. TaskFlow DAG라 코드 수정 0. 되돌
 
 ### [F7. ES 다중 노드 (3-master)](./pipeline-emulator-feat-f7-es-cluster.md) ★ (최하위)
 ES 단일→3-master 클러스터로 HA·부하 시연. **F1 on 전제.** 노트북 리소스 부담 커 우선순위 최하.
+
+---
+
+---
+
+## 캔버스 리팩터 (완료 — done/ 이동)
+
+Week 2 "고정 6단계 대시보드" 방향에서 **도구 오케스트레이션 캔버스**로 전환한 리팩터 계획들. 전부 통테통과-완료.
+
+| # | 계획서 | 상태 | 요약 |
+|---|--------|------|------|
+| P1 | [refactor-canvas-ui](./done/pipeline-emulator-refactor-canvas-ui.md) | ✅ 완료 | 고정 대시보드 → 도구 노드 캔버스 UI 전환 |
+| P2 | [refactor-tool-adapter](./done/pipeline-emulator-refactor-tool-adapter.md) | ✅ 완료 | 도구 어댑터 실동작 — `/nodes/{id}/trigger` API 연결 |
+| P3 | [refactor-runid-medallion](./done/pipeline-emulator-refactor-runid-medallion.md) | ✅ 완료 | run_id 연결 + medallion 부가뷰 강등 |
+| — | [feat-dag-graph-toggle](./done/pipeline-emulator-feat-dag-graph-toggle.md) | ✅ 완료 | 파이프라인 뷰 Grid / DAG Graph 2-Mode 토글 |
+
+---
+
+## 캔버스 기반 feat (활성 — 초안)
+
+P1·P2·P3 캔버스 기반에서 파생된 신규 기능 계획. F1~F7 feature-flag 축과 독립적.
+
+| 계획서 | 상태 | 요약 |
+|--------|------|------|
+| [feat-infra-view-buildout](./pipeline-emulator-feat-infra-view-buildout.md) | 초안 | 인프라 연결 뷰 실체화 (스텁 3엣지 → 유의미한 의존 그래프) |
+| [feat-node-config-persistence](./pipeline-emulator-feat-node-config-persistence.md) | 초안 | 노드 설정 저장 + 도구 API 전수조사·기능 리스트업 |
+| [feat-run-history-detail](./pipeline-emulator-feat-run-history-detail.md) | 초안 | 실행 이력 상세화 (성공/실패/시간 → 스테이지별 근거) |
 
 ---
 
