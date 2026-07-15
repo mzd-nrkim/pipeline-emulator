@@ -90,6 +90,40 @@ def get_all_dag_runs() -> list:
     return all_runs
 
 
+def get_task_instances(dag_id: str, dag_run_id: str) -> list:
+    """Airflow task instances for a specific DAG run — 단계별 실행 결과."""
+    try:
+        resp = requests.get(
+            f"{AIRFLOW_BASE}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+            auth=(AIRFLOW_USER, AIRFLOW_PASS),
+            timeout=5,
+        )
+        if resp.status_code == 200:
+            result = []
+            for t in resp.json().get("task_instances", []):
+                start = t.get("start_date")
+                end = t.get("end_date")
+                duration_ms = None
+                if start and end:
+                    s = datetime.fromisoformat(start.replace("Z", "+00:00"))
+                    e = datetime.fromisoformat(end.replace("Z", "+00:00"))
+                    duration_ms = int((e - s).total_seconds() * 1000)
+                state = t.get("state", "none")
+                status = {"success": "completed", "running": "in_progress", "failed": "failed"}.get(state, "none")
+                result.append({
+                    "taskId": t.get("task_id"),
+                    "state": status,
+                    "startDate": start,
+                    "endDate": end,
+                    "durationMs": duration_ms,
+                    "tryNumber": t.get("try_number", 1),
+                })
+            return result
+    except Exception:
+        pass
+    return []
+
+
 def trigger_dag(dag_id: str, conf: dict) -> str:
     """POST /api/v1/dags/{dag_id}/dagRuns — dag_run_id 반환. 실패 시 raise."""
     resp = requests.post(

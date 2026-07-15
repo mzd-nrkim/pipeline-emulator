@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.services.mysql_aggregator import get_stage_counts
+from app.services.mysql_aggregator import get_stage_counts, get_pii_stats
 from app.services.airflow import get_dag_runs
 
 router = APIRouter()
@@ -14,6 +14,10 @@ STAGE_META = [
     {"id": "gold_staged", "name": "Gold Staged", "layer": "Gold"},
     {"id": "search_serving", "name": "검색 서빙", "layer": "Serving", "planned": True},
 ]
+
+@router.get("/pii-stats")
+def get_pii_stats_endpoint():
+    return get_pii_stats()
 
 @router.get("")
 def get_stages():

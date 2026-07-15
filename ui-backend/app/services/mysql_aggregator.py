@@ -1,3 +1,4 @@
+import json
 import os
 import pymysql
 
@@ -66,7 +67,28 @@ def get_pii_stats() -> dict:
             masked = (cur.fetchone() or {}).get("masked", 0)
             cur.execute("SELECT COUNT(*) as total FROM silver_masked_documents")
             total = (cur.fetchone() or {}).get("total", 0)
+            cur.execute(
+                "SELECT pii_pattern_types FROM silver_masked_documents"
+                " WHERE is_masked = 1 AND pii_pattern_types IS NOT NULL"
+            )
+            rows = cur.fetchall()
         conn.close()
-        return {"masked": masked, "unmasked": total - masked, "total": total}
+        type_breakdown: dict[str, int] = {}
+        for row in rows:
+            pt = row.get("pii_pattern_types")
+            if isinstance(pt, str):
+                try:
+                    pt = json.loads(pt)
+                except Exception:
+                    continue
+            if isinstance(pt, dict):
+                for k, v in pt.items():
+                    type_breakdown[k] = type_breakdown.get(k, 0) + (int(v) if v else 0)
+        return {
+            "masked": masked,
+            "unmasked": total - masked,
+            "total": total,
+            "typeBreakdown": type_breakdown,
+        }
     except Exception:
-        return {"masked": 0, "unmasked": 0, "total": 0}
+        return {"masked": 0, "unmasked": 0, "total": 0, "typeBreakdown": {}}
