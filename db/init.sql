@@ -108,3 +108,8 @@ CREATE TABLE IF NOT EXISTS gold_staged_documents (
 
 -- 2. Airflow 전용 DB (파이프라인 데이터와 분리)
 CREATE DATABASE IF NOT EXISTS pipeline_emulator_airflow;
+
+-- 3. CDC 전용 유저 (Debezium REPLICATION 권한 — 멱등)
+CREATE USER IF NOT EXISTS 'debezium'@'%' IDENTIFIED BY 'debezium_pass';
+GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'debezium'@'%';
+FLUSH PRIVILEGES;

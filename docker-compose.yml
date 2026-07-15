@@ -16,6 +16,7 @@ services:
 
   mysql:
     image: mysql:8.0
+    command: --server-id=1 --log-bin=mysql-bin --binlog-format=ROW --binlog-row-image=FULL
     environment:
       MYSQL_ROOT_PASSWORD: emulator_root
       MYSQL_DATABASE: pipeline_emulator
@@ -83,6 +84,47 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
       retries: 5
+
+  # ─────────────────────────────────────────
+  # CDC 스택 (profiles: [cdc] — 기본 기동 시 비활성)
+  # 기동: COMPOSE_PROFILES=cdc docker compose up
+  # ─────────────────────────────────────────
+
+  valkey:
+    image: valkey/valkey:8
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      retries: 5
+    profiles:
+      - cdc
+
+  debezium:
+    image: debezium/server:2.7
+    volumes:
+      - ./debezium/conf:/debezium/conf
+    environment:
+      DEBEZIUM_SINK_TYPE: redis
+      DEBEZIUM_SINK_REDIS_ADDRESS: valkey:6379
+      DEBEZIUM_SOURCE_CONNECTOR_CLASS: io.debezium.connector.mysql.MySqlConnector
+      DEBEZIUM_SOURCE_DATABASE_HOSTNAME: mysql
+      DEBEZIUM_SOURCE_DATABASE_PORT: "3306"
+      DEBEZIUM_SOURCE_DATABASE_USER: debezium
+      DEBEZIUM_SOURCE_DATABASE_PASSWORD: debezium_pass
+      DEBEZIUM_SOURCE_DATABASE_SERVER_ID: "1"
+      DEBEZIUM_SOURCE_TOPIC_PREFIX: pipeline
+      DEBEZIUM_SOURCE_DATABASE_INCLUDE_LIST: pipeline_emulator
+      DEBEZIUM_SOURCE_SCHEMA_HISTORY_INTERNAL: io.debezium.storage.redis.history.RedisSchemaHistory
+      DEBEZIUM_SOURCE_SCHEMA_HISTORY_INTERNAL_REDIS_ADDRESS: valkey:6379
+    depends_on:
+      mysql:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    profiles:
+      - cdc
 
 volumes:
   seaweedfs-data:
