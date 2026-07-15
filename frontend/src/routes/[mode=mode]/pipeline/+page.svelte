@@ -12,17 +12,18 @@
   import MaskingComparison from '$lib/components/MaskingComparison.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import PipelineGraphView from '$lib/components/PipelineGraphView.svelte';
-  import type { Stage, Run } from '$lib/api/types.js';
+  import ToolCanvasView from '$lib/components/ToolCanvasView.svelte';
+  import type { Stage, Run, CanvasTopology } from '$lib/api/types.js';
 
-  let { data }: { data: { stages: Stage[]; runs: Run[] } } = $props();
+  let { data }: { data: { stages: Stage[]; runs: Run[]; topology: CanvasTopology } } = $props();
 
   let selectedStageId = $state(page.url.searchParams.get('stage') ?? 'silver_masked');
   let selectedRunId = $state(page.url.searchParams.get('runA') ?? '');
   let ingested = $state(true);
   let running = $state(false);
-  let viewMode = $state<'grid' | 'graph'>('grid');
+  let viewMode = $state<'grid' | 'graph' | 'canvas'>('grid');
 
-  onMount(() => { if (browser) { const saved = localStorage.getItem('pipelineViewMode'); if (saved === 'grid' || saved === 'graph') viewMode = saved; } });
+  onMount(() => { if (browser) { const saved = localStorage.getItem('pipelineViewMode'); if (saved === 'grid' || saved === 'graph' || saved === 'canvas') viewMode = saved; } });
 
   const selectedStage = $derived(data.stages.find(s => s.id === selectedStageId) ?? data.stages[0]);
   const selectedRun = $derived(data.runs.find(r => r.id === selectedRunId) ?? null);
@@ -40,7 +41,7 @@
     goto(`/${page.params.mode}/pipeline${qs ? '?' + qs : ''}`, { replaceState: true, noScroll: true });
   }
 
-  function setViewMode(mode: 'grid' | 'graph') {
+  function setViewMode(mode: 'grid' | 'graph' | 'canvas') {
     viewMode = mode;
     if (browser) localStorage.setItem('pipelineViewMode', mode);
   }
@@ -144,13 +145,19 @@
               class={['px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-tight transition-colors border-l border-border', viewMode === 'graph' ? 'bg-foreground text-background' : 'bg-surface text-muted-foreground hover:bg-surface-muted'].join(' ')}>
               Graph
             </button>
+            <button type="button" onclick={() => setViewMode('canvas')} aria-pressed={viewMode === 'canvas'}
+              class={['px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-tight transition-colors border-l border-border', viewMode === 'canvas' ? 'bg-foreground text-background' : 'bg-surface text-muted-foreground hover:bg-surface-muted'].join(' ')}>
+              Canvas
+            </button>
           </div>
           <span class="text-[10px] font-mono text-muted-foreground uppercase">
             {data.stages.filter(s => !s.planned).length}개 활성 단계 · {data.stages.filter(s => s.planned).length}개 예정
           </span>
         </div>
       </div>
-      {#if viewMode === 'graph'}
+      {#if viewMode === 'canvas'}
+        <ToolCanvasView topology={data.topology} />
+      {:else if viewMode === 'graph'}
         <PipelineGraphView stages={data.stages} onselect={selectStage} />
       {:else}
         <div class="relative">
