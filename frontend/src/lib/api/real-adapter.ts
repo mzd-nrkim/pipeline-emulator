@@ -1,5 +1,5 @@
 /* Week 2 ui-backend 실제 어댑터 */
-import type { Stage, Run, Document, SearchResult, Dimension } from './types.js';
+import type { Stage, Run, Document, SearchResult, Dimension, CanvasTopology } from './types.js';
 
 const BASE = import.meta.env.PUBLIC_UI_BACKEND_URL ?? 'http://localhost:8001';
 
@@ -34,6 +34,11 @@ export async function fetchDimensions(): Promise<Dimension[]> {
     values: [val],
     current: val,
   }));
+}
+
+/* TODO(P2): ui-backend /canvas/topology 엔드포인트 구현 후 채움 */
+export async function fetchCanvasTopology(): Promise<CanvasTopology> {
+  throw new Error('real-adapter: fetchCanvasTopology — P2에서 구현 예정');
 }
 
 export function subscribePipelineStatus(onChange: (event: unknown) => void): () => void {
