@@ -15,6 +15,82 @@ export const ROLE_STYLE: Record<ToolRole, string> = {
 const COL_GAP = 280;
 const ROW_GAP = 140;
 
+// infra 뷰 계층 grouping 배치 상수
+const INFRA_COL_GAP = 300;
+const INFRA_ROW_GAP = 160;
+const INFRA_START_X = 60;
+const INFRA_START_Y = 60;
+
+/**
+ * infra 뷰 계층 정의 (dependency 채널 전용)
+ * 계층 순서: storage → ingestion → processing → serving
+ */
+const INFRA_LAYER_ORDER = ['storage', 'ingestion', 'processing', 'serving', 'other'] as const;
+type InfraLayer = typeof INFRA_LAYER_ORDER[number];
+
+/** 노드 ID → infra 계층 매핑 */
+const INFRA_LAYER_MAP: Record<string, InfraLayer> = {
+  // storage: 인프라 컨테이너 / 스토리지
+  'node-mysql-container': 'storage',
+  'node-seaweedfs':       'storage',
+  'node-valkey':          'storage',
+  'node-es':              'storage',
+  'node-mysql':           'storage',
+  's3':                   'storage',
+  'node-s3-bronze':       'storage',
+  // ingestion: 수집 도구
+  'node-debezium':        'ingestion',
+  'node-nifi':            'ingestion',
+  'node-dam':             'ingestion',
+  // processing: 처리 / 오케스트레이션
+  'node-airflow':         'processing',
+  'node-presidio':        'processing',
+  'node-docling':         'processing',
+  'node-kure':            'processing',
+  'node-mock-api':        'processing',
+  // serving: 시각화 / API 서빙
+  'node-kibana':          'serving',
+};
+
+/** 노드 ID로 infra 계층을 반환. 매핑이 없으면 'other' */
+function getInfraLayer(nodeId: string): InfraLayer {
+  return INFRA_LAYER_MAP[nodeId] ?? 'other';
+}
+
+/**
+ * infra 뷰 전용 계층 grouping 배치 계산
+ * - y축: 계층별 고정 (storage=0, ingestion=1, processing=2, serving=3, other=4)
+ * - x축: 계층 내 노드 순번 균등 분배
+ * - computeDepths를 사용하지 않아 in-degree 0 오판 해소
+ */
+function computeInfraPositions(
+  nodes: import('$lib/api/types.js').ToolNode[]
+): Map<string, { x: number; y: number }> {
+  // 계층별 노드 그룹핑
+  const layerGroups = new Map<InfraLayer, string[]>();
+  for (const layer of INFRA_LAYER_ORDER) {
+    layerGroups.set(layer, []);
+  }
+  for (const n of nodes) {
+    const layer = getInfraLayer(n.id);
+    layerGroups.get(layer)!.push(n.id);
+  }
+
+  const positions = new Map<string, { x: number; y: number }>();
+  let layerIndex = 0;
+  for (const layer of INFRA_LAYER_ORDER) {
+    const ids = layerGroups.get(layer)!;
+    if (ids.length === 0) continue;
+    const y = INFRA_START_Y + layerIndex * INFRA_ROW_GAP;
+    ids.forEach((id, i) => {
+      const x = INFRA_START_X + i * INFRA_COL_GAP;
+      positions.set(id, { x, y });
+    });
+    layerIndex++;
+  }
+  return positions;
+}
+
 export interface FlowNode {
   id: string;
   type: string;
@@ -60,29 +136,40 @@ export function buildNodesAndEdges(
   }
   const visibleNodes = topo.nodes.filter(n => connectedIds.has(n.id));
 
-  // 3. 위상정렬 X좌표 (Kahn's algorithm + 최장 경로)
-  const depth = computeDepths(visibleNodes, visibleEdges);
+  // 3. 배치 계산: infra 뷰는 계층 grouping, data 뷰는 위상정렬 depth
+  let getPosition: (nodeId: string) => { x: number; y: number };
 
-  // 4. 같은 depth 내 Y좌표 (순번)
-  const depthCounters = new Map<number, number>();
+  if (view === 'infra') {
+    // infra 뷰: 계층 grouping 배치 (computeDepths 미사용 — in-degree 0 오판 해소)
+    const infraPos = computeInfraPositions(visibleNodes);
+    getPosition = (nodeId) => infraPos.get(nodeId) ?? { x: 0, y: 0 };
+  } else {
+    // data 뷰: 기존 위상정렬 X좌표 (Kahn's algorithm + 최장 경로)
+    const depth = computeDepths(visibleNodes, visibleEdges);
+    const depthCounters = new Map<number, number>();
+    const posCache = new Map<string, { x: number; y: number }>();
+    for (const n of visibleNodes) {
+      const d = depth.get(n.id) ?? 0;
+      const idx = depthCounters.get(d) ?? 0;
+      depthCounters.set(d, idx + 1);
+      posCache.set(n.id, { x: d * COL_GAP, y: idx * ROW_GAP });
+    }
+    getPosition = (nodeId) => posCache.get(nodeId) ?? { x: 0, y: 0 };
+  }
 
-  // 5. FlowNode 생성
+  // 4. FlowNode 생성
   const nodes: FlowNode[] = visibleNodes.map(n => {
     const entry = getToolEntry(n.tool);
     const catalogData = entry
       ? { displayName: entry.displayName, vendor: entry.vendor, icon: entry.icon, accent: entry.accent }
       : { displayName: n.tool || n.id, vendor: 'Unknown', icon: '❓', accent: '#6B7280' };
 
-    const d = depth.get(n.id) ?? 0;
-    const idx = depthCounters.get(d) ?? 0;
-    depthCounters.set(d, idx + 1);
-
     const style = getNodeStyle(n, view, catalogData.accent);
 
     return {
       id: n.id,
       type: 'default',
-      position: { x: d * COL_GAP, y: idx * ROW_GAP },
+      position: getPosition(n.id),
       data: {
         label: `${catalogData.icon} ${catalogData.displayName}\n[${n.role}]`,
         ...catalogData,

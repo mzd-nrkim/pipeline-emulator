@@ -13,6 +13,19 @@ import type { CanvasTopology } from '../api/types.js';
  * fan-in  : debezium + nifi + dam → s3-bronze
  * fan-out : valkey → es + mysql
  * infra   : mysql-container → debezium/nifi (dependency), es → kibana (dependency)
+ *
+ * ── docker-compose.yml 의존 엣지 대응표 (dependency 채널 전용) ──────────────────
+ * 서비스          depends_on / 연결 env                  → topology 엣지
+ * ─────────────────────────────────────────────────────────────────────────────
+ * airflow         depends_on: mysql                      mysql-container → airflow
+ *                 MYSQL_HOST=mysql                       mysql-container → airflow (동일, 통합)
+ *                 SEAWEEDFS_ENDPOINT=http://seaweedfs    seaweedfs       → airflow
+ *                 CHUNKING_API_URL=http://mock-api       mock-api        → airflow
+ *                 ENRICH_API_URL=http://mock-api         mock-api        → airflow (동일, 통합)
+ * debezium        dbHost=mysql (config)                  mysql-container → debezium (기존)
+ * nifi            connectionPool=dbcp2/mysql (config)    mysql-container → nifi (기존)
+ * kibana          (elasticsearch 내장 의존)              es              → kibana (기존)
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 export const mockTopology: CanvasTopology = {
   nodes: [
@@ -174,6 +187,27 @@ export const mockTopology: CanvasTopology = {
         batchSize: 1000,
       },
     },
+    {
+      id: 'node-seaweedfs',
+      role: 'store',
+      tool: 's3',
+      label: 'SeaweedFS (S3)',
+      config: {
+        endpoint: 'http://seaweedfs:8333',
+        port: 8333,
+      },
+    },
+    {
+      id: 'node-mock-api',
+      role: 'transform',
+      tool: 'presidio',
+      label: 'Mock API (chunking/enrich)',
+      config: {
+        chunkUrl: 'http://mock-api:8000/chunk',
+        enrichUrl: 'http://mock-api:8000/enrich',
+        port: 8000,
+      },
+    },
   ],
 
   edges: [
@@ -201,5 +235,13 @@ export const mockTopology: CanvasTopology = {
     /* infra: MySQL 컨테이너 → Debezium/NiFi (의존성) */
     { from: 'node-mysql-container', to: 'node-debezium', channels: ['dependency'] as ('data' | 'dependency')[] },
     { from: 'node-mysql-container', to: 'node-nifi',     channels: ['dependency'] as ('data' | 'dependency')[] },
+
+    /* infra: docker-compose depends_on + env 기반 확충 */
+    /* airflow depends_on: mysql + MYSQL_HOST=mysql */
+    { from: 'node-mysql-container', to: 'node-airflow',  channels: ['dependency'] as ('data' | 'dependency')[] },
+    /* airflow SEAWEEDFS_ENDPOINT=http://seaweedfs:8333 */
+    { from: 'node-seaweedfs',       to: 'node-airflow',  channels: ['dependency'] as ('data' | 'dependency')[] },
+    /* airflow CHUNKING_API_URL + ENRICH_API_URL → mock-api */
+    { from: 'node-mock-api',        to: 'node-airflow',  channels: ['dependency'] as ('data' | 'dependency')[] },
   ],
 };
