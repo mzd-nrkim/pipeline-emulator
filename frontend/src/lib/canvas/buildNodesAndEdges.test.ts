@@ -4,14 +4,16 @@ import type { CanvasTopology } from '$lib/api/types.js';
 import { getToolEntry } from './toolCatalog.js';
 
 /**
- * 새 토폴로지 (hyundaimotor-lllm 파이프라인 반영, Phase B 재설계):
+ * 새 토폴로지 (hyundaimotor-lllm 파이프라인 반영, 교정된 데이터 흐름):
  *   fan-in  : debezium + nifi + dam → s3-bronze (3 ingest → 1 store)
  *   trigger : airflow (transform, trigger=true)
- *   task 체인: airflow → presidio → docling → kure → valkey
- *   fan-out : valkey → es + mysql (data 채널)
- *   dependency: es → kibana (dependency 채널만)
- *              mysql-container → debezium, mysql-container → nifi (dependency 채널만)
- *   총 노드 수: 13 (mysql-container 추가), 총 엣지 수: 13 (data:10, dependency:3)
+ *   task 체인: airflow → docling(silver_1) → presidio(silver_2) → kure(gold_3) → mock-api(gold_4)
+ *   fan-out : mock-api → es + mysql (data 채널)
+ *   dependency: es → kibana
+ *              mysql-container → debezium
+ *              valkey → debezium, valkey → airflow (Celery 브로커 / CDC Redis 싱크)
+ *   Valkey: infra 노드 (데이터 체인에서 제거, dependency 채널 전용)
+ *   총 노드 수: 14 (mock-api 추가, valkey=infra), 총 엣지 수: 14 (data:10, dependency:4)
  */
 const sampleTopology: CanvasTopology = {
   nodes: [
@@ -23,12 +25,13 @@ const sampleTopology: CanvasTopology = {
     { id: 'node-s3-bronze', role: 'store',      tool: 's3',                config: {} },
     /* Transform - Trigger */
     { id: 'node-airflow',   role: 'transform',  tool: 'apache-airflow',    config: { dagId: 'lllm_pipeline' }, trigger: true },
-    /* Transform 체인 */
-    { id: 'node-presidio',  role: 'transform',  tool: 'presidio',          config: {} },
+    /* Transform 체인: docling(silver_1)→presidio(silver_2)→kure(gold_3)→mock-api(gold_4) */
     { id: 'node-docling',   role: 'transform',  tool: 'docling-langchain', config: {} },
+    { id: 'node-presidio',  role: 'transform',  tool: 'presidio',          config: {} },
     { id: 'node-kure',      role: 'transform',  tool: 'kure-embedding',    config: {} },
-    /* Broker */
-    { id: 'node-valkey',    role: 'broker',     tool: 'valkey',            config: {} },
+    { id: 'node-mock-api',  role: 'transform',  tool: 'presidio',          config: {} },
+    /* Infra: Valkey (dependency 채널 전용, 데이터 체인에서 제거) */
+    { id: 'node-valkey',    role: 'infra' as const, tool: 'valkey',        config: {} },
     /* Index */
     { id: 'node-es',        role: 'index',      tool: 'elasticsearch',     config: {} },
     /* Visualize */
@@ -43,21 +46,24 @@ const sampleTopology: CanvasTopology = {
     { from: 'node-debezium',  to: 'node-s3-bronze', channels: ['data'] },
     { from: 'node-nifi',      to: 'node-s3-bronze', channels: ['data'] },
     { from: 'node-dam',       to: 'node-s3-bronze', channels: ['data'] },
-    /* s3-bronze → airflow 직결 (branch 제거) */
+    /* s3-bronze → airflow 직결 */
     { from: 'node-s3-bronze', to: 'node-airflow',   channels: ['data'] },
-    /* transform 체인 (data) */
-    { from: 'node-airflow',   to: 'node-presidio',  channels: ['data'] },
-    { from: 'node-presidio',  to: 'node-docling',   channels: ['data'] },
-    { from: 'node-docling',   to: 'node-kure',      channels: ['data'] },
-    { from: 'node-kure',      to: 'node-valkey',    channels: ['data'] },
-    /* fan-out: valkey → es + mysql (data) */
-    { from: 'node-valkey',    to: 'node-es',        channels: ['data'],       condition: 'elasticsearch' },
-    { from: 'node-valkey',    to: 'node-mysql',     channels: ['data'],       condition: 'mysql' },
-    /* kibana: dependency 채널만 */
-    { from: 'node-es',        to: 'node-kibana',    channels: ['dependency'] },
-    /* infra: mysql-container → debezium/nifi (dependency) */
+    /* transform 체인: airflow→docling→presidio→kure→mock-api (data) */
+    { from: 'node-airflow',   to: 'node-docling',   channels: ['data'] },
+    { from: 'node-docling',   to: 'node-presidio',  channels: ['data'] },
+    { from: 'node-presidio',  to: 'node-kure',      channels: ['data'] },
+    { from: 'node-kure',      to: 'node-mock-api',  channels: ['data'] },
+    /* fan-out: mock-api → es + mysql (data) */
+    { from: 'node-mock-api',  to: 'node-es',        channels: ['data'],       condition: 'elasticsearch' },
+    { from: 'node-mock-api',  to: 'node-mysql',     channels: ['data'],       condition: 'mysql' },
+    /* dependency 채널: es → kibana */
+    { from: 'node-es',        to: 'node-kibana',    channels: ['dependency'] as ('data' | 'dependency')[] },
+    /* dependency 채널: mysql-container → debezium */
     { from: 'node-mysql-container', to: 'node-debezium', channels: ['dependency'] as ('data' | 'dependency')[] },
-    { from: 'node-mysql-container', to: 'node-nifi',     channels: ['dependency'] as ('data' | 'dependency')[] },
+    /* dependency 채널: valkey → debezium (CDC Redis Stream 싱크) */
+    { from: 'node-valkey',    to: 'node-debezium',  channels: ['dependency'] as ('data' | 'dependency')[] },
+    /* dependency 채널: valkey → airflow (Celery 브로커) */
+    { from: 'node-valkey',    to: 'node-airflow',   channels: ['dependency'] as ('data' | 'dependency')[] },
   ],
 };
 
@@ -66,9 +72,10 @@ describe('buildNodesAndEdges', () => {
 
   it('Right: data 뷰에서 data 채널 노드·엣지를 생성한다', () => {
     const { nodes, edges } = buildNodesAndEdges(sampleTopology, 'data');
-    // kibana는 dependency only → data 뷰에서 미표시 (11노드)
+    // kibana(dependency only)·valkey(infra)·mysql-container(dependency only) → data 뷰 미표시
+    // 14노드 - 3 = 11노드
     expect(nodes).toHaveLength(11);
-    // data 채널 엣지 10개
+    // data 채널 엣지 10개 (3 fan-in + s3→airflow + 4 체인 + 2 fan-out)
     expect(edges).toHaveLength(10);
   });
 
@@ -79,7 +86,7 @@ describe('buildNodesAndEdges', () => {
       expect(n.position.x).toBeGreaterThanOrEqual(0);
       expect(n.position.x % 280).toBe(0);
     }
-    // 소스(debezium/nifi/dam)가 최소 x, 말단(es/mysql)이 최대 x
+    // 소스(debezium/nifi/dam)가 최소 x, 말단(mock-api→es/mysql)이 최대 x
     const debeziumNode = nodes.find(n => n.id === 'node-debezium')!;
     const esNode = nodes.find(n => n.id === 'node-es')!;
     expect(debeziumNode.position.x).toBeLessThan(esNode.position.x);
@@ -126,41 +133,44 @@ describe('buildNodesAndEdges', () => {
     expect(kibana).toBeUndefined();
   });
 
-  it('채널 필터: infra 뷰에서 dependency 노드만 표시 (es·kibana·mysql-container·debezium·nifi)', () => {
+  it('채널 필터: infra 뷰에서 dependency 노드만 표시 (es·kibana·mysql-container·debezium·valkey·airflow)', () => {
     const { nodes, edges } = buildNodesAndEdges(sampleTopology, 'infra');
-    // dependency 채널 엣지: es→kibana, mysql-container→debezium, mysql-container→nifi (3개)
-    expect(edges).toHaveLength(3);
-    // dependency에 관여하는 노드만: es, kibana, mysql-container, debezium, nifi
-    expect(nodes).toHaveLength(5);
+    // dependency 채널 엣지: es→kibana, mysql-container→debezium, valkey→debezium, valkey→airflow (4개)
+    expect(edges).toHaveLength(4);
+    // dependency에 관여하는 노드만: es, kibana, mysql-container, debezium, valkey, airflow
+    expect(nodes).toHaveLength(6);
     const ids = nodes.map(n => n.id);
     expect(ids).toContain('node-es');
     expect(ids).toContain('node-kibana');
     expect(ids).toContain('node-mysql-container');
     expect(ids).toContain('node-debezium');
-    expect(ids).toContain('node-nifi');
+    expect(ids).toContain('node-valkey');
+    expect(ids).toContain('node-airflow');
   });
 
-  it('infra 뷰: dependency 엣지만 포함, mysql-container·debezium·nifi·es·kibana 표시', () => {
+  it('infra 뷰: dependency 엣지만 포함, mysql-container·debezium·valkey·airflow·es·kibana 표시', () => {
     const { nodes, edges } = buildNodesAndEdges(sampleTopology, 'infra');
     const nodeIds = nodes.map(n => n.id);
     expect(nodeIds).toContain('node-mysql-container');
     expect(nodeIds).toContain('node-debezium');
-    expect(nodeIds).toContain('node-nifi');
+    expect(nodeIds).toContain('node-valkey');
+    expect(nodeIds).toContain('node-airflow');
     expect(nodeIds).toContain('node-es');
     expect(nodeIds).toContain('node-kibana');
-    // data-only 노드는 infra 뷰에서 숨김
-    expect(nodeIds).not.toContain('node-airflow');
+    // data-only 노드는 infra 뷰에서 숨김 (nifi는 dependency 엣지 없으므로 미표시)
     expect(nodeIds).not.toContain('node-presidio');
+    expect(nodeIds).not.toContain('node-nifi');
     expect(edges.every(e => !e.animated)).toBe(true); // infra 뷰는 animated=false
   });
 
-  it('infra 뷰: mysql-container의 Y좌표가 debezium/nifi보다 작음 (계층 순서: storage < ingestion)', () => {
+  it('infra 뷰: mysql-container의 Y좌표가 debezium보다 작음 (계층 순서: storage < ingestion)', () => {
     const { nodes } = buildNodesAndEdges(sampleTopology, 'infra');
     const mysqlNode = nodes.find(n => n.id === 'node-mysql-container');
     const debeziumNode = nodes.find(n => n.id === 'node-debezium');
     expect(mysqlNode).toBeDefined();
     expect(debeziumNode).toBeDefined();
     // infra 뷰는 Y축으로 계층 분리(storage < ingestion), X축은 동일 계층 내 순서
+    // nifi는 교정 후 infra 뷰 미표시 (dependency 엣지 없음)
     expect(mysqlNode!.position.y).toBeLessThan(debeziumNode!.position.y);
   });
 
@@ -274,16 +284,16 @@ describe('buildNodesAndEdges', () => {
     expect(sources).toContain('node-dam');
   });
 
-  it('Cardinality: fan-out(1→2) — valkey에서 나가는 data 엣지가 정확히 2개 (kibana 제거로 mysql+es=2개)', () => {
+  it('Cardinality: fan-out(1→2) — mock-api에서 나가는 data 엣지가 정확히 2개 (es+mysql=2개)', () => {
     const { edges } = buildNodesAndEdges(sampleTopology, 'data');
-    const fromValkey = edges.filter(e => e.source === 'node-valkey');
-    expect(fromValkey).toHaveLength(2);
+    const fromMockApi = edges.filter(e => e.source === 'node-mock-api');
+    expect(fromMockApi).toHaveLength(2);
   });
 
-  it('fan-out valkey→es, valkey→mysql 엣지 유지 (data view)', () => {
+  it('fan-out mock-api→es, mock-api→mysql 엣지 유지 (data view)', () => {
     const { edges } = buildNodesAndEdges(sampleTopology, 'data');
-    const fromValkey = edges.filter(e => e.source === 'node-valkey');
-    const targets = fromValkey.map(e => e.target);
+    const fromMockApi = edges.filter(e => e.source === 'node-mock-api');
+    const targets = fromMockApi.map(e => e.target);
     expect(targets).toContain('node-es');
     expect(targets).toContain('node-mysql');
   });
@@ -356,12 +366,12 @@ describe('buildNodesAndEdges', () => {
 
   it('route outputs: condition 있는 엣지 소스 노드에 data.outputs 배열 생성', () => {
     const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
-    // valkey → es(condition='elasticsearch'), valkey → mysql(condition='mysql')
-    const valkey = nodes.find(n => n.id === 'node-valkey')!;
-    expect(valkey.data.outputs).toBeDefined();
-    expect(valkey.data.outputs).toContain('source-elasticsearch');
-    expect(valkey.data.outputs).toContain('source-mysql');
-    expect(valkey.data.outputs).toHaveLength(2);
+    // mock-api → es(condition='elasticsearch'), mock-api → mysql(condition='mysql')
+    const mockApi = nodes.find(n => n.id === 'node-mock-api')!;
+    expect(mockApi.data.outputs).toBeDefined();
+    expect(mockApi.data.outputs).toContain('source-elasticsearch');
+    expect(mockApi.data.outputs).toContain('source-mysql');
+    expect(mockApi.data.outputs).toHaveLength(2);
   });
 
   it('route outputs: condition 없는 일반 노드는 data.outputs 미전달', () => {
@@ -372,10 +382,10 @@ describe('buildNodesAndEdges', () => {
 
   it('sourceHandle: condition 있는 엣지에 sourceHandle 필드 설정', () => {
     const { edges } = buildNodesAndEdges(sampleTopology, 'data');
-    const esEdge = edges.find(e => e.source === 'node-valkey' && e.target === 'node-es');
+    const esEdge = edges.find(e => e.source === 'node-mock-api' && e.target === 'node-es');
     expect(esEdge?.sourceHandle).toBe('source-elasticsearch');
 
-    const mysqlEdge = edges.find(e => e.source === 'node-valkey' && e.target === 'node-mysql');
+    const mysqlEdge = edges.find(e => e.source === 'node-mock-api' && e.target === 'node-mysql');
     expect(mysqlEdge?.sourceHandle).toBe('source-mysql');
   });
 
@@ -408,10 +418,11 @@ describe('buildNodesAndEdges', () => {
     const { nodes: explicitTrue } = buildNodesAndEdges(sampleTopology, 'data', true);
     // 기본값과 명시적 true 결과가 동일
     expect(defaultNodes.length).toBe(explicitTrue.length);
-    // kibana·mysql-container는 data 뷰에서 dependency-only → 숨김
+    // kibana·mysql-container·valkey는 data 뷰에서 dependency-only/infra → 숨김
     const ids = defaultNodes.map(n => n.id);
     expect(ids).not.toContain('node-kibana');
     expect(ids).not.toContain('node-mysql-container');
+    expect(ids).not.toContain('node-valkey');
   });
 
   it('hideOrphans=false: data 뷰에서 연결 없는 노드도 표시', () => {
@@ -421,6 +432,7 @@ describe('buildNodesAndEdges', () => {
     const ids = withOrphans.map(n => n.id);
     expect(ids).toContain('node-kibana');
     expect(ids).toContain('node-mysql-container');
+    expect(ids).toContain('node-valkey');
   });
 
   /* ── deployStatus 폴백 ───────────────────────────────────────── */
@@ -474,7 +486,7 @@ describe('buildNodesAndEdges', () => {
 
   it('condition이 있는 엣지는 label로 전달된다', () => {
     const { edges } = buildNodesAndEdges(sampleTopology, 'data');
-    const esEdge = edges.find(e => e.source === 'node-valkey' && e.target === 'node-es');
+    const esEdge = edges.find(e => e.source === 'node-mock-api' && e.target === 'node-es');
     expect(esEdge?.label).toBe('elasticsearch');
   });
 
