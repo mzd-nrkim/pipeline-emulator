@@ -824,13 +824,13 @@ describe('buildNodesAndEdges', () => {
     });
   });
 
-  /* ── infra 뷰 엣지 type:'infra-floating' ────────────────────── */
+  /* ── infra 뷰 엣지 type:'smoothstep'(꺾은선/직교) ────────────── */
 
-  it('Cardinality: infra 뷰 엣지 모두에 type:"infra-floating" 부여', () => {
+  it('Cardinality: infra 뷰 엣지 모두에 type:"smoothstep" 부여', () => {
     const { edges } = buildNodesAndEdges(sampleTopology, 'infra');
     expect(edges.length).toBeGreaterThan(0);
     for (const e of edges) {
-      expect(e.type).toBe('infra-floating');
+      expect(e.type).toBe('smoothstep');
     }
   });
 
