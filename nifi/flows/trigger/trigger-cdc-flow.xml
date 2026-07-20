@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  F2b Trigger CDC 플로우: bronze_source_change_log → change_operation 정규화
+  감지 방식: AFTER INSERT/UPDATE/DELETE 트리거 → change_log 조회
+  특징: DELETE 포함(DELETE 시연 가능), I/U/D 전부 감지
+  CDC_METHOD=trigger 시 활성
+-->
+<flowController encoding-version="1">
+  <maxTimerDrivenThreadCount>10</maxTimerDrivenThreadCount>
+  <maxEventDrivenThreadCount>5</maxEventDrivenThreadCount>
+  <registries/>
+  <parameterContexts/>
+  <rootGroup>
+    <id>root-trigger-cdc</id>
+    <name>Trigger CDC Flow</name>
+    <position x="0.0" y="0.0"/>
+    <processors>
+      <processor>
+        <id>query-change-log</id>
+        <name>QueryChangeLog</name>
+        <position x="100.0" y="100.0"/>
+        <comment>미처리 변경 로그 조회 (processed=FALSE)</comment>
+        <class>org.apache.nifi.processors.standard.QueryDatabaseTableRecord</class>
+        <bundle>
+          <group>org.apache.nifi</group>
+          <artifact>nifi-standard-nar</artifact>
+          <version>2.0.0</version>
+        </bundle>
+        <properties>
+          <property>
+            <name>Table Name</name>
+            <value>bronze_source_change_log</value>
+          </property>
+          <property>
+            <name>Additional WHERE clause</name>
+            <value>processed = FALSE</value>
+          </property>
+          <property>
+            <name>Maximum-value Columns</name>
+            <value>id</value>
+          </property>
+          <property>
+            <name>db-fetch-db-type</name>
+            <value>MySQL</value>
+          </property>
+          <property>
+            <name>Record Writer</name>
+            <value>JsonRecordSetWriter</value>
+          </property>
+          <property>
+            <name>Scheduling Period</name>
+            <value>30 sec</value>
+          </property>
+        </properties>
+      </processor>
+      <processor>
+        <id>exec-trigger-adapter</id>
+        <name>TriggerAdapter</name>
+        <position x="400.0" y="100.0"/>
+        <comment>operation → change_operation 1:1 정규화 → register_bronze_event</comment>
+        <class>org.apache.nifi.processors.standard.ExecuteStreamCommand</class>
+        <bundle>
+          <group>org.apache.nifi</group>
+          <artifact>nifi-standard-nar</artifact>
+          <version>2.0.0</version>
+        </bundle>
+        <properties>
+          <property>
+            <name>Command Path</name>
+            <value>/usr/bin/python3</value>
+          </property>
+          <property>
+            <name>Command Arguments</name>
+            <value>/opt/pipeline-emulator/scripts/cdc/trigger_adapter.py</value>
+          </property>
+        </properties>
+      </processor>
+      <processor>
+        <id>mark-processed</id>
+        <name>MarkProcessed</name>
+        <position x="700.0" y="100.0"/>
+        <comment>처리 완료 표시: UPDATE SET processed=TRUE</comment>
+        <class>org.apache.nifi.processors.standard.PutSQL</class>
+        <bundle>
+          <group>org.apache.nifi</group>
+          <artifact>nifi-standard-nar</artifact>
+          <version>2.0.0</version>
+        </bundle>
+        <properties>
+          <property>
+            <name>SQL Statement</name>
+            <value>UPDATE bronze_source_change_log SET processed = TRUE WHERE id = ${change_log.id}</value>
+          </property>
+        </properties>
+      </processor>
+    </processors>
+    <connections>
+      <connection>
+        <id>conn-query-to-adapter</id>
+        <sourceId>query-change-log</sourceId>
+        <sourceRelationship>success</sourceRelationship>
+        <destinationId>exec-trigger-adapter</destinationId>
+      </connection>
+      <connection>
+        <id>conn-adapter-to-mark</id>
+        <sourceId>exec-trigger-adapter</sourceId>
+        <sourceRelationship>success</sourceRelationship>
+        <destinationId>mark-processed</destinationId>
+      </connection>
+    </connections>
+    <funnels/>
+    <labels/>
+    <inputPorts/>
+    <outputPorts/>
+    <processGroups/>
+    <remoteProcessGroups/>
+    <variables/>
+  </rootGroup>
+  <controllerServices/>
+  <reportingTasks/>
+</flowController>
