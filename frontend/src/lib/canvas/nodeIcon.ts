@@ -28,13 +28,18 @@ export const LUCIDE_ICON_MAP: Record<string, string> = {
   'kure-embedding': 'Binary',  // 임베딩 모델
   'dam': 'Globe',              // 외부 API
   'zookeeper': 'Layers',       // 협조 서비스
+  // 카테고리 기본 폴백
+  'source': 'Radio',           // 소스 카테고리
+  'task': 'Cpu',               // 태스크 카테고리
+  'switch': 'GitBranch',       // 스위치 카테고리
+  'sink': 'Archive',           // 싱크 카테고리
 };
 
 /**
  * toolId에 대응하는 아이콘 스펙을 반환한다.
- * 우선순위: brand → lucide → emoji(fallbackEmoji)
+ * 우선순위: brand → lucide(toolId) → lucide(category) → emoji(fallbackEmoji)
  */
-export function resolveNodeIcon(toolId: string, fallbackEmoji: string): NodeIconSpec {
+export function resolveNodeIcon(toolId: string, fallbackEmoji: string, category?: string): NodeIconSpec {
   const brandSlug = BRAND_ICON_MAP[toolId];
   if (brandSlug !== undefined) {
     return { kind: 'brand', slug: brandSlug };
@@ -43,6 +48,13 @@ export function resolveNodeIcon(toolId: string, fallbackEmoji: string): NodeIcon
   const lucideName = LUCIDE_ICON_MAP[toolId];
   if (lucideName !== undefined) {
     return { kind: 'lucide', name: lucideName };
+  }
+
+  if (category !== undefined) {
+    const categoryLucideName = LUCIDE_ICON_MAP[category];
+    if (categoryLucideName !== undefined) {
+      return { kind: 'lucide', name: categoryLucideName };
+    }
   }
 
   return { kind: 'emoji', char: fallbackEmoji || '❓' };
