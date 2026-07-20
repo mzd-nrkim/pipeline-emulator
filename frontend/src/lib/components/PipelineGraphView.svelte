@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { writable } from 'svelte/store';
   import { SvelteFlow, Background, Controls, type Node, type Edge } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
-  import LRFlowNode from './LRFlowNode.svelte';
+  import ToolFlowNode from '$lib/components/ToolFlowNode.svelte';
   import type { Stage } from '$lib/api/types.js';
 
   let { stages, onselect }: { stages: Stage[]; onselect: (id: string) => void } = $props();
@@ -34,12 +33,9 @@
 
       return {
         id: stage.id,
-        type: 'lrnode',
+        type: 'tool',
         position: { x: LAYER_X[layer] ?? 0, y },
-        data: { label: stage.name },
-        style: stage.planned
-          ? 'border: 2px dashed #888; opacity: 0.5; background: transparent; padding: 8px; border-radius: 4px; font-size: 11px;'
-          : 'border: 1px solid #333; background: #fff; padding: 8px; border-radius: 4px; font-size: 11px; cursor: pointer;',
+        data: { label: stage.name, planned: stage.planned, animated: false },
       };
     });
 
@@ -58,36 +54,35 @@
     return { nodes, edges };
   }
 
-  // @xyflow/svelte 0.1.39 requires Writable<Node[]> / Writable<Edge[]>
-  const nodesStore = writable<Node[]>([]);
-  const edgesStore = writable<Edge[]>([]);
+  let nodes = $state.raw<Node[]>([]);
+  let edges = $state.raw<Edge[]>([]);
 
   $effect(() => {
-    const { nodes, edges } = buildNodesAndEdges(stages);
-    nodesStore.set(nodes);
-    edgesStore.set(edges);
+    const result = buildNodesAndEdges(stages);
+    nodes = result.nodes;
+    edges = result.edges;
   });
 
-  function handleNodeClick(event: CustomEvent<{ node: Node; event: MouseEvent | TouchEvent }>) {
-    onselect(event.detail.node.id);
+  function handleNodeClick(node: Node) {
+    onselect(node.id);
   }
 </script>
 
 <div style="height: 420px; width: 100%; border: 1px solid var(--color-border); border-radius: 2px; overflow: hidden;">
-  {#if $nodesStore.length === 0}
+  {#if nodes.length === 0}
     <div class="flex items-center justify-center h-full text-muted-foreground text-sm">
       표시할 단계가 없습니다
     </div>
   {:else}
     <SvelteFlow
-      nodes={nodesStore}
-      edges={edgesStore}
-      nodeTypes={{ lrnode: LRFlowNode as any }}
+      bind:nodes
+      bind:edges
+      nodeTypes={{ tool: ToolFlowNode as any }}
       nodesDraggable={false}
       nodesConnectable={false}
       elementsSelectable={true}
       fitView
-      on:nodeclick={handleNodeClick}
+      onnodeclick={({ node }) => handleNodeClick(node)}
     >
       <Background />
       <Controls />

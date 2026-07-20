@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { writable } from 'svelte/store';
   import { SvelteFlow, Background, Controls, type Node as FlowNode, type Edge as FlowEdge } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
-  import LRFlowNode from './LRFlowNode.svelte';
+  import ToolFlowNode from '$lib/components/ToolFlowNode.svelte';
   import type { ToolNode, CanvasTopology, Stage } from '$lib/api/types.js';
   import { buildNodesAndEdges } from '$lib/canvas/buildNodesAndEdges.js';
 
@@ -20,19 +19,14 @@
     onnodeselect?: (node: ToolNode | null) => void;
   } = $props();
 
-  const nodesStore = writable<FlowNode[]>([]);
-  const edgesStore = writable<FlowEdge[]>([]);
+  let nodes = $state.raw<FlowNode[]>([]);
+  let edges = $state.raw<FlowEdge[]>([]);
 
   $effect(() => {
-    const { nodes, edges } = buildNodesAndEdges(topology, view);
-    nodesStore.set(nodes);
-    edgesStore.set(edges);
+    const result = buildNodesAndEdges(topology, view);
+    nodes = result.nodes;
+    edges = result.edges;
   });
-
-  function handleNodeClick(event: CustomEvent<{ node: FlowNode }>) {
-    const clicked = topology.nodes.find(n => n.id === event.detail.node.id) ?? null;
-    onnodeselect?.(clicked);
-  }
 </script>
 
 <div class="relative w-full h-full">
@@ -44,7 +38,7 @@
         인프라 연결 뷰
       </div>
     {/if}
-    <SvelteFlow nodes={nodesStore} edges={edgesStore} nodeTypes={{ lrnode: LRFlowNode as any }} fitView on:nodeclick={handleNodeClick}>
+    <SvelteFlow bind:nodes bind:edges nodeTypes={{ tool: ToolFlowNode as any }} fitView onnodeclick={({ node }) => { const clicked = topology.nodes.find(n => n.id === node.id) ?? null; onnodeselect?.(clicked); }}>
       <Background />
       <Controls />
     </SvelteFlow>

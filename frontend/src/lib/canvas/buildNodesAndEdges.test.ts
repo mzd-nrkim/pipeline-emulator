@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNodesAndEdges, ROLE_STYLE } from './buildNodesAndEdges.js';
+import { buildNodesAndEdges } from './buildNodesAndEdges.js';
 import type { CanvasTopology } from '$lib/api/types.js';
 import { getToolEntry } from './toolCatalog.js';
 
@@ -85,13 +85,11 @@ describe('buildNodesAndEdges', () => {
     expect(debeziumNode.position.x).toBeLessThan(esNode.position.x);
   });
 
-  it('Right: ROLE_STYLE에서 role별 스타일 적용', () => {
+  it('Right: 노드 type이 "tool"이다', () => {
     const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
-    const debeziumNode = nodes.find(n => n.id === 'node-debezium')!;
-    expect(debeziumNode.style).toBe(ROLE_STYLE['ingest']);
-
-    const esNode = nodes.find(n => n.id === 'node-es')!;
-    expect(esNode.style).toBe(ROLE_STYLE['index']);
+    for (const n of nodes) {
+      expect(n.type).toBe('tool');
+    }
   });
 
   /* ── B(경계): 빈/최소 토폴로지 ──────────────────────────────── */
@@ -289,19 +287,7 @@ describe('buildNodesAndEdges', () => {
     expect(targets).toContain('node-mysql');
   });
 
-  /* ── trigger 스타일 ──────────────────────────────────────────── */
-
-  it('trigger=true 노드는 border가 dashed로 변경된다', () => {
-    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
-    const airflow = nodes.find(n => n.id === 'node-airflow')!;
-    expect(airflow.style).toContain('border: 2px dashed');
-  });
-
-  it('trigger 미설정 노드는 border가 solid', () => {
-    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
-    const debezium = nodes.find(n => n.id === 'node-debezium')!;
-    expect(debezium.style).toContain('border: 2px solid');
-  });
+  /* ── trigger 필드 ──────────────────────────────────────────── */
 
   /* ── data.trigger 필드 ───────────────────────────────────────── */
 
@@ -317,14 +303,85 @@ describe('buildNodesAndEdges', () => {
     expect(debezium.data.trigger).toBe(false);
   });
 
-  /* ── infra 뷰 스타일 ─────────────────────────────────────────── */
+  /* ── infra 뷰 isInfra 플래그 ─────────────────────────────────── */
 
-  it('infra 뷰에서 노드 style이 accent 색상 기반', () => {
+  it('infra 뷰에서 노드 data.isInfra === true', () => {
     const { nodes } = buildNodesAndEdges(sampleTopology, 'infra');
-    // es 노드 (elasticsearch, accent=#FEC514)
-    const es = nodes.find(n => n.id === 'node-es')!;
-    expect(es.style).toContain('#FEC514');
-    expect(es.style).toContain('background: #f9fafb');
+    for (const n of nodes) {
+      expect(n.data.isInfra).toBe(true);
+    }
+  });
+
+  it('data 뷰에서 노드 data.isInfra === false', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    for (const n of nodes) {
+      expect(n.data.isInfra).toBe(false);
+    }
+  });
+
+  /* ── applyMode 배지 ─────────────────────────────────────────── */
+
+  it('applyMode: 카탈로그 configFields가 있는 노드는 applyMode가 정의된다', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    // debezium은 all readonly → applyMode='readonly'
+    const debezium = nodes.find(n => n.id === 'node-debezium')!;
+    if (getToolEntry('debezium')?.configFields?.length) {
+      expect(debezium.data.applyMode).toBeDefined();
+      expect(['readonly', 'code', 'restart', 'runtime']).toContain(debezium.data.applyMode);
+    }
+  });
+
+  it('applyMode: airflow는 readonly > code > runtime 혼재 → 대표값 readonly', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    const airflow = nodes.find(n => n.id === 'node-airflow')!;
+    // apache-airflow configFields: readonly, runtime, code 혼재 → 가장 제약 강한 readonly
+    expect(airflow.data.applyMode).toBe('readonly');
+  });
+
+  it('applyMode: 미등록 tool은 applyMode 미정의', () => {
+    const topo: CanvasTopology = {
+      nodes: [
+        { id: 'node-x', role: 'ingest', tool: 'totally-unknown-tool-xyz', config: {} },
+        { id: 'node-y', role: 'store',  tool: 'another-unknown',          config: {} },
+      ],
+      edges: [{ from: 'node-x', to: 'node-y', channels: ['data'] }],
+    };
+    const { nodes } = buildNodesAndEdges(topo, 'data');
+    const x = nodes.find(n => n.id === 'node-x')!;
+    expect(x.data.applyMode).toBeUndefined();
+  });
+
+  /* ── route outputs / sourceHandle ───────────────────────────── */
+
+  it('route outputs: condition 있는 엣지 소스 노드에 data.outputs 배열 생성', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    // valkey → es(condition='elasticsearch'), valkey → mysql(condition='mysql')
+    const valkey = nodes.find(n => n.id === 'node-valkey')!;
+    expect(valkey.data.outputs).toBeDefined();
+    expect(valkey.data.outputs).toContain('source-elasticsearch');
+    expect(valkey.data.outputs).toContain('source-mysql');
+    expect(valkey.data.outputs).toHaveLength(2);
+  });
+
+  it('route outputs: condition 없는 일반 노드는 data.outputs 미전달', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    const debezium = nodes.find(n => n.id === 'node-debezium')!;
+    expect(debezium.data.outputs).toBeUndefined();
+  });
+
+  it('sourceHandle: condition 있는 엣지에 sourceHandle 필드 설정', () => {
+    const { edges } = buildNodesAndEdges(sampleTopology, 'data');
+    const esEdge = edges.find(e => e.source === 'node-valkey' && e.target === 'node-es');
+    expect(esEdge?.sourceHandle).toBe('source-elasticsearch');
+
+    const mysqlEdge = edges.find(e => e.source === 'node-valkey' && e.target === 'node-mysql');
+    expect(mysqlEdge?.sourceHandle).toBe('source-mysql');
+  });
+
+  it('sourceHandle: condition 없는 엣지는 sourceHandle 미설정', () => {
+    const { edges } = buildNodesAndEdges(sampleTopology, 'data');
+    const debeziumEdge = edges.find(e => e.source === 'node-debezium');
+    expect(debeziumEdge?.sourceHandle).toBeUndefined();
   });
 
   /* ── animated 엣지 ───────────────────────────────────────────── */
