@@ -11,20 +11,21 @@
     setNodeConfig: (nodeId: string, config: Record<string, unknown>) => Promise<void | Record<string, unknown>>;
   };
 
-  let { topology, adapter = undefined, stages = [] as Stage[], ontrigger = undefined, view = 'data' as 'data' | 'infra', onnodeselect = undefined }: {
+  let { topology, adapter = undefined, stages = [] as Stage[], ontrigger = undefined, view = 'data' as 'data' | 'infra', onnodeselect = undefined, hideOrphans = true }: {
     topology: CanvasTopology;
     adapter?: Adapter;
     stages?: Stage[];
     ontrigger?: (runId: string) => void;
     view?: 'data' | 'infra';
     onnodeselect?: (node: ToolNode | null) => void;
+    hideOrphans?: boolean;
   } = $props();
 
   let nodes = $state.raw<FlowNode[]>([]);
   let edges = $state.raw<FlowEdge[]>([]);
 
   $effect(() => {
-    const result = buildNodesAndEdges(topology, view);
+    const result = buildNodesAndEdges(topology, view, hideOrphans);
     nodes = result.nodes;
     edges = result.edges;
   });
