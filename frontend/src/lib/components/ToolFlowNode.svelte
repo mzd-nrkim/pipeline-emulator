@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
 
-  let { data }: NodeProps = $props();
+  let { data, selected }: NodeProps = $props();
 
   const d = $derived(data as Record<string, unknown>);
   const icon = $derived(d.icon as string | undefined);
@@ -11,7 +11,6 @@
   const role = $derived(d.role as string | undefined);
   const trigger = $derived(d.trigger as boolean | undefined);
   const applyMode = $derived(d.applyMode as string | undefined);
-  const status = $derived(d.status as string | undefined);
   const outputs = $derived(d.outputs as string[] | undefined);
 
   const outOfTeamScope = $derived(d.outOfTeamScope as boolean | undefined);
@@ -32,40 +31,46 @@
 <div
   class="tool-flow-node"
   class:out-of-scope={outOfTeamScope}
+  class:selected={selected}
   style="--node-accent: {resolvedAccent};"
 >
-  <!-- accent 헤더 바 (outOfTeamScope이면 회색 헤더) -->
-  <div class="node-header" class:node-header-gray={outOfTeamScope}>
+  <!-- 카드 본체 -->
+  <div class="node-card">
+    <!-- accent 배경 틴트 -->
+    <div class="node-card-tint"></div>
+
+    <!-- 아이콘 중앙 배치 -->
     <span class="node-icon">{resolvedIcon}</span>
-    <div class="node-title">
-      <span class="node-display-name" class:node-display-name-gray={outOfTeamScope}>{resolvedDisplayName}</span>
-      {#if vendor}
-        <span class="node-vendor" class:node-vendor-gray={outOfTeamScope}>{vendor}</span>
+
+    <!-- trigger 배지 (우상단 절대 위치) -->
+    {#if trigger}
+      <span class="trigger-badge" title="trigger">⚡</span>
+    {/if}
+
+    <!-- hover/focus 상세 오버레이 -->
+    <div class="node-detail" role="tooltip" aria-hidden="true">
+      {#if role}
+        <span class="detail-row">{role}</span>
+      {/if}
+      {#if applyMode && applyModeConfig[applyMode]}
+        <span class="detail-row">
+          {applyModeConfig[applyMode].emoji} {applyModeConfig[applyMode].label}
+        </span>
       {/if}
     </div>
   </div>
 
-  <!-- 배지 행 -->
-  <div class="node-badges">
-    {#if role}
-      <span class="badge badge-role">{role}</span>
-    {/if}
-    {#if trigger}
-      <span class="badge badge-trigger">⚡ trigger</span>
-    {/if}
-    {#if applyMode && applyModeConfig[applyMode]}
-      <span class="badge badge-apply-mode">
-        {applyModeConfig[applyMode].emoji} {applyModeConfig[applyMode].label}
-      </span>
-    {/if}
-    {#if status}
-      <span class="badge badge-status">{status}</span>
+  <!-- 카드 외부 라벨 블록 -->
+  <div class="node-label" class:node-label-muted={outOfTeamScope}>
+    <span class="node-display-name">{resolvedDisplayName}</span>
+    {#if vendor}
+      <span class="node-vendor">{vendor}</span>
     {/if}
   </div>
 </div>
 
 <!-- target handle (왼쪽) -->
-<Handle type="target" position={Position.Left} />
+<Handle type="target" position={Position.Left} style="top: calc(var(--node-card-size) / 2);" />
 
 <!-- source handle(s) (오른쪽) -->
 {#if outputs && outputs.length > 1}
@@ -74,120 +79,153 @@
       type="source"
       position={Position.Right}
       id={outputId}
-      style="top: {((i + 1) / (outputs.length + 1)) * 100}%;"
+      style="top: calc(var(--node-card-size) * {(i + 1) / (outputs.length + 1)});"
     />
   {/each}
 {:else}
-  <Handle type="source" position={Position.Right} />
+  <Handle type="source" position={Position.Right} style="top: calc(var(--node-card-size) / 2);" />
 {/if}
 
 <style>
+  :root {
+    --node-card-size: 80px;
+  }
+
   .tool-flow-node {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    min-width: 160px;
-    max-width: 220px;
-    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
     font-family: var(--font-sans, 'Inter', ui-sans-serif, system-ui, sans-serif);
   }
 
-  .node-header {
+  /* 카드 본체 */
+  .node-card {
+    position: relative;
+    width: var(--node-card-size);
+    height: var(--node-card-size);
+    background: var(--card, var(--surface));
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--node-accent);
+    border-radius: 8px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* accent 틴트 오버레이 */
+  .node-card-tint {
+    position: absolute;
+    inset: 0;
     background: var(--node-accent);
-    color: #fff;
+    opacity: 0.1;
+    pointer-events: none;
+    border-radius: inherit;
   }
 
   .node-icon {
-    font-size: 1.5rem;
+    position: relative;
+    font-size: 2.2rem;
     line-height: 1;
-    flex-shrink: 0;
+    z-index: 1;
   }
 
-  .node-title {
+  /* trigger 배지 — 우상단 절대 위치 */
+  .trigger-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 0.7rem;
+    line-height: 1;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* hover/focus 상세 오버레이 */
+  .node-detail {
+    display: none;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--node-accent);
+    opacity: 0.92;
+    padding: 4px 6px;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 3;
+    pointer-events: none;
+    border-radius: 0 0 6px 6px;
+  }
+
+  .node-card:hover .node-detail,
+  .node-card:focus-within .node-detail {
+    display: flex;
+  }
+
+  .detail-row {
+    font-size: 0.6rem;
+    color: var(--card, var(--surface));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 카드 외부 라벨 */
+  .node-label {
     display: flex;
     flex-direction: column;
-    min-width: 0;
+    align-items: center;
+    gap: 1px;
+    padding: 4px 2px 0;
+    max-width: calc(var(--node-card-size) + 24px);
+    text-align: center;
   }
 
   .node-display-name {
-    font-size: 0.875rem;
-    font-weight: 700;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--foreground);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: #fff;
+    max-width: 100%;
   }
 
   .node-vendor {
-    font-size: 0.6875rem;
+    font-size: 0.65rem;
     font-weight: 400;
-    color: rgba(255, 255, 255, 0.78);
+    color: var(--muted-foreground);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .node-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 6px 10px 8px;
-    background: var(--surface);
-  }
-
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    font-size: 0.6875rem;
-    font-weight: 500;
-    padding: 1px 6px;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    background: var(--surface-muted, oklch(0.97 0.005 250));
-    color: var(--foreground);
-    white-space: nowrap;
-  }
-
-  .badge-role {
-    background: var(--secondary, oklch(0.96 0.005 250));
-    color: var(--foreground);
-  }
-
-  .badge-trigger {
-    background: var(--primary);
-    color: #fff;
-    border-color: transparent;
-  }
-
-  .badge-apply-mode {
-    background: var(--surface-muted, oklch(0.97 0.005 250));
-  }
-
-  .badge-status {
-    background: var(--surface-muted, oklch(0.97 0.005 250));
-    color: var(--muted-foreground);
+    max-width: 100%;
   }
 
   /* outOfTeamScope grayout */
-  .out-of-scope {
-    border: 1px dashed #d1d5db;
-    background: #f3f4f6;
-    opacity: 0.6;
+  .out-of-scope .node-card {
+    opacity: 0.5;
   }
 
-  .node-header-gray {
-    background: #d1d5db;
+  .node-label-muted .node-display-name,
+  .node-label-muted .node-vendor {
+    color: var(--muted-foreground);
   }
 
-  .node-display-name-gray {
-    color: #374151;
+  .out-of-scope .node-card {
+    border: 1px dashed var(--border);
+    border-left: 4px dashed var(--node-accent);
+    background: var(--surface-muted);
   }
 
-  .node-vendor-gray {
-    color: rgba(55, 65, 81, 0.78);
+  /* 선택 상태 */
+  .selected .node-card {
+    box-shadow: 0 0 0 2px var(--primary);
+  }
+
+  :global(.svelte-flow__node.selected) .node-card {
+    box-shadow: 0 0 0 2px var(--primary);
   }
 </style>
