@@ -1,5 +1,35 @@
 import { test, expect } from '@playwright/test';
 
+test.describe('real-docker smoke — real 트리거 → dag_run_id 단언', () => {
+  // Airflow 미기동 시 skip 처리
+  const UI_BACKEND = 'http://localhost:8001';
+  const AIRFLOW = 'http://localhost:8080';
+
+  test('node-presidio real 트리거 → HTTP 200 + 유효 dag_run_id', async ({ page }) => {
+    // Airflow 헬스체크
+    const health = await page.request.get(`${AIRFLOW}/health`).catch(() => null);
+    if (!health || health.status() !== 200) {
+      test.skip();
+      return;
+    }
+
+    const res = await page.request.post(`${UI_BACKEND}/nodes/node-presidio/trigger`, {
+      data: {},
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty('dag_run_id');
+    expect(typeof body.dag_run_id).toBe('string');
+    expect(body.dag_run_id.length).toBeGreaterThan(0);
+
+    // teardown: 생성된 dag_run 삭제
+    await page.request.delete(
+      `${AIRFLOW}/api/v1/dags/silver_2_masking/dagRuns/${encodeURIComponent(body.dag_run_id)}`,
+      { headers: { Authorization: 'Basic ' + btoa('admin:admin') } },
+    );
+  });
+});
+
 test.describe('real-docker smoke — ui-backend /documents', () => {
   test('ui-backend health check', async ({ page }) => {
     let reachable = true;

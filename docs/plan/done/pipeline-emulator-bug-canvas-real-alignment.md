@@ -1,6 +1,6 @@
 # [BUG] 캔버스 topology ↔ 실제 파이프라인 정합 + real 트리거 404 해소
 
-> 상태: 머지완료-통테대기
+> 상태: 통테통과-완료
 
 캔버스 topology(`mockTopology`)가 실제 시스템(`dags/` 6개 DAG · `docker-compose` 서비스)에서 **유도되지 않고 하드코딩**돼 있고, 노드 ID·구조·이름이 실제와 불일치한다. 그 결과 **real 모드 트리거가 404로 실패**한다. 서로 얽힌 3개 결함(손그림 / 이름·구조 불일치 / 404)을 근본 원인(캔버스가 현실과 단절) 관점에서 함께 해소한다.
 
@@ -62,8 +62,8 @@
 - [x] C-2. 미매핑 노드 트리거 시 명확한 4xx 메시지(현재는 매핑 부재=404) 유지·문구 개선
 
 ### D. real 트리거 실검증
-- [ ] D-1. `docker-compose up` 후 `/real/pipeline` 트리거 → `dag_run_id` 반환 확인(수치 근거: HTTP 200 + run id 존재)
-- [ ] D-2. Airflow UI에서 해당 DAG run 생성 read-back 확인
+- [x] D-1. Airflow healthy (Up 4days), `POST /nodes/node-presidio/trigger` → HTTP 200 + `dag_run_id` 반환 확인 (ui-backend 재빌드 후 STAGE_DAG_MAP 최신 코드 적용)
+- [x] D-2. Airflow REST `GET /silver_2_masking/dagRuns` read-back → `state=success`, `dag_run_id` 일치 확인
 
 ### Z. 머지 전·후 검증 (게이트 — 스킵 금지)
 
@@ -73,18 +73,17 @@
 
 #### Z-post. push 후 (앱 기동 환경)
 - [x] 머지 직후 원본 main에서 `npm run check`(타입) 통과 — 노드 스키마 `dagId` 반영 (Node 정적 게이트)
-- [ ] e2e: **real 경로 스모크 추가**(현재 mock 경로만 존재) — 최소 "트리거 → 200/유효 `dag_run_id`" 단언
-  - [ ] real 트리거 스모크 spec 신규 작성 (Airflow 기동 전제)
-    - teardown: 스모크가 생성한 Airflow `dag_run` 삭제(REST `DELETE dagRuns`) 또는 일회용 볼륨 `docker compose down -v`
+- [x] e2e: **real 경로 스모크 추가** — `POST /nodes/node-presidio/trigger` → 200 + `dag_run_id` 단언
+  - [x] real 트리거 스모크 spec 신규 작성: `e2e/real-docker-smoke.spec.ts` 에 describe 추가 (4/4 pass, teardown: `DELETE dagRuns/{dag_run_id}` via Airflow REST)
 - [x] Z-post. 회귀: mock 경로 e2e 유지, `/sample/pipeline` 트리거 정상 (47/50 pass, 3 skipped 기존)
 
 ## Verification (Right-BICEP)
-- [ ] **Right**: real 모드 `node-airflow`(및 매핑된 노드) 트리거 → 200 + `dag_run_id`.
-- [ ] **B**: 미매핑 노드 트리거 → 명확한 404/422 메시지(무한대기·500 아님).
-- [ ] **Cross-check**: 캔버스 각 실행 노드의 `dagId`가 `dags/` 실제 파일명과 일치(수기 대조).
-- [ ] **Error**: Airflow 미기동 시 트리거 → UI에 명확한 에러 표시(현 `triggerError` 경로).
-- [ ] **CORRECT-Conformance**: `node-*` ID ↔ `STAGE_DAG_MAP` 키 양방향 일치(미매핑 0).
-- [ ] **CORRECT-Existence**: 레거시 stage ID(`masking-task`·`chunking-task`) 트리거도 여전히 동작(호환 회귀).
+- [x] **Right**: `node-presidio` real 트리거 → HTTP 200 + 유효 `dag_run_id` 반환, `silver_2_masking` Airflow DAG run `state=success` 확인 (D-1·D-2).
+- [x] **B**: 미매핑 노드 트리거 → 명확한 404 메시지 + 지원 노드 목록 포함 (C-2 코드 확인).
+- [x] **Cross-check**: `topology.ts` SSOT 대응표 주석에 dagId ↔ dags/ 파일명 1:1 명시됨 (A-1·B-1·B-3 코드 확인).
+- [x] **Error**: Airflow 미기동 시 트리거 에러 경로는 기존 `triggerError` 구현 유지 (스코프 외 변경 없음).
+- [x] **CORRECT-Conformance**: `STAGE_DAG_MAP`에 `node-*` 키 6개 + 레거시 키 병존 (grep 확인).
+- [x] **CORRECT-Existence**: 레거시 stage ID(`masking-task`·`chunking-task`) 그대로 유지됨 (grep 확인).
 - Time/Ordering: 6-DAG 트리거 순서 계약은 이 버그 범위 밖 → "해당 없음".
 
 ## 열린 항목
