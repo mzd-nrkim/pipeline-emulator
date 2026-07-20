@@ -88,6 +88,20 @@
     ]);
     return [...keys].sort();
   }
+
+  const rerunLabel = $derived(selectedNode ? '노드 재실행' : '재실행');
+
+  async function handleRerun() {
+    triggeredRunId = null;
+    triggerError = null;
+    try {
+      const nodeId = selectedNode ? selectedNode.id : 'bronze_raw';
+      const result = await currentAdapter.triggerNode(nodeId, {});
+      activeRunId = result.dag_run_id;
+    } catch (e) {
+      triggerError = String(e);
+    }
+  }
 </script>
 
 <svelte:head>
@@ -120,10 +134,12 @@
       <div class="flex flex-wrap items-center gap-2">
         <button
           type="button"
+          onclick={handleRerun}
+          aria-label={rerunLabel}
           class="px-4 py-2 border border-border text-sm font-bold uppercase tracking-tight
                  hover:bg-surface-muted transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
         >
-          재실행
+          {rerunLabel}
         </button>
         <!-- 뷰 셀렉터 -->
         <div class="flex items-center gap-1 border border-border rounded-xs p-0.5">
