@@ -202,6 +202,7 @@ export const mockTopology: CanvasTopology = {
       tool: 'kibana',
       label: 'Kibana',
       outOfTeamScope: true,
+      deployStatus: 'absent',
       config: {
         space: 'lllm',
         dashboardId: 'pipeline-monitor',
