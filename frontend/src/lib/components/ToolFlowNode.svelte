@@ -190,6 +190,14 @@
     align-items: center;
     justify-content: center;
     color: var(--node-accent, currentColor);
+    fill: currentColor;
+  }
+
+  .node-icon svg {
+    width: 100%;
+    height: 100%;
+    fill: currentColor;
+    color: var(--node-accent, currentColor);
   }
 
   /* trigger 배지 — 우상단 절대 위치 */
