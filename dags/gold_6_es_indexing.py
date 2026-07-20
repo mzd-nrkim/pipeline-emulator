@@ -72,7 +72,7 @@ def gold_es_indexing():
                         e.entities,
                         e.summary,
                         e.category,
-                        g.content AS chunk_content
+                        g.chunk_content
                     FROM gold_staged_documents s
                     JOIN gold_enriched_documents e ON s.enriched_id = e.enriched_id
                     JOIN gold_chunked_documents g ON e.chunk_id = g.chunk_id
