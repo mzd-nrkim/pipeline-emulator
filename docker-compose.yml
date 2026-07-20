@@ -125,6 +125,7 @@ services:
       MYSQL_DATABASE: pipeline_emulator
       ES_HOST: elasticsearch
       ES_PORT: "9200"
+      ENABLE_SERVICE_CONTROL: "0"  # 기본 off — 로컬 데모 시 1로 변경
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock  # 로컬 전용·보안 위험(컨테이너가 호스트 docker 완전 제어)
     depends_on:

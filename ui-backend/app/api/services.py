@@ -34,6 +34,15 @@ def _get_docker_client():
     return docker.from_env()
 
 
+def _find_container_by_service(client, service: str):
+    """compose service label로 컨테이너를 조회한다 (exited 포함 — start 가능하도록)."""
+    for ct in client.containers.list(all=True):
+        labels = ct.labels or {}
+        if labels.get("com.docker.compose.service") == service:
+            return ct
+    return None
+
+
 def _is_control_enabled() -> bool:
     val = os.environ.get("ENABLE_SERVICE_CONTROL", "0").strip().lower()
     return val not in ("", "0", "false", "no", "off")
@@ -78,18 +87,20 @@ def power_service(service: str, body: PowerAction):
     ts = datetime.now(timezone.utc).isoformat()
     logger.info("SERVICE_CONTROL action=%s service=%s timestamp=%s", action, service, ts)
 
-    # Docker SDK 실행
+    # Docker SDK 실행 — compose service label로 조회 (컨테이너 이름은 프로젝트 접두사 포함)
     client = _get_docker_client()
     try:
-        container = client.containers.get(service)
+        container = _find_container_by_service(client, service)
+        if container is None:
+            raise HTTPException(status_code=404, detail=f"Container for service '{service}' not found")
         if action == "start":
             container.start()
         elif action == "stop":
             container.stop()
         elif action == "restart":
             container.restart()
-    except docker.errors.NotFound:
-        raise HTTPException(status_code=404, detail=f"Container '{service}' not found")
+    except HTTPException:
+        raise
     except docker.errors.APIError as exc:
         logger.error("Docker API error for %s %s: %s", action, service, exc)
         raise HTTPException(status_code=502, detail=f"Docker error: {exc.explanation}")
