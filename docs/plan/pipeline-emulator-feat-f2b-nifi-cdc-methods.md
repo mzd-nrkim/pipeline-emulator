@@ -1,6 +1,6 @@
 # F2b. NiFi 프로세서 CDC (Polling·Trigger) — 기능 계획서
 
-> 상태: 게이트통과-머지대기
+> 상태: 머지완료-통테대기
 > 작성일: 2026-07-15 / 우선순위: ★★
 > 관계: [F2 Debezium CDC](./pipeline-emulator-feat-f2-realtime-cdc.md)의 **대안 CDC 방식 옵션**. Debezium(binlog 실시간)과 병렬로, NiFi 프로세서 기반 CDC(Polling/Trigger)를 **선택 가능**하게 한다.
 > 토글: `CDC_METHOD=debezium|polling|trigger` (기본 `debezium`, `CDC=on`일 때만 유효)
