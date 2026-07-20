@@ -109,6 +109,9 @@ export interface ToolNode {
   outOfTeamScope?: boolean;
   deployStatus?: 'active' | 'planned' | 'absent';
   displayNameOverride?: string;
+  parentId?: string;
+  group?: string;
+  extent?: 'parent';
 }
 
 export interface Edge {
@@ -116,6 +119,8 @@ export interface Edge {
   to: string;
   channels: ('data' | 'dependency')[];  // 이 엣지가 나타날 뷰 집합
   condition?: string;
+  viaTable?: string;
+  label?: string;
 }
 
 export interface CanvasTopology {
