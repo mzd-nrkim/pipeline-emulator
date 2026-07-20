@@ -40,8 +40,8 @@ def test_main_routes_operation(raw_op):
     stdin_data = json.dumps([record]).encode()
     calls = []
 
-    def fake_register(record, change_operation):
-        calls.append(change_operation)
+    def fake_register(**kwargs):
+        calls.append(kwargs["change_operation"])
 
     with patch("sys.stdin.buffer.read", return_value=stdin_data), \
          patch("scripts.cdc.trigger_adapter.register_bronze_event", side_effect=fake_register):
