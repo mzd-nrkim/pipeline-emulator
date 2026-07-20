@@ -649,4 +649,21 @@ describe('buildNodesAndEdges', () => {
     expect(kureEdge).toBeDefined();
     expect(kureEdge!.label).toBe('gold_chunked_documents');
   });
+
+  /* ── infra 뷰 엣지 type:'infra-floating' ────────────────────── */
+
+  it('Cardinality: infra 뷰 엣지 모두에 type:"infra-floating" 부여', () => {
+    const { edges } = buildNodesAndEdges(sampleTopology, 'infra');
+    expect(edges.length).toBeGreaterThan(0);
+    for (const e of edges) {
+      expect(e.type).toBe('infra-floating');
+    }
+  });
+
+  it('Cardinality: data 뷰 엣지는 type 미부여', () => {
+    const { edges } = buildNodesAndEdges(sampleTopology, 'data');
+    for (const e of edges) {
+      expect((e as any).type).toBeUndefined();
+    }
+  });
 });
