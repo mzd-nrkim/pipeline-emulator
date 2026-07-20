@@ -45,9 +45,12 @@ test.describe('Pipeline Canvas View — ToolCanvasView (P1/P3 통합)', () => {
     await page.waitForTimeout(300);
     await expect(page.locator('text=인프라 연결 뷰')).toBeVisible({ timeout: 3000 });
     const infraNodeCount = await page.locator('.svelte-flow .svelte-flow__node').count();
-    // 인프라 뷰는 dependency 노드만 표시 (더 적거나 다른 노드 집합)
+    // 인프라 뷰는 dependency 노드만 표시 — 배지가 이미 확인됨.
+    // data 뷰에서 orphan 숨김으로 count가 우연히 같을 수 있으므로 count 비교 대신
+    // group 노드(data 뷰 전용) 부재로 뷰 전환 확인.
     expect(infraNodeCount).toBeGreaterThan(0);
-    expect(infraNodeCount).not.toBe(dataNodeCount);
+    const hasGroupNode = await page.locator('.svelte-flow__node.svelte-flow__node-group').count();
+    expect(hasGroupNode).toBe(0); // 인프라 뷰에서 group 노드 부재
   });
 
   test('Canvas 뷰에서 노드 클릭 시 drill-down 패널이 열린다', async ({ page }) => {
