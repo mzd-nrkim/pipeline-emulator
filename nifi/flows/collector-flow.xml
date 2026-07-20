@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  F3 수집기 플로우: 원천 데이터 읽기 → Bronze Parquet 적재
+  환경변수:
+    SEAWEEDFS_ENDPOINT, SEAWEEDFS_ACCESS_KEY, SEAWEEDFS_SECRET_KEY
+    MYSQL_HOST, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD
+  Bronze 경로 규칙: bronze/{source_name}/{date}/data.parquet
+-->
+<flowController encoding-version="1">
+  <maxTimerDrivenThreadCount>10</maxTimerDrivenThreadCount>
+  <maxEventDrivenThreadCount>5</maxEventDrivenThreadCount>
+  <registries/>
+  <parameterContexts>
+    <parameterContext>
+      <id>collector-ctx</id>
+      <name>Collector Context</name>
+      <description>NiFi 수집기 파라미터</description>
+      <parameters>
+        <parameter>
+          <name>seaweedfs.endpoint</name>
+          <description>SeaweedFS S3 endpoint</description>
+          <sensitive>false</sensitive>
+          <value>${SEAWEEDFS_ENDPOINT}</value>
+        </parameter>
+      </parameters>
+    </parameterContext>
+  </parameterContexts>
+  <rootGroup>
+    <id>root-collector</id>
+    <name>Root Collector Flow</name>
+    <position x="0.0" y="0.0"/>
+    <comment>F3 NiFi 수집기 루트 프로세스 그룹</comment>
+    <processors>
+      <!--
+        ExecuteStreamCommand: Python 해시 브릿지 호출
+        → stdout: JSON {"row_hash": "...", "source_name": "...", "primary_key": "..."}
+      -->
+      <processor>
+        <id>exec-hash-bridge</id>
+        <name>ComputeRowHash</name>
+        <position x="100.0" y="100.0"/>
+        <comment>Python hash_bridge로 row_hash 산출 (Bronze 계약)</comment>
+        <class>org.apache.nifi.processors.standard.ExecuteStreamCommand</class>
+        <bundle>
+          <group>org.apache.nifi</group>
+          <artifact>nifi-standard-nar</artifact>
+          <version>2.0.0</version>
+        </bundle>
+        <properties>
+          <property>
+            <name>Command Path</name>
+            <value>/usr/bin/python3</value>
+          </property>
+          <property>
+            <name>Command Arguments</name>
+            <value>/opt/nifi/nifi-current/conf/flow_storage/../../../scripts/nifi_hash_bridge.py</value>
+          </property>
+        </properties>
+      </processor>
+      <!--
+        PutParquet → S3/SeaweedFS Bronze 경로 적재
+        Bronze 경로 규칙: bronze/{source_name}/{date}/data.parquet
+      -->
+      <processor>
+        <id>put-parquet</id>
+        <name>PutParquetToBronze</name>
+        <position x="400.0" y="100.0"/>
+        <comment>SeaweedFS Bronze 경로에 Parquet 적재 (Bronze 계약 준수)</comment>
+        <class>org.apache.nifi.processors.parquet.PutParquet</class>
+        <bundle>
+          <group>org.apache.nifi</group>
+          <artifact>nifi-parquet-nar</artifact>
+          <version>2.0.0</version>
+        </bundle>
+        <properties>
+          <property>
+            <name>Directory</name>
+            <value>bronze/${source.name}/${now():format('yyyy-MM-dd')}</value>
+          </property>
+          <property>
+            <name>Hadoop Configuration Resources</name>
+            <value></value>
+          </property>
+        </properties>
+      </processor>
+    </processors>
+    <connections>
+      <connection>
+        <id>conn-hash-to-parquet</id>
+        <sourceId>exec-hash-bridge</sourceId>
+        <sourceRelationship>success</sourceRelationship>
+        <destinationId>put-parquet</destinationId>
+      </connection>
+    </connections>
+    <funnels/>
+    <labels/>
+    <inputPorts/>
+    <outputPorts/>
+    <processGroups/>
+    <remoteProcessGroups/>
+    <variables/>
+  </rootGroup>
+  <controllerServices/>
+  <reportingTasks/>
+</flowController>
