@@ -36,6 +36,7 @@ export const realTopology: CanvasTopology = {
       role: 'ingest',
       tool: 'debezium',
       label: 'Debezium CDC',
+      deployStatus: 'absent',
       config: {
         connectorType: 'mysql',
         dbHost: 'mysql',
@@ -49,6 +50,7 @@ export const realTopology: CanvasTopology = {
       role: 'ingest',
       tool: 'apache-nifi',
       label: 'Apache NiFi',
+      deployStatus: 'absent',
       config: {
         connectionPool: 'dbcp2',
         sqlQuery: 'SELECT * FROM docs',
@@ -60,6 +62,7 @@ export const realTopology: CanvasTopology = {
       role: 'ingest',
       tool: 'dam',
       label: 'DAM API',
+      deployStatus: 'planned',
       config: {
         endpoint: 'https://dam.internal/api',
         outputFormat: 'markdown', // 'markdown' | 'html' | 'json'
@@ -147,6 +150,7 @@ export const realTopology: CanvasTopology = {
       tool: 'valkey',
       label: 'Valkey',
       displayNameOverride: 'Valkey (Redis)',
+      deployStatus: 'absent',
       config: {
         host: 'valkey',
         port: 6379,
