@@ -11,6 +11,8 @@ import json
 import logging
 import sys
 
+from scripts.ingest import get_mysql_connection, register_bronze_event
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -21,16 +23,7 @@ OPERATION_MAP = {
     "DELETE": "delete",
 }
 
-
-def register_bronze_event(record: dict, change_operation: str) -> None:
-    """CDC 이벤트를 Bronze에 등록 — register_bronze_event 재사용."""
-    try:
-        sys.path.insert(0, "/opt/pipeline-emulator")
-        from scripts.ingest import register_bronze_event as _register
-        _register(change_operation=change_operation, record=record)
-    except Exception as exc:
-        logger.error("register_bronze_event 실패: %s", exc)
-        raise
+TABLE_NAME = "source_cft_problem_history"
 
 
 def main() -> None:
@@ -46,24 +39,41 @@ def main() -> None:
         logger.error("JSON 파싱 실패: %s", exc)
         sys.exit(1)
 
-    for record in records:
-        raw_op = record.get("operation", "")
-        change_operation = OPERATION_MAP.get(raw_op.upper())
+    conn = get_mysql_connection()
+    try:
+        for record in records:
+            raw_op = record.get("operation", "")
+            change_operation = OPERATION_MAP.get(raw_op.upper())
 
-        if change_operation is None:
-            raise ValueError(
-                f"미지원 operation 값: {raw_op!r}. "
-                f"지원 값: {list(OPERATION_MAP.keys())}"
+            if change_operation is None:
+                raise ValueError(
+                    f"미지원 operation 값: {raw_op!r}. "
+                    f"지원 값: {list(OPERATION_MAP.keys())}"
+                )
+
+            pk_str = (
+                f"{record.get('pilot_problem_no', '')}:"
+                f"{record.get('reform_numseq', '')}"
             )
+            s3_path = f"cdc://{TABLE_NAME}/{pk_str}"
 
-        logger.info(
-            "Trigger 감지: pk=%s|%s op=%s→%s",
-            record.get("pilot_problem_no"),
-            record.get("reform_numseq"),
-            raw_op,
-            change_operation,
-        )
-        register_bronze_event(record, change_operation)
+            logger.info(
+                "Trigger 감지: pk=%s|%s op=%s→%s",
+                record.get("pilot_problem_no"),
+                record.get("reform_numseq"),
+                raw_op,
+                change_operation,
+            )
+            register_bronze_event(
+                conn=conn,
+                table_name=TABLE_NAME,
+                batch_id=pk_str,
+                s3_path=s3_path,
+                record_count=1,
+                change_operation=change_operation,
+            )
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":

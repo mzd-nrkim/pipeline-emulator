@@ -16,13 +16,16 @@ import logging
 import os
 import sys
 
-import pymysql
 import redis
+
+from scripts.ingest import get_mysql_connection, register_bronze_event
 
 # seen-key 상태 저장: Redis (CDC_METHOD=polling 전용)
 REDIS_HOST = os.environ.get("REDIS_HOST", "valkey")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
 SEEN_KEY_PREFIX = "polling:seen:"
+
+TABLE_NAME = "source_cft_problem_history"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -39,17 +42,6 @@ def determine_operation(row_key: str, r: redis.Redis) -> str:
         return "update"
     r.set(seen_field, "1", ex=86400 * 7)  # 7일 TTL
     return "insert"
-
-
-def register_bronze_event(record: dict, change_operation: str) -> None:
-    """CDC 이벤트를 Bronze에 등록 — register_bronze_event 재사용."""
-    try:
-        sys.path.insert(0, "/opt/pipeline-emulator")
-        from scripts.ingest import register_bronze_event as _register
-        _register(change_operation=change_operation, record=record)
-    except Exception as exc:
-        logger.error("register_bronze_event 실패: %s", exc)
-        raise
 
 
 def main() -> None:
@@ -72,20 +64,37 @@ def main() -> None:
         logger.warning("Redis 연결 실패 — seen-key 상태 없이 insert로 처리: %s", exc)
         r = None
 
-    for record in records:
-        row_key = get_row_key(record)
-        if r:
-            change_operation = determine_operation(row_key, r)
-        else:
-            change_operation = "insert"  # Redis 없이는 insert 처리
+    conn = get_mysql_connection()
+    try:
+        for record in records:
+            row_key = get_row_key(record)
+            if r:
+                change_operation = determine_operation(row_key, r)
+            else:
+                change_operation = "insert"  # Redis 없이는 insert 처리
 
-        logger.info(
-            "Polling 감지: pk=%s|%s op=%s",
-            record.get("pilot_problem_no"),
-            record.get("reform_numseq"),
-            change_operation,
-        )
-        register_bronze_event(record, change_operation)
+            pk_str = (
+                f"{record.get('pilot_problem_no', '')}:"
+                f"{record.get('reform_numseq', '')}"
+            )
+            s3_path = f"cdc://{TABLE_NAME}/{pk_str}"
+
+            logger.info(
+                "Polling 감지: pk=%s|%s op=%s",
+                record.get("pilot_problem_no"),
+                record.get("reform_numseq"),
+                change_operation,
+            )
+            register_bronze_event(
+                conn=conn,
+                table_name=TABLE_NAME,
+                batch_id=pk_str,
+                s3_path=s3_path,
+                record_count=1,
+                change_operation=change_operation,
+            )
+    finally:
+        conn.close()
 
     # DELETE 미감지 명시 로그
     logger.warning(
