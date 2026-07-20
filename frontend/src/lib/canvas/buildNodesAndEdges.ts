@@ -24,7 +24,11 @@ export interface FlowNode {
     outputs?: string[];
     outOfTeamScope?: boolean;
     deployStatus: 'active' | 'planned' | 'absent';
+    parentId?: string;
+    groupId?: string;
   };
+  parentId?: string;
+  extent?: 'parent';
 }
 
 export interface FlowEdge {
@@ -127,6 +131,12 @@ export function buildNodesAndEdges(
     }
   }
 
+  // 3.5. 그룹 노드 결정: topology에서 group 필드가 있는 노드들을 수집
+  const groupIds = new Set<string>();
+  for (const n of visibleNodes) {
+    if ((n as any).group) groupIds.add((n as any).group);
+  }
+
   // 4. FlowNode 생성
   const nodes: FlowNode[] = visibleNodes.map(n => {
     const entry = getToolEntry(n.tool);
@@ -141,10 +151,12 @@ export function buildNodesAndEdges(
       ? conditions.map(c => `source-${c}`)
       : undefined;
 
+    const nodeGroupId = (n as any).parentId as string | undefined;
     return {
       id: n.id,
       type: 'tool',
       position: getPosition(n.id),
+      ...(nodeGroupId ? { parentId: nodeGroupId, extent: 'parent' as const } : {}),
       data: {
         label: `${catalogData.icon} ${catalogData.displayName}\n[${n.role}]`,
         toolId: n.tool,
@@ -157,6 +169,7 @@ export function buildNodesAndEdges(
         deployStatus: n.deployStatus ?? 'active',
         ...(applyMode !== undefined ? { applyMode } : {}),
         ...(outputs !== undefined ? { outputs } : {}),
+        ...(nodeGroupId ? { parentId: nodeGroupId } : {}),
       },
     };
   });
@@ -176,7 +189,7 @@ export function buildNodesAndEdges(
       source: e.from,
       target: e.to,
       animated: view === 'data',
-      label: condition,
+      label: condition ?? (e as any).viaTable,
       labelBgPadding: [6, 2] as [number, number],
       labelBgBorderRadius: 9999,
       labelStyle: 'font-size: 0.7rem; font-weight: 600; text-transform: lowercase;',
@@ -186,7 +199,42 @@ export function buildNodesAndEdges(
     };
   });
 
-  return { nodes, edges };
+  // 5. group 노드 생성 (data뷰에서만, 그룹 소속 노드가 있을 때)
+  const groupNodes: FlowNode[] = [];
+  if (view === 'data') {
+    // topology에 parentId: 'node-airflow-group'인 노드가 있으면 그룹 노드 생성
+    const childNodes = nodes.filter(n => n.parentId === 'node-airflow-group');
+    if (childNodes.length > 0) {
+      // 자식 노드 중심으로 그룹 경계 계산
+      const xs = childNodes.map(n => n.position.x);
+      const ys = childNodes.map(n => n.position.y);
+      const minX = Math.min(...xs) - 40;
+      const minY = Math.min(...ys) - 60;
+      const maxX = Math.max(...xs) + 220;  // 노드 너비(180) + 40
+      const maxY = Math.max(...ys) + 110;  // 노드 높이(64) + 46
+      groupNodes.push({
+        id: 'node-airflow-group',
+        type: 'group',
+        position: { x: minX, y: minY },
+        data: {
+          label: 'Airflow (CeleryExecutor)',
+          toolId: 'apache-airflow',
+          displayName: 'Airflow (CeleryExecutor)',
+          vendor: 'Apache',
+          icon: '🌊',
+          accent: '#017CEE',
+          role: 'orchestrator',
+          trigger: false,
+          deployStatus: 'active',
+        },
+        // 그룹 노드는 크기를 style로 표현 (XYFlow group 노드 규약)
+        ...(({ width: maxX - minX, height: maxY - minY } as any)),
+      });
+    }
+  }
+
+  // 그룹 노드를 앞에 놓아야 자식 노드가 그 위에 렌더됨
+  return { nodes: [...groupNodes, ...nodes], edges };
 }
 
 // 위상정렬 + 최장경로 depth 계산
