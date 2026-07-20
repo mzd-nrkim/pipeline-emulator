@@ -39,7 +39,7 @@
         인프라 연결 뷰
       </div>
     {/if}
-    <SvelteFlow bind:nodes bind:edges nodeTypes={{ tool: ToolFlowNode as any }} fitView defaultEdgeOptions={defaultEdgeMarkerOptions} onnodeclick={({ node }) => { const clicked = topology.nodes.find(n => n.id === node.id) ?? null; onnodeselect?.(clicked); }}>
+    <SvelteFlow bind:nodes bind:edges nodeTypes={{ tool: ToolFlowNode as any }} fitView fitViewOptions={{ minZoom: 0.6, maxZoom: 1.2 }} defaultEdgeOptions={defaultEdgeMarkerOptions} onnodeclick={({ node }) => { const clicked = topology.nodes.find(n => n.id === node.id) ?? null; onnodeselect?.(clicked); }}>
       <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} bgColor="var(--surface-muted)" patternColor="var(--border)" />
       <Controls />
     </SvelteFlow>
@@ -50,6 +50,16 @@
   :global(.svelte-flow__edge-path) {
     stroke: var(--muted-foreground);
     stroke-width: 1.5;
+  }
+  /* 엣지 조건(condition) 라벨 — 기본 폰트가 작아 가독성 보강 */
+  :global(.svelte-flow__edge-text) {
+    font-size: 11px;
+    font-weight: 600;
+    fill: var(--foreground);
+  }
+  :global(.svelte-flow__edge-textbg) {
+    fill: var(--surface);
+    opacity: 0.9;
   }
   :global(.svelte-flow__controls) {
     border-radius: 6px;

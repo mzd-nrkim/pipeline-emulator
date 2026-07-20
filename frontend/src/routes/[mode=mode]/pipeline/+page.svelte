@@ -235,36 +235,36 @@
 
               <!-- 설정 폼 -->
               <div class="border-t border-border pt-3 space-y-2">
-                <div class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">설정</div>
+                <div class="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">설정</div>
                 {#if toolEntry && toolEntry.configFields && toolEntry.configFields.length > 0}
                   {#each toolEntry.configFields as field}
                     {@const applyMode = field.applyMode ?? 'readonly'}
                     {@const isDisabled = applyMode === 'readonly'}
                     <div class="config-field {field.group ? `group-${field.group}` : ''} space-y-0.5">
                       <div class="flex items-center gap-1.5">
-                        <label class="block text-[10px] text-muted-foreground">{field.label}</label>
+                        <label class="block text-[11px] text-muted-foreground">{field.label}</label>
                         {#if applyMode === 'runtime'}
-                          <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[9px] font-bold rounded-xs bg-green-100 text-green-700 border border-green-300">🟢 실시간적용</span>
+                          <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[10px] font-bold rounded-xs bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700">🟢 실시간적용</span>
                         {:else if applyMode === 'restart'}
-                          <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[9px] font-bold rounded-xs bg-yellow-100 text-yellow-700 border border-yellow-300">🟡 재기동필요</span>
+                          <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[10px] font-bold rounded-xs bg-yellow-100 text-yellow-700 border border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700">🟡 재기동필요</span>
                         {:else if applyMode === 'code'}
-                          <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[9px] font-bold rounded-xs bg-blue-100 text-blue-700 border border-blue-300">🔵 코드수정</span>
+                          <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[10px] font-bold rounded-xs bg-blue-100 text-blue-700 border border-blue-300 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700">🔵 코드수정</span>
                         {:else}
-                          <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[9px] font-bold rounded-xs bg-slate-100 text-slate-500 border border-slate-300">🔒 읽기전용</span>
+                          <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[10px] font-bold rounded-xs bg-surface-muted text-muted-foreground border border-border">🔒 읽기전용</span>
                         {/if}
                       </div>
                       {#if field.type === 'text'}
                         <input type="text" bind:value={localConfig[field.key] as string} placeholder={field.placeholder ?? ''}
                           disabled={isDisabled}
-                          class="w-full bg-surface-muted border border-border rounded-xs px-2 py-1 text-[10px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary disabled:opacity-50 disabled:cursor-not-allowed" />
+                          class="w-full bg-surface-muted border border-border rounded-xs px-2 py-1 text-[11px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary disabled:opacity-50 disabled:cursor-not-allowed" />
                       {:else if field.type === 'number'}
                         <input type="number" bind:value={localConfig[field.key] as number}
                           disabled={isDisabled}
-                          class="w-full bg-surface-muted border border-border rounded-xs px-2 py-1 text-[10px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary disabled:opacity-50 disabled:cursor-not-allowed" />
+                          class="w-full bg-surface-muted border border-border rounded-xs px-2 py-1 text-[11px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary disabled:opacity-50 disabled:cursor-not-allowed" />
                       {:else if field.type === 'select'}
                         <select bind:value={localConfig[field.key] as string}
                           disabled={isDisabled}
-                          class="w-full bg-surface-muted border border-border rounded-xs px-2 py-1 text-[10px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                          class="w-full bg-surface-muted border border-border rounded-xs px-2 py-1 text-[11px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary disabled:opacity-50 disabled:cursor-not-allowed">
                           {#each field.options ?? [] as opt}
                             <option value={opt}>{opt}</option>
                           {/each}
@@ -274,18 +274,18 @@
                           <input type="checkbox" bind:checked={localConfig[field.key] as boolean}
                             disabled={isDisabled}
                             class="accent-primary disabled:opacity-50 disabled:cursor-not-allowed" />
-                          <span class="text-[10px] text-muted-foreground">{field.label}</span>
+                          <span class="text-[11px] text-muted-foreground">{field.label}</span>
                         </div>
                       {/if}
                       {#if applyMode === 'restart'}
-                        <p class="text-[9px] text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-xs px-1.5 py-0.5 leading-relaxed">재기동 후 적용</p>
+                        <p class="text-[10px] text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-xs px-1.5 py-0.5 leading-relaxed dark:text-yellow-300 dark:bg-yellow-900/30 dark:border-yellow-800">재기동 후 적용</p>
                       {:else if applyMode === 'code'}
-                        <p class="text-[9px] text-blue-700 bg-blue-50 border border-blue-200 rounded-xs px-1.5 py-0.5 leading-relaxed">DAG 코드 수정 필요</p>
+                        <p class="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded-xs px-1.5 py-0.5 leading-relaxed dark:text-blue-300 dark:bg-blue-900/30 dark:border-blue-800">DAG 코드 수정 필요</p>
                       {/if}
                     </div>
                   {/each}
                 {:else}
-                  <div class="text-[10px] text-muted-foreground italic">설정 없음</div>
+                  <div class="text-[11px] text-muted-foreground italic">설정 없음</div>
                 {/if}
               </div>
 
