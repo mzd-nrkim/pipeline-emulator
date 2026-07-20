@@ -822,30 +822,31 @@ describe('buildNodesAndEdges', () => {
     });
 
     // C(교차확인): 각 group 노드의 경계가 해당 그룹 자식 좌표에서만 산출됨
-    // A-1/A-2 이후 자식은 0-origin 상대좌표, 그룹 박스는 원래 절대 좌표 기반
+    // A-1/A-2 이후 자식은 PAD-origin 상대좌표, 그룹 박스는 원래 절대 좌표 기반
     it('C(교차확인): 각 group 노드의 width가 소속 자식들을 모두 포함하기에 충분하다', () => {
       const COL_GAP = 280;
       const NODE_WIDTH = 200;
+      const PAD_X = 60;
       const { nodes } = buildNodesAndEdges(multiGroupTopology, 'data');
       const alphaGroup = nodes.find(n => n.id === 'node-group-alpha')!;
       const betaGroup  = nodes.find(n => n.id === 'node-group-beta')!;
       expect(alphaGroup).toBeDefined();
       expect(betaGroup).toBeDefined();
 
-      // alpha 자식들의 상대좌표 (0-origin)
+      // alpha 자식들의 상대좌표 (PAD-origin)
       const alphaChildren = nodes.filter(n => n.parentId === 'node-group-alpha');
       expect(alphaChildren.length).toBe(2);
-      // 자식 2개: position.x = 0, COL_GAP
+      // 자식 2개: position.x = PAD_X, PAD_X+COL_GAP
       const sortedAlpha = alphaChildren.sort((a, b) => a.position.x - b.position.x);
-      expect(sortedAlpha[0].position.x).toBe(0);
-      expect(sortedAlpha[1].position.x).toBe(COL_GAP);
+      expect(sortedAlpha[0].position.x).toBe(PAD_X);
+      expect(sortedAlpha[1].position.x).toBe(PAD_X + COL_GAP);
 
-      // beta 자식들의 상대좌표 (0-origin)
+      // beta 자식들의 상대좌표 (PAD-origin)
       const betaChildren = nodes.filter(n => n.parentId === 'node-group-beta');
       expect(betaChildren.length).toBe(2);
       const sortedBeta = betaChildren.sort((a, b) => a.position.x - b.position.x);
-      expect(sortedBeta[0].position.x).toBe(0);
-      expect(sortedBeta[1].position.x).toBe(COL_GAP);
+      expect(sortedBeta[0].position.x).toBe(PAD_X);
+      expect(sortedBeta[1].position.x).toBe(PAD_X + COL_GAP);
 
       // 그룹 박스 width >= 자식 2개 포함 최소 크기
       const alphaWidth = (alphaGroup as any).width as number;
