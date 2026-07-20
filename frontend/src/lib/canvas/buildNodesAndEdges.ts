@@ -23,7 +23,7 @@ const INFRA_LAYER_MAP: Record<string, InfraLayer> = {
   'node-mysql-container': 'storage',
   'node-seaweedfs':       'storage',
   'node-valkey':          'storage',
-  'node-es':              'storage',
+  'node-es':              'serving',
   'node-mysql':           'storage',
   's3':                   'storage',
   'node-s3-bronze':       'storage',
@@ -95,6 +95,7 @@ export interface FlowNode {
     isInfra?: boolean;
     applyMode?: string;
     outputs?: string[];
+    outOfTeamScope?: boolean;
   };
 }
 
@@ -209,6 +210,7 @@ export function buildNodesAndEdges(
         role: n.role,
         trigger: n.trigger ?? false,
         isInfra: view === 'infra',
+        outOfTeamScope: n.outOfTeamScope ?? false,
         ...(applyMode !== undefined ? { applyMode } : {}),
         ...(outputs !== undefined ? { outputs } : {}),
       },

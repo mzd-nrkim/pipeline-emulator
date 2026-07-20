@@ -14,6 +14,8 @@
   const status = $derived(d.status as string | undefined);
   const outputs = $derived(d.outputs as string[] | undefined);
 
+  const outOfTeamScope = $derived(d.outOfTeamScope as boolean | undefined);
+
   const resolvedIcon = $derived(icon || '❓');
   const resolvedAccent = $derived(accent || 'var(--primary)');
   const resolvedDisplayName = $derived(displayName || 'Unnamed');
@@ -29,15 +31,16 @@
 
 <div
   class="tool-flow-node"
+  class:out-of-scope={outOfTeamScope}
   style="--node-accent: {resolvedAccent};"
 >
-  <!-- accent 헤더 바 -->
-  <div class="node-header">
+  <!-- accent 헤더 바 (outOfTeamScope이면 회색 헤더) -->
+  <div class="node-header" class:node-header-gray={outOfTeamScope}>
     <span class="node-icon">{resolvedIcon}</span>
     <div class="node-title">
-      <span class="node-display-name">{resolvedDisplayName}</span>
+      <span class="node-display-name" class:node-display-name-gray={outOfTeamScope}>{resolvedDisplayName}</span>
       {#if vendor}
-        <span class="node-vendor">{vendor}</span>
+        <span class="node-vendor" class:node-vendor-gray={outOfTeamScope}>{vendor}</span>
       {/if}
     </div>
   </div>
@@ -167,5 +170,24 @@
   .badge-status {
     background: var(--surface-muted, oklch(0.97 0.005 250));
     color: var(--muted-foreground);
+  }
+
+  /* outOfTeamScope grayout */
+  .out-of-scope {
+    border: 1px dashed #d1d5db;
+    background: #f3f4f6;
+    opacity: 0.6;
+  }
+
+  .node-header-gray {
+    background: #d1d5db;
+  }
+
+  .node-display-name-gray {
+    color: #374151;
+  }
+
+  .node-vendor-gray {
+    color: rgba(55, 65, 81, 0.78);
   }
 </style>
