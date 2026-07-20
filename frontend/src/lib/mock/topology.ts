@@ -243,7 +243,7 @@ export const mockTopology: CanvasTopology = {
       id: 'node-mock-api',
       role: 'transform',
       tool: 'presidio',
-      label: 'Mock API (Enrichment)',
+      displayNameOverride: 'Mock API (Enrichment)',
       config: {
         dagId: 'gold_4_enrichment',
         chunkUrl: 'http://mock-api:8000/chunk',

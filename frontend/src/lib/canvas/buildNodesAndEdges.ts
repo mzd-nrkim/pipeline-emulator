@@ -84,6 +84,8 @@ export interface FlowNode {
   position: { x: number; y: number };
   data: {
     label: string;
+    toolId: string;
+    category?: string;
     displayName: string;
     vendor: string;
     icon: string;
@@ -209,6 +211,8 @@ export function buildNodesAndEdges(
       position: getPosition(n.id),
       data: {
         label: `${catalogData.icon} ${catalogData.displayName}\n[${n.role}]`,
+        toolId: n.tool,
+        category: entry?.category,
         ...catalogData,
         role: n.role,
         trigger: n.trigger ?? false,
