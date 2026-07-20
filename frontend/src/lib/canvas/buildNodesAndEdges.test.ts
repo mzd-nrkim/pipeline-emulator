@@ -163,6 +163,29 @@ describe('buildNodesAndEdges', () => {
     expect(edges.every(e => !e.animated)).toBe(true); // infra 뷰는 animated=false
   });
 
+  // E-2: infra 뷰 회귀 테스트 — node-airflow 존재·dependency 엣지 유지 단언
+  it('E-2(infra회귀): infra 뷰에서 node-airflow 노드가 존재한다', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'infra');
+    const airflow = nodes.find(n => n.id === 'node-airflow');
+    expect(airflow).toBeDefined();
+  });
+
+  it('E-2(infra회귀): infra 뷰에서 node-airflow로 향하는 dependency 엣지(valkey→airflow)가 유지된다', () => {
+    const { edges } = buildNodesAndEdges(sampleTopology, 'infra');
+    const airflowEdge = edges.find(e => e.source === 'node-valkey' && e.target === 'node-airflow');
+    expect(airflowEdge).toBeDefined();
+  });
+
+  it('E-2(infra회귀): infra 뷰에서 node-airflow가 data-edge 없이 dependency 엣지만 유지된다', () => {
+    const { edges } = buildNodesAndEdges(sampleTopology, 'infra');
+    // infra 뷰는 dependency 채널 엣지만 포함 — animated=false 확인
+    const airflowEdges = edges.filter(e => e.target === 'node-airflow' || e.source === 'node-airflow');
+    expect(airflowEdges.length).toBeGreaterThan(0);
+    for (const e of airflowEdges) {
+      expect(e.animated).toBe(false);
+    }
+  });
+
   it('infra 뷰: mysql-container와 debezium이 유한 좌표를 가진다 (force-directed 배치)', () => {
     const { nodes } = buildNodesAndEdges(sampleTopology, 'infra');
     const mysqlNode = nodes.find(n => n.id === 'node-mysql-container');
@@ -636,6 +659,53 @@ describe('buildNodesAndEdges', () => {
     expect(groupNode).toBeUndefined();
   });
 
+  // E-1: 자식 상대좌표·박스 크기 기대값 테스트 (0-origin 기준)
+  it('E-1(상대좌표): 그룹 자식(docling, presidio, kure)의 position.x가 0-origin(0, COL_GAP, 2*COL_GAP)', () => {
+    const COL_GAP = 280;
+    const { nodes } = buildNodesAndEdges(groupTopology, 'data');
+    const docling  = nodes.find(n => n.id === 'node-docling')!;
+    const presidio = nodes.find(n => n.id === 'node-presidio')!;
+    const kure     = nodes.find(n => n.id === 'node-kure')!;
+    expect(docling).toBeDefined();
+    expect(presidio).toBeDefined();
+    expect(kure).toBeDefined();
+    // 0-origin: 첫 자식 x=0, 두 번째 x=COL_GAP, 세 번째 x=2*COL_GAP
+    expect(docling.position.x).toBe(0);
+    expect(presidio.position.x).toBe(COL_GAP);
+    expect(kure.position.x).toBe(2 * COL_GAP);
+    // 모든 자식 y = 0
+    expect(docling.position.y).toBe(0);
+    expect(presidio.position.y).toBe(0);
+    expect(kure.position.y).toBe(0);
+  });
+
+  it('E-1(non-overlap): 인접 자식 position.x 차이가 COL_GAP(280) — non-overlap 보장', () => {
+    const COL_GAP = 280;
+    const { nodes } = buildNodesAndEdges(groupTopology, 'data');
+    const childNodes = nodes.filter(n => n.parentId === 'node-airflow-group')
+      .sort((a, b) => a.position.x - b.position.x);
+    expect(childNodes.length).toBeGreaterThanOrEqual(2);
+    for (let i = 1; i < childNodes.length; i++) {
+      expect(childNodes[i].position.x - childNodes[i - 1].position.x).toBe(COL_GAP);
+    }
+  });
+
+  it('E-1(박스크기): 그룹 박스 width >= 자식 3개 * 노드폭(200) — 전 자식 포함', () => {
+    const NODE_WIDTH = 200;
+    const { nodes } = buildNodesAndEdges(groupTopology, 'data');
+    const groupNode = nodes.find(n => n.id === 'node-airflow-group')!;
+    expect(groupNode).toBeDefined();
+    const groupWidth = (groupNode as any).width as number;
+    expect(groupWidth).toBeGreaterThanOrEqual(3 * NODE_WIDTH);
+  });
+
+  it('E-1(그룹trigger): 그룹 노드 data.trigger === true', () => {
+    const { nodes } = buildNodesAndEdges(groupTopology, 'data');
+    const groupNode = nodes.find(n => n.id === 'node-airflow-group')!;
+    expect(groupNode).toBeDefined();
+    expect(groupNode.data.trigger).toBe(true);
+  });
+
   it('viaTable: viaTable이 있는 엣지는 label로 표시된다', () => {
     const { edges } = buildNodesAndEdges(groupTopology, 'data');
     const doclingEdge = edges.find(e => e.source === 'node-docling' && e.target === 'node-presidio');
@@ -715,36 +785,38 @@ describe('buildNodesAndEdges', () => {
     });
 
     // C(교차확인): 각 group 노드의 경계가 해당 그룹 자식 좌표에서만 산출됨
-    it('C(교차확인): 각 group 노드의 경계(position)가 해당 그룹 자식 좌표를 포함한다', () => {
+    // A-1/A-2 이후 자식은 0-origin 상대좌표, 그룹 박스는 원래 절대 좌표 기반
+    it('C(교차확인): 각 group 노드의 width가 소속 자식들을 모두 포함하기에 충분하다', () => {
+      const COL_GAP = 280;
+      const NODE_WIDTH = 200;
       const { nodes } = buildNodesAndEdges(multiGroupTopology, 'data');
       const alphaGroup = nodes.find(n => n.id === 'node-group-alpha')!;
       const betaGroup  = nodes.find(n => n.id === 'node-group-beta')!;
+      expect(alphaGroup).toBeDefined();
+      expect(betaGroup).toBeDefined();
 
-      // alpha 자식들의 좌표
+      // alpha 자식들의 상대좌표 (0-origin)
       const alphaChildren = nodes.filter(n => n.parentId === 'node-group-alpha');
       expect(alphaChildren.length).toBe(2);
-      const alphaXs = alphaChildren.map(n => n.position.x);
-      const alphaYs = alphaChildren.map(n => n.position.y);
+      // 자식 2개: position.x = 0, COL_GAP
+      const sortedAlpha = alphaChildren.sort((a, b) => a.position.x - b.position.x);
+      expect(sortedAlpha[0].position.x).toBe(0);
+      expect(sortedAlpha[1].position.x).toBe(COL_GAP);
 
-      // beta 자식들의 좌표
+      // beta 자식들의 상대좌표 (0-origin)
       const betaChildren = nodes.filter(n => n.parentId === 'node-group-beta');
       expect(betaChildren.length).toBe(2);
-      const betaXs = betaChildren.map(n => n.position.x);
-      const betaYs = betaChildren.map(n => n.position.y);
+      const sortedBeta = betaChildren.sort((a, b) => a.position.x - b.position.x);
+      expect(sortedBeta[0].position.x).toBe(0);
+      expect(sortedBeta[1].position.x).toBe(COL_GAP);
 
-      // group 노드 position은 자식 minX - 40, minY - 60 에서 시작
-      // 자식 좌표가 group 경계 안에 들어오는지: position.x <= 자식 x, position.y <= 자식 y
-      expect(alphaGroup.position.x).toBeLessThanOrEqual(Math.min(...alphaXs));
-      expect(alphaGroup.position.y).toBeLessThanOrEqual(Math.min(...alphaYs));
-      expect(betaGroup.position.x).toBeLessThanOrEqual(Math.min(...betaXs));
-      expect(betaGroup.position.y).toBeLessThanOrEqual(Math.min(...betaYs));
+      // 그룹 박스 width >= 자식 2개 포함 최소 크기
+      const alphaWidth = (alphaGroup as any).width as number;
+      const betaWidth  = (betaGroup as any).width as number;
+      expect(alphaWidth).toBeGreaterThanOrEqual((2 - 1) * COL_GAP + NODE_WIDTH);
+      expect(betaWidth).toBeGreaterThanOrEqual((2 - 1) * COL_GAP + NODE_WIDTH);
 
-      // group 노드 경계가 상대 그룹의 자식들 좌표로부터 독립적임 확인
-      // alpha group의 position이 beta 자식들로부터만 산출된 게 아님:
-      // alpha 자식이 없다면 alpha group도 없어야 함 (위 Right TC에서 이미 확인)
-      // 여기서는 beta 자식 좌표가 alpha group 경계 계산에 영향을 안 줬음을 확인
-      // — beta 자식 x는 alpha group position.x + alphaGroup.width 범위 밖일 수 있음
-      // 단순 검증: alpha 그룹과 beta 그룹은 서로 다른 위치에 배치됨
+      // alpha 그룹과 beta 그룹은 서로 다른 절대 위치에 배치됨 (독립 산출 확인)
       const alphaPos = alphaGroup.position;
       const betaPos  = betaGroup.position;
       const positionsDiffer = alphaPos.x !== betaPos.x || alphaPos.y !== betaPos.y;

@@ -198,6 +198,7 @@ export function buildNodesAndEdges(
   });
 
   // 5. group 노드 생성 (data뷰에서만, 그룹 소속 노드가 있을 때)
+  // A-1/A-2/A-3 통합: 자식 0-origin 재배치 + 그룹 박스 크기 산출 + trigger:true
   const groupNodes: FlowNode[] = [];
   if (view === 'data') {
     // 노드들의 distinct parentId를 수집해 각 그룹 노드 생성 (하드코딩 제거)
@@ -213,15 +214,31 @@ export function buildNodesAndEdges(
         role: 'orchestrator',
       },
     };
+    // 노드 폭 ≈ 200, 패딩: 좌우 60씩, 상하 60/100
+    const NODE_WIDTH = 200;
+    const PAD_X = 60;
+    const PAD_TOP = 60;
+    const PAD_BOTTOM = 100;
+    const NODE_HEIGHT = 100;
     for (const groupId of groupParentIds) {
       const childNodes = nodes.filter(n => n.parentId === groupId);
       if (childNodes.length > 0) {
-        const xs = childNodes.map(n => n.position.x);
-        const ys = childNodes.map(n => n.position.y);
-        const minX = Math.min(...xs) - 40;
-        const minY = Math.min(...ys) - 60;
-        const maxX = Math.max(...xs) + 220;
-        const maxY = Math.max(...ys) + 110;
+        // A-2: A-1 전에 원래 절대 좌표(위상정렬 결과)에서 그룹 박스 절대 position 캡처
+        const origXs = childNodes.map(n => n.position.x);
+        const origYs = childNodes.map(n => n.position.y);
+        const absMinX = Math.min(...origXs);
+        const absMinY = Math.min(...origYs);
+
+        // A-1: 그룹 자식 0-origin 상대좌표 재배치 (x = idx*COL_GAP, y = 0)
+        childNodes.forEach((child, idx) => {
+          child.position = { x: idx * COL_GAP, y: 0 };
+        });
+
+        // A-2: 그룹 박스 크기 = 자식 수 기준 (0-origin 상대좌표)
+        const childCount = childNodes.length;
+        const groupWidth = (childCount - 1) * COL_GAP + NODE_WIDTH + PAD_X * 2;
+        const groupHeight = NODE_HEIGHT + PAD_TOP + PAD_BOTTOM;
+
         const meta = groupMeta[groupId] ?? {
           label: groupId,
           toolId: 'unknown',
@@ -234,13 +251,15 @@ export function buildNodesAndEdges(
         groupNodes.push({
           id: groupId,
           type: 'group',
-          position: { x: minX, y: minY },
+          // A-2: 그룹 박스 절대 position = 원래 자식 절대 minX/minY - 패딩
+          position: { x: absMinX - PAD_X, y: absMinY - PAD_TOP },
           data: {
             ...meta,
-            trigger: false,
+            // A-3: 그룹 노드에 trigger:true 부여
+            trigger: true,
             deployStatus: 'active',
           },
-          ...(({ width: maxX - minX, height: maxY - minY } as any)),
+          ...(({ width: groupWidth, height: groupHeight } as any)),
         });
       }
     }

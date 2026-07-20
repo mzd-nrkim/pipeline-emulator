@@ -1,10 +1,14 @@
 <script lang="ts">
+  import { createEventDispatcher } from 'svelte';
+
   interface Props {
     data: {
       label?: string;
       displayName?: string;
       width?: number;
       height?: number;
+      trigger?: boolean;
+      onTrigger?: () => void;
     };
     width?: number;
     height?: number;
@@ -12,7 +16,19 @@
 
   let { data, width, height }: Props = $props();
 
+  const dispatch = createEventDispatcher();
+
   const title = $derived(data?.displayName ?? data?.label ?? 'Airflow (CeleryExecutor)');
+  const showTrigger = $derived(data?.trigger === true);
+
+  function handleTrigger(e: MouseEvent) {
+    e.stopPropagation();
+    if (data?.onTrigger) {
+      data.onTrigger();
+    } else {
+      dispatch('trigger');
+    }
+  }
 </script>
 
 <div
@@ -23,6 +39,16 @@
   <div class="airflow-group-header">
     <span class="airflow-group-icon">🌊</span>
     <span class="airflow-group-title">{title}</span>
+    {#if showTrigger}
+      <button
+        class="airflow-trigger-btn"
+        onclick={handleTrigger}
+        title="트리거"
+        aria-label="그룹 트리거"
+      >
+        ▶
+      </button>
+    {/if}
   </div>
 </div>
 
@@ -63,6 +89,23 @@
     letter-spacing: 0.02em;
   }
 
+  .airflow-trigger-btn {
+    pointer-events: all;
+    background: oklch(0.60 0.12 230);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.65rem;
+    cursor: pointer;
+    line-height: 1.4;
+    transition: background 0.15s;
+  }
+
+  .airflow-trigger-btn:hover {
+    background: oklch(0.50 0.14 230);
+  }
+
   :global(.dark) .airflow-group-node {
     border-color: oklch(0.55 0.14 230);
     background: oklch(0.20 0.04 230 / 0.35);
@@ -72,5 +115,13 @@
     background: oklch(0.20 0.04 230 / 0.9);
     border-color: oklch(0.55 0.14 230);
     color: oklch(0.80 0.10 230);
+  }
+
+  :global(.dark) .airflow-trigger-btn {
+    background: oklch(0.55 0.14 230);
+  }
+
+  :global(.dark) .airflow-trigger-btn:hover {
+    background: oklch(0.45 0.16 230);
   }
 </style>
