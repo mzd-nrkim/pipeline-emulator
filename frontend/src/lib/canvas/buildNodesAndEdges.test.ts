@@ -625,6 +625,41 @@ describe('buildNodesAndEdges', () => {
     ],
   };
 
+  // B-2a: presidio가 docling 앞에 정의된 픽스처 — 실제 topology.ts L128 순서 버그 재현
+  const reorderedGroupTopology: CanvasTopology = {
+    nodes: [
+      { id: 'node-airflow',   role: 'transform', tool: 'apache-airflow', config: {}, trigger: true },
+      { id: 'node-presidio',  role: 'transform', tool: 'presidio',          config: {}, parentId: 'node-airflow-group' },
+      { id: 'node-docling',   role: 'transform', tool: 'docling-langchain', config: {}, parentId: 'node-airflow-group' },
+      { id: 'node-kure',      role: 'transform', tool: 'kure-embedding',    config: {}, parentId: 'node-airflow-group' },
+      { id: 'node-mock-api',  role: 'transform', tool: 'presidio',          config: {}, displayNameOverride: 'Mock API' },
+      { id: 'node-es',        role: 'index',     tool: 'elasticsearch',     config: {} },
+    ],
+    edges: [
+      { from: 'node-airflow',  to: 'node-docling',  channels: ['data'], viaTable: 'bronze_structured_raw' } as any,
+      { from: 'node-docling',  to: 'node-presidio', channels: ['data'], viaTable: 'silver_structured_documents' } as any,
+      { from: 'node-presidio', to: 'node-kure',     channels: ['data'], viaTable: 'silver_masked_documents' } as any,
+      { from: 'node-kure',     to: 'node-mock-api', channels: ['data', 'dependency'] as ('data' | 'dependency')[], viaTable: 'gold_chunked_documents' } as any,
+      { from: 'node-mock-api', to: 'node-es',       channels: ['data'], viaTable: 'gold_enriched_documents' } as any,
+    ],
+  };
+
+  it('E-1(DAG순서): presidio가 먼저 정의된 픽스처에서도 docling이 가장 작은 x(idx=0)', () => {
+    const PAD_X = 60;
+    const COL_GAP = 280;
+    const { nodes } = buildNodesAndEdges(reorderedGroupTopology, 'data');
+    const docling  = nodes.find(n => n.id === 'node-docling')!;
+    const presidio = nodes.find(n => n.id === 'node-presidio')!;
+    const kure     = nodes.find(n => n.id === 'node-kure')!;
+    expect(docling).toBeDefined();
+    expect(presidio).toBeDefined();
+    expect(kure).toBeDefined();
+    // DAG 깊이 정렬 후: docling(idx=0) < presidio(idx=1) < kure(idx=2)
+    expect(docling.position.x).toBe(PAD_X);
+    expect(presidio.position.x).toBe(PAD_X + COL_GAP);
+    expect(kure.position.x).toBe(PAD_X + 2 * COL_GAP);
+  });
+
   it('Group: data 뷰에서 type:group 노드가 생성된다', () => {
     const { nodes } = buildNodesAndEdges(groupTopology, 'data');
     const groupNode = nodes.find(n => n.id === 'node-airflow-group');
@@ -659,9 +694,11 @@ describe('buildNodesAndEdges', () => {
     expect(groupNode).toBeUndefined();
   });
 
-  // E-1: 자식 상대좌표·박스 크기 기대값 테스트 (0-origin 기준)
-  it('E-1(상대좌표): 그룹 자식(docling, presidio, kure)의 position.x가 0-origin(0, COL_GAP, 2*COL_GAP)', () => {
+  // E-1: 자식 상대좌표·박스 크기 기대값 테스트 (PAD-origin 기준)
+  it('E-1(상대좌표): 그룹 자식(docling, presidio, kure)의 position.x가 PAD-origin(PAD_X, PAD_X+COL_GAP, PAD_X+2*COL_GAP)', () => {
     const COL_GAP = 280;
+    const PAD_X = 60;
+    const PAD_TOP = 60;
     const { nodes } = buildNodesAndEdges(groupTopology, 'data');
     const docling  = nodes.find(n => n.id === 'node-docling')!;
     const presidio = nodes.find(n => n.id === 'node-presidio')!;
@@ -669,14 +706,14 @@ describe('buildNodesAndEdges', () => {
     expect(docling).toBeDefined();
     expect(presidio).toBeDefined();
     expect(kure).toBeDefined();
-    // 0-origin: 첫 자식 x=0, 두 번째 x=COL_GAP, 세 번째 x=2*COL_GAP
-    expect(docling.position.x).toBe(0);
-    expect(presidio.position.x).toBe(COL_GAP);
-    expect(kure.position.x).toBe(2 * COL_GAP);
-    // 모든 자식 y = 0
-    expect(docling.position.y).toBe(0);
-    expect(presidio.position.y).toBe(0);
-    expect(kure.position.y).toBe(0);
+    // PAD-origin: 첫 자식 x=PAD_X, 두 번째 x=PAD_X+COL_GAP, 세 번째 x=PAD_X+2*COL_GAP
+    expect(docling.position.x).toBe(PAD_X);
+    expect(presidio.position.x).toBe(PAD_X + COL_GAP);
+    expect(kure.position.x).toBe(PAD_X + 2 * COL_GAP);
+    // 모든 자식 y = PAD_TOP
+    expect(docling.position.y).toBe(PAD_TOP);
+    expect(presidio.position.y).toBe(PAD_TOP);
+    expect(kure.position.y).toBe(PAD_TOP);
   });
 
   it('E-1(non-overlap): 인접 자식 position.x 차이가 COL_GAP(280) — non-overlap 보장', () => {
