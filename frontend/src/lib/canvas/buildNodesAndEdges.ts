@@ -1,17 +1,6 @@
 import type { CanvasTopology, ToolNode, ToolRole } from '$lib/api/types.js';
 import { getToolEntry } from './toolCatalog.js';
 
-// 데이터뷰 role 기반 스타일
-export const ROLE_STYLE: Record<ToolRole, string> = {
-  ingest:    'border: 2px solid #3b82f6; background: #eff6ff; padding: 8px; border-radius: 4px; font-size: 11px; cursor: pointer;',
-  transform: 'border: 2px solid #22c55e; background: #f0fdf4; padding: 8px; border-radius: 4px; font-size: 11px; cursor: pointer;',
-  route:     'border: 2px solid #f97316; background: #fff7ed; padding: 8px; border-radius: 4px; font-size: 11px; cursor: pointer;',
-  store:     'border: 2px solid #a855f7; background: #faf5ff; padding: 8px; border-radius: 4px; font-size: 11px; cursor: pointer;',
-  index:     'border: 2px solid #fec514; background: #fffbeb; padding: 8px; border-radius: 4px; font-size: 11px; cursor: pointer;',
-  broker:    'border: 2px solid #dc382d; background: #fff1f1; padding: 8px; border-radius: 4px; font-size: 11px; cursor: pointer;',
-  visualize: 'border: 2px solid #6b7280; background: #f9fafb; padding: 8px; border-radius: 4px; font-size: 11px; cursor: pointer;',
-};
-
 const COL_GAP = 280;
 const ROW_GAP = 140;
 
@@ -103,8 +92,10 @@ export interface FlowNode {
     accent: string;
     role: string;
     trigger: boolean;
+    isInfra?: boolean;
+    applyMode?: string;
+    outputs?: string[];
   };
-  style?: string;
 }
 
 export interface FlowEdge {
@@ -113,6 +104,7 @@ export interface FlowEdge {
   target: string;
   animated: boolean;
   label?: string;
+  sourceHandle?: string;
 }
 
 export function buildNodesAndEdges(
@@ -157,6 +149,43 @@ export function buildNodesAndEdges(
     getPosition = (nodeId) => posCache.get(nodeId) ?? { x: 0, y: 0 };
   }
 
+  // applyMode 우선순위 맵
+  const APPLY_MODE_PRIORITY: Record<string, number> = {
+    readonly: 4,
+    code: 3,
+    restart: 2,
+    runtime: 1,
+  };
+
+  /** configFields에서 대표 applyMode 계산 (가장 제약 강한 값 우선) */
+  function getRepresentativeApplyMode(toolId: string): string | undefined {
+    const entry = getToolEntry(toolId);
+    if (!entry || !entry.configFields || entry.configFields.length === 0) return undefined;
+    let best: string | undefined;
+    let bestPriority = -1;
+    for (const field of entry.configFields) {
+      const mode = field.applyMode;
+      if (mode) {
+        const priority = APPLY_MODE_PRIORITY[mode] ?? 0;
+        if (priority > bestPriority) {
+          bestPriority = priority;
+          best = mode;
+        }
+      }
+    }
+    return best;
+  }
+
+  // route 노드별 condition 목록 수집 (condition 있는 엣지의 소스 노드 기준)
+  const nodeConditions = new Map<string, string[]>();
+  for (const e of visibleEdges) {
+    if (e.condition) {
+      const list = nodeConditions.get(e.from) ?? [];
+      list.push(e.condition);
+      nodeConditions.set(e.from, list);
+    }
+  }
+
   // 4. FlowNode 생성
   const nodes: FlowNode[] = visibleNodes.map(n => {
     const entry = getToolEntry(n.tool);
@@ -164,19 +193,25 @@ export function buildNodesAndEdges(
       ? { displayName: entry.displayName, vendor: entry.vendor, icon: entry.icon, accent: entry.accent }
       : { displayName: n.tool || n.id, vendor: 'Unknown', icon: '❓', accent: '#6B7280' };
 
-    const style = getNodeStyle(n, view, catalogData.accent);
+    const applyMode = getRepresentativeApplyMode(n.tool);
+    const conditions = nodeConditions.get(n.id);
+    const outputs = conditions && conditions.length > 0
+      ? conditions.map(c => `source-${c}`)
+      : undefined;
 
     return {
       id: n.id,
-      type: 'lrnode',
+      type: 'tool',
       position: getPosition(n.id),
       data: {
         label: `${catalogData.icon} ${catalogData.displayName}\n[${n.role}]`,
         ...catalogData,
         role: n.role,
         trigger: n.trigger ?? false,
+        isInfra: view === 'infra',
+        ...(applyMode !== undefined ? { applyMode } : {}),
+        ...(outputs !== undefined ? { outputs } : {}),
       },
-      style,
     };
   });
 
@@ -187,6 +222,7 @@ export function buildNodesAndEdges(
     target: e.to,
     animated: view === 'data',
     label: e.condition ?? undefined,
+    ...(e.condition ? { sourceHandle: `source-${e.condition}` } : {}),
   }));
 
   return { nodes, edges };
@@ -244,10 +280,3 @@ function computeDepths(
   return depth;
 }
 
-function getNodeStyle(n: ToolNode, view: 'data' | 'infra', accentColor: string): string {
-  if (view === 'infra') {
-    return `border: 2px solid ${accentColor}; background: #f9fafb; padding: 8px; border-radius: 4px; font-size: 11px; cursor: pointer;`;
-  }
-  const base = ROLE_STYLE[n.role] ?? ROLE_STYLE.transform;
-  return n.trigger ? base.replace('border: 2px solid', 'border: 2px dashed') : base;
-}
