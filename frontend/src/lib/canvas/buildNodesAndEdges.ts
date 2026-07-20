@@ -1,6 +1,5 @@
 import type { CanvasTopology, ToolNode, ToolRole } from '$lib/api/types.js';
 import { getToolEntry } from './toolCatalog.js';
-import { computeForceLayout } from './forceLayout.js';
 
 const COL_GAP = 280;
 const ROW_GAP = 140;
@@ -71,30 +70,18 @@ export function buildNodesAndEdges(
     ? topo.nodes.filter(n => connectedIds.has(n.id))
     : topo.nodes;
 
-  // 3. 배치 계산: infra 뷰는 계층 grouping, data 뷰는 위상정렬 depth
-  let getPosition: (nodeId: string) => { x: number; y: number };
-
-  if (view === 'infra') {
-    // infra 뷰: force-directed 배치 (d3-force, 결정적 초기 좌표, 300 tick)
-    const forcePositions = computeForceLayout(
-      visibleNodes,
-      visibleEdges.map(e => ({ source: e.from, target: e.to }))
-    );
-    const forcePosMap = new Map(forcePositions.map(p => [p.id, { x: p.x, y: p.y }]));
-    getPosition = (nodeId) => forcePosMap.get(nodeId) ?? { x: 0, y: 0 };
-  } else {
-    // data 뷰: 기존 위상정렬 X좌표 (Kahn's algorithm + 최장 경로)
-    const depth = computeDepths(visibleNodes, visibleEdges);
-    const depthCounters = new Map<number, number>();
-    const posCache = new Map<string, { x: number; y: number }>();
-    for (const n of visibleNodes) {
-      const d = depth.get(n.id) ?? 0;
-      const idx = depthCounters.get(d) ?? 0;
-      depthCounters.set(d, idx + 1);
-      posCache.set(n.id, { x: d * COL_GAP, y: idx * ROW_GAP });
-    }
-    getPosition = (nodeId) => posCache.get(nodeId) ?? { x: 0, y: 0 };
+  // 3. 배치 계산: data·infra 공통 위상정렬 depth 계층 배치 (LR 방향)
+  //    depth = X축(좌→우 의존 방향), 같은 depth = Y축 분산. 결정적·비겹침.
+  const depth = computeDepths(visibleNodes, visibleEdges);
+  const depthCounters = new Map<number, number>();
+  const posCache = new Map<string, { x: number; y: number }>();
+  for (const n of visibleNodes) {
+    const d = depth.get(n.id) ?? 0;
+    const idx = depthCounters.get(d) ?? 0;
+    depthCounters.set(d, idx + 1);
+    posCache.set(n.id, { x: d * COL_GAP, y: idx * ROW_GAP });
   }
+  const getPosition = (nodeId: string) => posCache.get(nodeId) ?? { x: 0, y: 0 };
 
   // applyMode 우선순위 맵
   const APPLY_MODE_PRIORITY: Record<string, number> = {
@@ -193,7 +180,7 @@ export function buildNodesAndEdges(
       labelBgStyle: 'fill-opacity: 1;',
       ...(conditionClass ? { labelClassName: conditionClass } : {}),
       ...(condition ? { sourceHandle: `source-${condition}` } : {}),
-      ...(view === 'infra' ? { type: 'infra-floating' } : {}),
+      ...(view === 'infra' ? { type: 'smoothstep' } : {}),
     };
   });
 

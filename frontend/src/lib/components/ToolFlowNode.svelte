@@ -60,7 +60,6 @@
   const resolvedAccent = $derived(accent || 'var(--primary)');
   const resolvedDisplayName = $derived(displayName || label || 'Unnamed');
 
-  const isInfra = $derived(d.isInfra as boolean | undefined);
   const serviceControlEnabled = $derived((d.serviceControlEnabled as boolean | undefined) ?? false);
   const hasServiceControl = $derived(serviceControlEnabled && runtimeHealth !== 'unknown');
 
@@ -175,8 +174,8 @@
   {/if}
 </div>
 
-<!-- target handle (왼쪽, 세로 중앙) -->
-<Handle type="target" position={Position.Left} style="top: calc(var(--node-card-size) / 2); {isInfra ? 'visibility: hidden;' : ''}" />
+<!-- target handle (왼쪽, 세로 중앙) — infra 뷰에서도 표시(직교 엣지 접점) -->
+<Handle type="target" position={Position.Left} style="top: calc(var(--node-card-size) / 2);" />
 
 <!-- source handle(s) (오른쪽, 균등 세로 분배) -->
 {#if outputs && outputs.length > 1}
@@ -185,11 +184,11 @@
       type="source"
       position={Position.Right}
       id={outputId}
-      style="top: calc(var(--node-card-size) * {(i + 1) / (outputs.length + 1)}); {isInfra ? 'visibility: hidden;' : ''}"
+      style="top: calc(var(--node-card-size) * {(i + 1) / (outputs.length + 1)});"
     />
   {/each}
 {:else}
-  <Handle type="source" position={Position.Right} style="top: calc(var(--node-card-size) / 2); {isInfra ? 'visibility: hidden;' : ''}" />
+  <Handle type="source" position={Position.Right} style="top: calc(var(--node-card-size) / 2);" />
 {/if}
 
 <style>
