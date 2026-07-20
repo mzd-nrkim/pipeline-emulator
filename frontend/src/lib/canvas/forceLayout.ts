@@ -3,7 +3,7 @@ import { forceSimulation, forceManyBody, forceLink, forceCenter, forceCollide } 
 /**
  * dependency 엣지 기반 결정적 force 배치 좌표 계산
  * - 초기 좌표: 인덱스 기반 원형 배치 (Math.random 미사용 → 결정적)
- * - force: 반발(-300) + 엣지 인력(150) + 중심(400,300) + 겹침방지(60)
+ * - force: 반발(-600) + 엣지 인력(220) + 중심(500,350) + 겹침방지(60)
  * - 동기 tick: 300회
  */
 export function computeForceLayout(
@@ -17,22 +17,22 @@ export function computeForceLayout(
     const angle = (2 * Math.PI * i) / nodes.length;
     return {
       id: n.id,
-      x: 400 + R * Math.cos(angle),
-      y: 300 + R * Math.sin(angle),
+      x: 500 + R * Math.cos(angle),
+      y: 350 + R * Math.sin(angle),
     };
   });
 
   const simEdges = edges.map(e => ({ source: e.source, target: e.target }));
 
   const simulation = forceSimulation(simNodes)
-    .force('charge', forceManyBody().strength(-300))
+    .force('charge', forceManyBody().strength(-600))
     .force(
       'link',
       forceLink<typeof simNodes[number], typeof simEdges[number]>(simEdges)
         .id(d => d.id)
-        .distance(150)
+        .distance(220)
     )
-    .force('center', forceCenter(400, 300))
+    .force('center', forceCenter(500, 350))
     .force('collide', forceCollide(60))
     .stop();
 
