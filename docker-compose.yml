@@ -147,6 +147,7 @@ services:
       retries: 5
     profiles:
       - cdc
+      - celery
 
   debezium:
     image: debezium/server:2.7.3.Final
