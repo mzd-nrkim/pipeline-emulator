@@ -41,7 +41,7 @@
         인프라 연결 뷰
       </div>
     {/if}
-    <SvelteFlow bind:nodes bind:edges nodeTypes={{ tool: ToolFlowNode as any, group: AirflowGroupNode as any }} fitView fitViewOptions={{ minZoom: 0.6, maxZoom: 1.2 }} defaultEdgeOptions={defaultEdgeMarkerOptions} onnodeclick={({ node }) => { const clicked = topology.nodes.find(n => n.id === node.id) ?? null; onnodeselect?.(clicked); }}>
+    <SvelteFlow bind:nodes bind:edges nodeTypes={{ tool: ToolFlowNode as any, group: AirflowGroupNode as any }} fitView fitViewOptions={{ minZoom: 0.6, maxZoom: 1.2 }} defaultEdgeOptions={defaultEdgeMarkerOptions} onnodeclick={({ node }) => { if (node.type === 'group') return; const clicked = topology.nodes.find(n => n.id === node.id) ?? null; onnodeselect?.(clicked); }}>
       <Background variant={BackgroundVariant.Dots} gap={16} size={1} bgColor="var(--surface-muted)" patternColor="var(--border)" />
       <Controls />
     </SvelteFlow>

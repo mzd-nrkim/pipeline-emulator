@@ -54,7 +54,7 @@ test.describe('Pipeline Canvas View — ToolCanvasView (P1/P3 통합)', () => {
     await page.waitForSelector('.svelte-flow .svelte-flow__node', { timeout: 5000 });
     await page.waitForTimeout(500); // fitView 애니메이션 대기
     await page.evaluate(() => {
-      const node = document.querySelector('.svelte-flow .svelte-flow__node');
+      const node = document.querySelector('.svelte-flow .svelte-flow__node:not(.svelte-flow__node-group)');
       if (node) node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
     });
     await expect(page.locator('text=노드 상세')).toBeVisible({ timeout: 3000 });
@@ -64,7 +64,7 @@ test.describe('Pipeline Canvas View — ToolCanvasView (P1/P3 통합)', () => {
     await page.waitForSelector('.svelte-flow .svelte-flow__node', { timeout: 5000 });
     await page.waitForTimeout(500);
     await page.evaluate(() => {
-      const node = document.querySelector('.svelte-flow .svelte-flow__node');
+      const node = document.querySelector('.svelte-flow .svelte-flow__node:not(.svelte-flow__node-group)');
       if (node) node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
     });
     await expect(page.locator('text=노드 상세')).toBeVisible({ timeout: 3000 });
@@ -94,7 +94,7 @@ test.describe('Pipeline Canvas View — ToolCanvasView (P1/P3 통합)', () => {
     await page.waitForSelector('.svelte-flow .svelte-flow__node', { timeout: 5000 });
     await page.waitForTimeout(500);
     await page.evaluate(() => {
-      const node = document.querySelector('.svelte-flow .svelte-flow__node');
+      const node = document.querySelector('.svelte-flow .svelte-flow__node:not(.svelte-flow__node-group)');
       if (node) node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
     });
     // 설정 폼 또는 "설정 없음" 텍스트 중 하나 존재
