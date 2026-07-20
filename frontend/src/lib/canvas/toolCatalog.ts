@@ -266,6 +266,19 @@ const catalog: ToolCatalogEntry[] = [
       { key: 'refreshInterval', label: '새로고침 간격(s)', type: 'number', group: '동작', applyMode: 'readonly' },
     ],
   },
+  {
+    id: 'zookeeper',
+    displayName: 'Apache ZooKeeper 3.9',
+    vendor: 'Apache',
+    category: 'source',
+    icon: '⚙️',
+    accent: '#D22128',
+    configFields: [
+      { key: 'connectString', label: '연결 문자열', type: 'text', group: '연결', applyMode: 'readonly' },
+      { key: 'sessionTimeout', label: '세션 타임아웃(ms)', type: 'number', group: '동작', applyMode: 'readonly' },
+      { key: 'tickTime', label: 'Tick Time(ms)', type: 'number', group: '동작', applyMode: 'readonly' },
+    ],
+  },
 ];
 
 const catalogMap: Map<string, ToolCatalogEntry> = new Map(
