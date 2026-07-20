@@ -273,6 +273,8 @@ export const mockTopology: CanvasTopology = {
     { from: 'node-presidio', to: 'node-kure',     channels: ['data'] },
     { from: 'node-kure',     to: 'node-mock-api', channels: ['data'] },
     { from: 'node-mock-api', to: 'node-es',       channels: ['data'] },
+    /* gold_5 field_mapping → gold_staged_documents (MySQL) */
+    { from: 'node-mock-api', to: 'node-mysql',    channels: ['data'] },
 
     /* infra dependency: es → kibana */
     { from: 'node-es', to: 'node-kibana', channels: ['dependency'] as ('data' | 'dependency')[] },
