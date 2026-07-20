@@ -32,7 +32,7 @@ import type { CanvasTopology } from '../api/types.js';
  * node-mysql-container store            (없음, 인프라)               mysql
  * node-seaweedfs     store              (없음, 인프라)               seaweedfs
  * node-mock-api      transform          gold_4_enrichment           mock-api
- * node-zookeeper     infra_coordinator  (없음, 인프라)               zookeeper
+ * node-zookeeper     coordinate         (없음, 인프라)               zookeeper
  * ──────────────────────────────────────────────────────────────────────────────
  * STAGE_DAG_MAP 키(ui-backend): node-presidio·node-docling·node-kure·node-es·node-mock-api
  *
@@ -244,7 +244,7 @@ export const mockTopology: CanvasTopology = {
     },
     {
       id: 'node-zookeeper',
-      role: 'infra_coordinator',
+      role: 'coordinate',
       tool: 'zookeeper',
       label: 'ZooKeeper 3.9',
       config: {

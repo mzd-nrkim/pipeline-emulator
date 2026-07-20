@@ -207,6 +207,28 @@ test.describe('Infra View — 인프라 연결 뷰', () => {
     expect(result.allGrayout).toBe(true);
   });
 
+  test('mysql-container 카드 제목: 인프라 뷰에서 "MySQL 원본 DB" 표시, sink는 불변', async ({ page }) => {
+    await page.getByRole('button', { name: '인프라', exact: true }).click();
+    await page.waitForTimeout(500);
+
+    const texts = await page.evaluate(() =>
+      [...document.querySelectorAll('.svelte-flow__node')].map(n => (n as HTMLElement).innerText)
+    );
+    const all = texts.join('\n');
+    // mysql-container = "MySQL 원본 DB" (displayNameOverride 적용)
+    expect(all).toContain('MySQL 원본 DB');
+  });
+
+  test('mysql sink 카드 제목: data 뷰에서 "MySQL (Silver/Gold)" 유지(카탈로그 불변)', async ({ page }) => {
+    // data 뷰 기본 상태에서 확인
+    const texts = await page.evaluate(() =>
+      [...document.querySelectorAll('.svelte-flow__node')].map(n => (n as HTMLElement).innerText)
+    );
+    const all = texts.join('\n');
+    // node-mysql(sink)는 카탈로그 displayName 그대로
+    expect(all).toContain('MySQL (Silver/Gold)');
+  });
+
   test('데이터흐름 복귀: 인프라 뷰 후 "데이터흐름" 버튼 클릭 → "인프라 연결 뷰" 배지 사라짐', async ({ page }) => {
     await page.getByRole('button', { name: '인프라', exact: true }).click();
     await page.waitForTimeout(300);

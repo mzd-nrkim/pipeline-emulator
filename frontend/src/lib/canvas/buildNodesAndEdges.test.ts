@@ -232,7 +232,7 @@ describe('buildNodesAndEdges', () => {
 
   it('Conformance(값범위): data.role이 ToolRole 유니온 내 값', () => {
     const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
-    const validRoles = new Set(['ingest', 'transform', 'route', 'store', 'index', 'broker', 'visualize']);
+    const validRoles = new Set(['ingest', 'transform', 'route', 'store', 'index', 'broker', 'coordinate', 'visualize']);
     for (const n of nodes) {
       expect(validRoles.has(n.data.role)).toBe(true);
     }
@@ -399,6 +399,75 @@ describe('buildNodesAndEdges', () => {
     for (const e of edges) {
       expect(e.animated).toBe(false);
     }
+  });
+
+  /* ── hideOrphans: 고아 노드 토글 ────────────────────────────── */
+
+  it('hideOrphans=true(기본값): data 뷰 고아 노드 숨김 — 기존 동작 유지', () => {
+    const { nodes: defaultNodes } = buildNodesAndEdges(sampleTopology, 'data');
+    const { nodes: explicitTrue } = buildNodesAndEdges(sampleTopology, 'data', true);
+    // 기본값과 명시적 true 결과가 동일
+    expect(defaultNodes.length).toBe(explicitTrue.length);
+    // kibana·mysql-container는 data 뷰에서 dependency-only → 숨김
+    const ids = defaultNodes.map(n => n.id);
+    expect(ids).not.toContain('node-kibana');
+    expect(ids).not.toContain('node-mysql-container');
+  });
+
+  it('hideOrphans=false: data 뷰에서 연결 없는 노드도 표시', () => {
+    const { nodes: withOrphans } = buildNodesAndEdges(sampleTopology, 'data', false);
+    const { nodes: withoutOrphans } = buildNodesAndEdges(sampleTopology, 'data', true);
+    expect(withOrphans.length).toBeGreaterThan(withoutOrphans.length);
+    const ids = withOrphans.map(n => n.id);
+    expect(ids).toContain('node-kibana');
+    expect(ids).toContain('node-mysql-container');
+  });
+
+  /* ── deployStatus 폴백 ───────────────────────────────────────── */
+
+  it('deployStatus: 미지정 노드 data.deployStatus === "active" 폴백', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    for (const n of nodes) {
+      expect(n.data.deployStatus).toBe('active');
+    }
+  });
+
+  it('deployStatus: planned 지정 노드 data.deployStatus === "planned"', () => {
+    const topoWithStatus: CanvasTopology = {
+      nodes: [
+        { id: 'node-a', role: 'ingest', tool: 'debezium', config: {}, deployStatus: 'planned' as const },
+        { id: 'node-b', role: 'store',  tool: 's3', config: {} },
+      ],
+      edges: [{ from: 'node-a', to: 'node-b', channels: ['data'] }],
+    };
+    const { nodes } = buildNodesAndEdges(topoWithStatus, 'data');
+    const nodeA = nodes.find(n => n.id === 'node-a')!;
+    const nodeB = nodes.find(n => n.id === 'node-b')!;
+    expect(nodeA.data.deployStatus).toBe('planned');
+    expect(nodeB.data.deployStatus).toBe('active');
+  });
+
+  /* ── displayNameOverride: per-node 라벨 override ────────────── */
+
+  it('displayNameOverride: override 노드 카드 제목 = override 값', () => {
+    const topoWithOverride: CanvasTopology = {
+      nodes: [
+        { id: 'node-source', role: 'store', tool: 'mysql', config: {}, displayNameOverride: 'MySQL 원본 DB' },
+        { id: 'node-sink',   role: 'store', tool: 'mysql', config: {} },
+      ],
+      edges: [{ from: 'node-source', to: 'node-sink', channels: ['data'] }],
+    };
+    const { nodes } = buildNodesAndEdges(topoWithOverride, 'data');
+    const source = nodes.find(n => n.id === 'node-source')!;
+    const sink = nodes.find(n => n.id === 'node-sink')!;
+    expect(source.data.displayName).toBe('MySQL 원본 DB');
+    expect(sink.data.displayName).toBe('MySQL (Silver/Gold)');
+  });
+
+  it('displayNameOverride: 미지정 노드는 카탈로그 displayName 그대로', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    const mysql = nodes.find(n => n.id === 'node-mysql')!;
+    expect(mysql.data.displayName).toBe('MySQL (Silver/Gold)');
   });
 
   /* ── condition → label ───────────────────────────────────────── */

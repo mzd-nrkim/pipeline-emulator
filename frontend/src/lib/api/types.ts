@@ -95,6 +95,7 @@ export type ToolRole =
   | 'store'       // 데이터 저장 (S3, MySQL)
   | 'index'       // 검색 인덱싱 (Elasticsearch)
   | 'broker'      // 메시지 브로커 (Valkey)
+  | 'coordinate'  // 분산 코디네이션 (ZooKeeper)
   | 'visualize';  // 시각화 (Kibana)
 
 export interface ToolNode {
