@@ -119,8 +119,7 @@ test.describe('Infra View — 인프라 연결 뷰', () => {
         const nodeCard = el.querySelector('.node-card') as HTMLElement | null;
         const cardStyle = nodeCard ? window.getComputedStyle(nodeCard) : null;
         const isDashed = cardStyle ? cardStyle.borderStyle.includes('dashed') : false;
-        const hasMutedLabel = el.querySelector('.node-label-muted') !== null;
-        return isOpaque || isDashed || hasMutedLabel;
+        return isOpaque || isDashed;
       });
       return { found: true, count: outOfScopeInners.length, allGrayout };
     });
