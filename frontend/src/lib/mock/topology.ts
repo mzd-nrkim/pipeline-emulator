@@ -129,6 +129,8 @@ export const mockTopology: CanvasTopology = {
       role: 'transform',
       tool: 'presidio',
       label: 'Presidio PII',
+      group: 'airflow',
+      parentId: 'node-airflow-group',
       config: {
         dagId: 'silver_2_masking',
         recognizers: 'phone,email,rrn',
@@ -141,6 +143,8 @@ export const mockTopology: CanvasTopology = {
       role: 'transform',
       tool: 'docling-langchain',
       label: 'Docling Structuring',
+      group: 'airflow',
+      parentId: 'node-airflow-group',
       config: {
         dagId: 'silver_1_structuring',
         chunkSize: 512,
@@ -153,6 +157,8 @@ export const mockTopology: CanvasTopology = {
       role: 'transform',
       tool: 'kure-embedding',
       label: 'KURE Chunking & Embedding',
+      group: 'airflow',
+      parentId: 'node-airflow-group',
       config: {
         dagId: 'gold_3_chunking',
         modelPath: 'models/kure-v1.onnx',
@@ -273,13 +279,13 @@ export const mockTopology: CanvasTopology = {
     { from: 'node-s3-bronze', to: 'node-airflow', channels: ['data'] },
 
     /* task 체인 */
-    { from: 'node-airflow',  to: 'node-docling',  channels: ['data'] },
-    { from: 'node-docling',  to: 'node-presidio', channels: ['data'] },
-    { from: 'node-presidio', to: 'node-kure',     channels: ['data'] },
-    { from: 'node-kure',     to: 'node-mock-api', channels: ['data'] },
-    { from: 'node-mock-api', to: 'node-es',       channels: ['data'] },
+    { from: 'node-airflow',  to: 'node-docling',  channels: ['data'], viaTable: 'bronze_structured_raw' },
+    { from: 'node-docling',  to: 'node-presidio', channels: ['data'], viaTable: 'silver_structured_documents' },
+    { from: 'node-presidio', to: 'node-kure',     channels: ['data'], viaTable: 'silver_masked_documents' },
+    { from: 'node-kure',     to: 'node-mock-api', channels: ['data'], viaTable: 'gold_chunked_documents' },
+    { from: 'node-mock-api', to: 'node-es',       channels: ['data'], viaTable: 'gold_enriched_documents' },
     /* gold_5 field_mapping → gold_staged_documents (MySQL) */
-    { from: 'node-mock-api', to: 'node-mysql',    channels: ['data'] },
+    { from: 'node-mock-api', to: 'node-mysql',    channels: ['data'], viaTable: 'gold_staged_documents' },
 
     /* infra dependency: es → kibana */
     { from: 'node-es', to: 'node-kibana', channels: ['dependency'] as ('data' | 'dependency')[] },
