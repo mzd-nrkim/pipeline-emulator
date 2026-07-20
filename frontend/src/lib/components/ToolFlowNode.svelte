@@ -1,7 +1,41 @@
 <script lang="ts">
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
+  import type { ComponentType } from 'svelte';
   import PlannedBadge from './PlannedBadge.svelte';
   import { resolveNodeIcon } from '../canvas/nodeIcon.js';
+  import { siApachenifi, siApacheairflow, siMysql, siElasticsearch, siKibana, siLangchain } from 'simple-icons/icons';
+  import Activity from 'lucide-svelte/icons/activity';
+  import Archive from 'lucide-svelte/icons/archive';
+  import Database from 'lucide-svelte/icons/database';
+  import Shield from 'lucide-svelte/icons/shield';
+  import Binary from 'lucide-svelte/icons/binary';
+  import Globe from 'lucide-svelte/icons/globe';
+  import Layers from 'lucide-svelte/icons/layers';
+  import Radio from 'lucide-svelte/icons/radio';
+  import Cpu from 'lucide-svelte/icons/cpu';
+  import GitBranch from 'lucide-svelte/icons/git-branch';
+
+  const SI_ICONS: Record<string, { path: string }> = {
+    apachenifi: siApachenifi,
+    apacheairflow: siApacheairflow,
+    mysql: siMysql,
+    elasticsearch: siElasticsearch,
+    kibana: siKibana,
+    langchain: siLangchain,
+  };
+
+  const LUCIDE_ICONS: Record<string, ComponentType> = {
+    Activity,
+    Archive,
+    Database,
+    Shield,
+    Binary,
+    Globe,
+    Layers,
+    Radio,
+    Cpu,
+    GitBranch,
+  };
 
   let { data, selected }: NodeProps = $props();
 
@@ -45,7 +79,15 @@
     <div class="node-card-tint"></div>
 
     <!-- 아이콘 중앙 배치 -->
-    <span class="node-icon">{iconSpec.char ?? iconSpec.name ?? iconSpec.slug ?? '❓'}</span>
+    {#if iconSpec.kind === 'brand' && SI_ICONS[iconSpec.slug]}
+      <svg class="node-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+        <path d={SI_ICONS[iconSpec.slug].path}/>
+      </svg>
+    {:else if iconSpec.kind === 'lucide' && LUCIDE_ICONS[iconSpec.name]}
+      <svelte:component this={LUCIDE_ICONS[iconSpec.name]} class="node-icon" size={20} strokeWidth={1.5}/>
+    {:else}
+      <span class="node-icon">{iconSpec.kind === 'emoji' ? iconSpec.char : '❓'}</span>
+    {/if}
 
     <!-- trigger 배지 (우상단 절대 위치) -->
     {#if trigger}
@@ -142,6 +184,12 @@
     font-size: 2.2rem;
     line-height: 1;
     z-index: 1;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--node-accent, currentColor);
   }
 
   /* trigger 배지 — 우상단 절대 위치 */
