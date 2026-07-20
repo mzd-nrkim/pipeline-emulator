@@ -666,4 +666,70 @@ describe('buildNodesAndEdges', () => {
       expect((e as any).type).toBeUndefined();
     }
   });
+
+  /* ── edge badge props: labelBgBorderRadius pill 보장 ─────────── */
+
+  describe('edge badge props', () => {
+    const conditionalTopology: CanvasTopology = {
+      nodes: [
+        { id: 'node-a', role: 'ingest',    tool: 'debezium',       config: {} },
+        { id: 'node-b', role: 'store',     tool: 's3',             config: {} },
+        { id: 'node-c', role: 'transform', tool: 'apache-airflow', config: {} },
+        { id: 'node-d', role: 'store',     tool: 'mysql',          config: {} },
+        { id: 'node-e', role: 'index',     tool: 'elasticsearch',  config: {} },
+      ],
+      edges: [
+        { from: 'node-a', to: 'node-b', channels: ['data'], condition: true  } as any,
+        { from: 'node-a', to: 'node-c', channels: ['data'], condition: false } as any,
+        { from: 'node-a', to: 'node-d', channels: ['data'], condition: 'default' } as any,
+        { from: 'node-b', to: 'node-e', channels: ['data'], viaTable: 'bronze_raw' } as any,
+      ],
+    };
+
+    // Right: condition true/false/string — each conditional edge has labelBgBorderRadius=9999
+    it('Right: conditional edge (condition=true) has labelBgBorderRadius set to 9999', () => {
+      const { edges } = buildNodesAndEdges(conditionalTopology, 'data');
+      const edge = edges.find(e => e.source === 'node-a' && e.target === 'node-b');
+      expect(edge).toBeDefined();
+      expect((edge as any).labelBgBorderRadius).toBe(9999);
+    });
+
+    it('Right: conditional edge (condition=false) has labelBgBorderRadius set to 9999', () => {
+      const { edges } = buildNodesAndEdges(conditionalTopology, 'data');
+      const edge = edges.find(e => e.source === 'node-a' && e.target === 'node-c');
+      expect(edge).toBeDefined();
+      expect((edge as any).labelBgBorderRadius).toBe(9999);
+    });
+
+    it('Right: conditional edge (condition="default") has labelBgBorderRadius set to 9999', () => {
+      const { edges } = buildNodesAndEdges(conditionalTopology, 'data');
+      const edge = edges.find(e => e.source === 'node-a' && e.target === 'node-d');
+      expect(edge).toBeDefined();
+      expect((edge as any).labelBgBorderRadius).toBe(9999);
+    });
+
+    // B(경계): viaTable 라벨 엣지(condition 없음)에도 labelBgBorderRadius 세팅 확인
+    it('B(boundary): viaTable edge (no condition) also has labelBgBorderRadius set to 9999', () => {
+      const { edges } = buildNodesAndEdges(conditionalTopology, 'data');
+      const edge = edges.find(e => e.source === 'node-b' && e.target === 'node-e');
+      expect(edge).toBeDefined();
+      expect((edge as any).labelBgBorderRadius).toBe(9999);
+    });
+
+    // C(교차확인): labelBgPadding:[6,2] + labelBgBorderRadius:9999 조합이 기대 pill 파라미터와 일치
+    it('C(cross-check): labeled edge has both labelBgPadding:[6,2] and labelBgBorderRadius:9999 for pill shape', () => {
+      const { edges } = buildNodesAndEdges(conditionalTopology, 'data');
+      // condition 있는 엣지로 검증
+      const condEdge = edges.find(e => e.source === 'node-a' && e.target === 'node-d');
+      expect(condEdge).toBeDefined();
+      expect((condEdge as any).labelBgPadding).toEqual([6, 2]);
+      expect((condEdge as any).labelBgBorderRadius).toBe(9999);
+
+      // viaTable 엣지로도 동일 검증
+      const viaEdge = edges.find(e => e.source === 'node-b' && e.target === 'node-e');
+      expect(viaEdge).toBeDefined();
+      expect((viaEdge as any).labelBgPadding).toEqual([6, 2]);
+      expect((viaEdge as any).labelBgBorderRadius).toBe(9999);
+    });
+  });
 });
