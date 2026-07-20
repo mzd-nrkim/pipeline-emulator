@@ -56,11 +56,11 @@ export async function fetchDimensions(): Promise<Dimension[]> {
   }));
 }
 
-import { mockTopology } from '../mock/topology.js';
+import { realTopology } from '../mock/realTopology.js';
 
 export async function fetchCanvasTopology(): Promise<CanvasTopology> {
   // 파이프라인 토폴로지는 고정 구조 — real 모드에서도 동일한 DAG 그래프 사용
-  return mockTopology;
+  return realTopology;
 }
 
 export async function triggerNode(nodeId: string, conf: Record<string, unknown>): Promise<{ dag_run_id: string }> {
