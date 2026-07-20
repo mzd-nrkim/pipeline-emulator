@@ -4,7 +4,7 @@
   import StatusDot from '$lib/components/StatusDot.svelte';
   import RunHistoryItem from '$lib/components/RunHistoryItem.svelte';
   import ToolCanvasView from '$lib/components/ToolCanvasView.svelte';
-  import type { Stage, Run, CanvasTopology, ToolNode } from '$lib/api/types.js';
+  import type { Stage, Run, CanvasTopology, ToolNode, TaskInstance } from '$lib/api/types.js';
   import { getToolEntry } from '$lib/canvas/toolCatalog';
   import * as mockAdapter from '$lib/api/mock-adapter.js';
   import * as realAdapter from '$lib/api/real-adapter.js';
@@ -25,6 +25,9 @@
   let triggeredRunId = $state<string | null>(null);
   let triggerError = $state<string | null>(null);
   let dialogOpen = $state(false);
+  let executions = $state<TaskInstance[]>([]);
+  let executionsLoading = $state(false);
+  let executionsError = $state<string | null>(null);
   let drawerTab = $state<'node' | 'history'>('history');
   let liveStageCounts = $state<Record<string, number>>({});
 
@@ -435,14 +438,49 @@
                     <RunHistoryItem
                       {run}
                       active={selectedRunId === run.id}
-                      onclick={() => {
+                      onclick={async () => {
                         selectedRunId = run.id;
                         updateUrl();
+                        if (run.dagId) {
+                          executionsLoading = true;
+                          executionsError = null;
+                          try {
+                            executions = await Promise.resolve(currentAdapter.fetchExecutions(run.dagId, run.id));
+                          } catch (e) {
+                            executionsError = String(e);
+                          } finally {
+                            executionsLoading = false;
+                          }
+                        }
                       }}
                     />
                   {/if}
                 {/each}
               </ul>
+
+              <!-- 태스크 인스턴스 상세 -->
+              {#if !compareMode && (executionsLoading || executionsError || executions.length > 0)}
+                <div class="shrink-0 border-t border-border px-3 py-3 text-[10px] font-mono">
+                  <div class="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2">태스크 인스턴스</div>
+                  {#if executionsLoading}
+                    <div class="text-muted-foreground">로딩 중…</div>
+                  {:else if executionsError}
+                    <div class="text-status-failed">{executionsError}</div>
+                  {:else}
+                    <ul class="space-y-1">
+                      {#each executions as task}
+                        <li class="flex items-center gap-2">
+                          <StatusDot status={task.state} />
+                          <span class="flex-1">{task.taskId}</span>
+                          {#if task.durationMs != null}
+                            <span class="text-muted-foreground">{task.durationMs}ms</span>
+                          {/if}
+                        </li>
+                      {/each}
+                    </ul>
+                  {/if}
+                </div>
+              {/if}
 
               <!-- diff 뷰 -->
               {#if compareMode}

@@ -41,6 +41,16 @@ export interface Run {
   config: RunConfig;
   stageCounts?: Record<string, number>;
   failureReason?: string;
+  dagId?: string;
+}
+
+export interface TaskInstance {
+  taskId: string;
+  state: StageStatus;
+  startDate: string | null;
+  endDate: string | null;
+  durationMs: number | null;
+  tryNumber: number;
 }
 
 export interface Document {
