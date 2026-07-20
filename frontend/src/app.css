@@ -80,6 +80,14 @@
   --border: oklch(0.9 0.008 250);
   --input: oklch(0.9 0.008 250);
   --ring: oklch(0.54 0.22 264);
+
+  /* edge 조건 라벨 pill 배지 색 토큰 */
+  --edge-label-bg: oklch(0.93 0.008 250);
+  --edge-label-true-bg: oklch(0.90 0.06 158);
+  --edge-label-false-bg: oklch(0.92 0.05 25);
+  --edge-label-text: oklch(0.18 0.04 260);
+  --edge-label-true-text: oklch(0.28 0.1 158);
+  --edge-label-false-text: oklch(0.32 0.12 25);
 }
 
 /* 다크 모드 토큰 값 */
@@ -107,6 +115,14 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.551 0.027 264.364);
+
+  /* edge 조건 라벨 pill 배지 색 토큰 — 다크 */
+  --edge-label-bg: oklch(0.28 0.03 260);
+  --edge-label-true-bg: oklch(0.26 0.07 158);
+  --edge-label-false-bg: oklch(0.27 0.07 25);
+  --edge-label-text: oklch(0.92 0.005 250);
+  --edge-label-true-text: oklch(0.82 0.1 158);
+  --edge-label-false-text: oklch(0.84 0.1 25);
 }
 
 @layer base {
@@ -120,6 +136,37 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
+}
+
+/* edge 조건 라벨 pill 배지 — SvelteFlow SVG foreignObject 기반 */
+.svelte-flow__edge-text {
+  font-size: 0.7rem !important;
+  font-weight: 600;
+  text-transform: lowercase;
+  fill: var(--edge-label-text) !important;
+}
+.svelte-flow__edge-textbg {
+  fill: var(--edge-label-bg) !important;
+  rx: 9999;
+  ry: 9999;
+  opacity: 1 !important;
+}
+
+/* labelClassName 기반 조건값별 배지 배경 토큰 적용 */
+.svelte-flow__edge.edge-label-true .svelte-flow__edge-textbg {
+  fill: var(--edge-label-true-bg) !important;
+}
+.svelte-flow__edge.edge-label-true .svelte-flow__edge-text {
+  fill: var(--edge-label-true-text) !important;
+}
+.svelte-flow__edge.edge-label-false .svelte-flow__edge-textbg {
+  fill: var(--edge-label-false-bg) !important;
+}
+.svelte-flow__edge.edge-label-false .svelte-flow__edge-text {
+  fill: var(--edge-label-false-text) !important;
+}
+.svelte-flow__edge.edge-label-default .svelte-flow__edge-textbg {
+  fill: var(--edge-label-bg) !important;
 }
 
 /* 진행 중 상태 펄스 애니메이션 (소스와 동일) */

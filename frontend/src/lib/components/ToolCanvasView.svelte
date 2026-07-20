@@ -52,16 +52,7 @@
     stroke: var(--muted-foreground);
     stroke-width: 1.5;
   }
-  /* 엣지 조건(condition) 라벨 — 기본 폰트가 작아 가독성 보강 */
-  :global(.svelte-flow__edge-text) {
-    font-size: 11px;
-    font-weight: 600;
-    fill: var(--foreground);
-  }
-  :global(.svelte-flow__edge-textbg) {
-    fill: var(--surface);
-    opacity: 0.9;
-  }
+  /* 엣지 조건(condition) 라벨 pill 배지 — 토큰·형상은 app.css 전역 스타일로 위임 */
   :global(.svelte-flow__controls) {
     border-radius: 6px;
     border: 1px solid var(--border);
