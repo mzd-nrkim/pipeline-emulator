@@ -14,6 +14,26 @@ import type { CanvasTopology } from '../api/types.js';
  * fan-out : valkey → es + mysql
  * infra   : mysql-container → debezium/nifi (dependency), es → kibana (dependency)
  *
+ * ── 노드↔DAG↔docker 서비스 대응표 (SSOT — node-* 규약) ────────────────────────
+ * 노드 ID            role        dagId                       docker 서비스
+ * ──────────────────────────────────────────────────────────────────────────────
+ * node-debezium      ingest      (없음, 수집 전용)            debezium
+ * node-nifi          ingest      (없음, 수집 전용)            nifi
+ * node-dam           ingest      (없음, 수집 전용)            dam
+ * node-s3-bronze     store       (없음, 스토리지)             seaweedfs/s3
+ * node-airflow       transform   (오케스트레이터 — trigger)   airflow
+ * node-presidio      transform   silver_2_masking            presidio
+ * node-docling       transform   silver_1_structuring        airflow (DAG 내 실행)
+ * node-kure          transform   gold_3_chunking             airflow (DAG 내 실행)
+ * node-valkey        broker      (없음, 브로커)               valkey
+ * node-es            index       gold_5_field_mapping        elasticsearch
+ * node-mysql         store       (없음, 아카이브)             mysql
+ * node-mysql-container store     (없음, 인프라)               mysql
+ * node-seaweedfs     store       (없음, 인프라)               seaweedfs
+ * node-mock-api      transform   gold_4_enrichment           mock-api
+ * ──────────────────────────────────────────────────────────────────────────────
+ * STAGE_DAG_MAP 키(ui-backend): node-presidio·node-docling·node-kure·node-es·node-mock-api
+ *
  * ── docker-compose.yml 의존 엣지 대응표 (dependency 채널 전용) ──────────────────
  * 서비스          depends_on / 연결 env                  → topology 엣지
  * ─────────────────────────────────────────────────────────────────────────────
@@ -97,6 +117,7 @@ export const mockTopology: CanvasTopology = {
       tool: 'presidio',
       label: 'Presidio PII',
       config: {
+        dagId: 'silver_2_masking',
         recognizers: 'phone,email,rrn',
         nlpEngine: 'spacy_ko',
         anonymizeStrategy: 'replace',
@@ -108,6 +129,7 @@ export const mockTopology: CanvasTopology = {
       tool: 'docling-langchain',
       label: 'Docling Chunker',
       config: {
+        dagId: 'silver_1_structuring',
         chunkSize: 512,
         chunkOverlap: 64,
         strategy: 'parent-child',
@@ -119,6 +141,7 @@ export const mockTopology: CanvasTopology = {
       tool: 'kure-embedding',
       label: 'KURE Embedding',
       config: {
+        dagId: 'gold_3_chunking',
         modelPath: 'models/kure-v1.onnx',
         outputDim: 768,
         batchSize: 32,
@@ -144,6 +167,7 @@ export const mockTopology: CanvasTopology = {
       tool: 'elasticsearch',
       label: 'Elasticsearch',
       config: {
+        dagId: 'gold_5_field_mapping',
         index: 'lllm-docs',
         bulkSize: 100,
         mlNode: 'ml-node-1',
@@ -203,6 +227,7 @@ export const mockTopology: CanvasTopology = {
       tool: 'presidio',
       label: 'Mock API (chunking/enrich)',
       config: {
+        dagId: 'gold_4_enrichment',
         chunkUrl: 'http://mock-api:8000/chunk',
         enrichUrl: 'http://mock-api:8000/enrich',
         port: 8000,
