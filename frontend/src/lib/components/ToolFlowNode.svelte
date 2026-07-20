@@ -50,6 +50,7 @@
   const applyMode = $derived(d.applyMode as string | undefined);
   const outputs = $derived(d.outputs as string[] | undefined);
 
+  const liveCount = $derived(d.liveCount as number | undefined);
   const outOfTeamScope = $derived(d.outOfTeamScope as boolean | undefined);
   const deployStatus = $derived((d.deployStatus as string | undefined) ?? 'active');
   const category = $derived(d.category as string ?? 'task');
@@ -149,6 +150,9 @@
     <span class="node-display-name">{resolvedDisplayName}</span>
     {#if vendor}
       <span class="node-vendor">{vendor}</span>
+    {/if}
+    {#if liveCount && liveCount > 0}
+      <span class="text-[9px] font-mono text-muted-foreground">{liveCount}건</span>
     {/if}
   </div>
 

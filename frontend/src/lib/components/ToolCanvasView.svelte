@@ -13,10 +13,11 @@
     setNodeConfig: (nodeId: string, config: Record<string, unknown>) => Promise<void | Record<string, unknown>>;
   };
 
-  let { topology, adapter = undefined, stages = [] as Stage[], ontrigger = undefined, view = 'data' as 'data' | 'infra', onnodeselect = undefined, hideOrphans = true }: {
+  let { topology, adapter = undefined, stages = [] as Stage[], liveStageCounts = undefined as Record<string, number> | undefined, ontrigger = undefined, view = 'data' as 'data' | 'infra', onnodeselect = undefined, hideOrphans = true }: {
     topology: CanvasTopology;
     adapter?: Adapter;
     stages?: Stage[];
+    liveStageCounts?: Record<string, number>;
     ontrigger?: (runId: string) => void;
     view?: 'data' | 'infra';
     onnodeselect?: (node: ToolNode | null) => void;
@@ -28,7 +29,12 @@
 
   $effect(() => {
     const result = buildNodesAndEdges(topology, view, hideOrphans);
-    nodes = result.nodes;
+    nodes = liveStageCounts
+      ? result.nodes.map(n => ({
+          ...n,
+          data: { ...n.data, liveCount: liveStageCounts?.[n.id] ?? 0 }
+        }))
+      : result.nodes;
     edges = result.edges;
   });
 </script>
