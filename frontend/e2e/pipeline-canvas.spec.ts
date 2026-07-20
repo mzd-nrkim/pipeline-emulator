@@ -105,7 +105,7 @@ test.describe('Pipeline Canvas View — ToolCanvasView (P1/P3 통합)', () => {
 
   test('P1.5 — Airflow 노드 클릭 시 설정 폼과 P2 트리거 컨트롤이 공존한다', async ({ page }) => {
     await page.waitForSelector('.svelte-flow .svelte-flow__node', { timeout: 5000 });
-    const nodes = page.locator('.svelte-flow .svelte-flow__node');
+    const nodes = page.locator('.svelte-flow .svelte-flow__node:not(.svelte-flow__node-group)');
     const count = await nodes.count();
     // Airflow 텍스트를 포함한 노드 찾기
     let airflowNode = null;

@@ -69,7 +69,7 @@ test.describe('Pipeline Page — Canvas 뷰 + Medallion Drill-down (P3)', () => 
 
   test('Airflow 노드 → DAG 정보 표시 확인', async ({ page }) => {
     await page.waitForSelector('.svelte-flow .svelte-flow__node', { timeout: 5000 });
-    const nodes = page.locator('.svelte-flow__node');
+    const nodes = page.locator('.svelte-flow__node:not(.svelte-flow__node-group)');
     const allTexts = await nodes.allInnerTexts();
     const airflowIdx = allTexts.findIndex(t => t.toLowerCase().includes('airflow'));
     if (airflowIdx >= 0) {
