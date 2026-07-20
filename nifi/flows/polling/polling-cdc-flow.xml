@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  F2b Polling CDC 플로우: source_cft_problem_history.upd_dts 기반 변경행 감지
+  감지 방식: QueryDatabaseTableRecord (Maximum-value Columns = upd_dts)
+  한계: DELETE 미감지 (문서화된 한계)
+  CDC_METHOD=polling 시 활성
+-->
+<flowController encoding-version="1">
+  <maxTimerDrivenThreadCount>10</maxTimerDrivenThreadCount>
+  <maxEventDrivenThreadCount>5</maxEventDrivenThreadCount>
+  <registries/>
+  <parameterContexts/>
+  <rootGroup>
+    <id>root-polling-cdc</id>
+    <name>Polling CDC Flow</name>
+    <position x="0.0" y="0.0"/>
+    <processors>
+      <processor>
+        <id>query-db-polling</id>
+        <name>QueryDatabaseTableRecord</name>
+        <position x="100.0" y="100.0"/>
+        <comment>source_cft_problem_history.upd_dts 기반 변경행 조회</comment>
+        <class>org.apache.nifi.processors.standard.QueryDatabaseTableRecord</class>
+        <bundle>
+          <group>org.apache.nifi</group>
+          <artifact>nifi-standard-nar</artifact>
+          <version>2.0.0</version>
+        </bundle>
+        <properties>
+          <property>
+            <name>Table Name</name>
+            <value>source_cft_problem_history</value>
+          </property>
+          <property>
+            <name>Maximum-value Columns</name>
+            <value>upd_dts</value>
+          </property>
+          <property>
+            <name>db-fetch-db-type</name>
+            <value>MySQL</value>
+          </property>
+          <property>
+            <name>Record Writer</name>
+            <value>JsonRecordSetWriter</value>
+          </property>
+          <property>
+            <name>Scheduling Strategy</name>
+            <value>TIMER_DRIVEN</value>
+          </property>
+          <property>
+            <name>Scheduling Period</name>
+            <value>30 sec</value>
+          </property>
+        </properties>
+      </processor>
+      <processor>
+        <id>exec-polling-adapter</id>
+        <name>PollingAdapter</name>
+        <position x="400.0" y="100.0"/>
+        <comment>변경행 → change_operation 매핑 → register_bronze_event</comment>
+        <class>org.apache.nifi.processors.standard.ExecuteStreamCommand</class>
+        <bundle>
+          <group>org.apache.nifi</group>
+          <artifact>nifi-standard-nar</artifact>
+          <version>2.0.0</version>
+        </bundle>
+        <properties>
+          <property>
+            <name>Command Path</name>
+            <value>/usr/bin/python3</value>
+          </property>
+          <property>
+            <name>Command Arguments</name>
+            <value>/opt/pipeline-emulator/scripts/cdc/polling_adapter.py</value>
+          </property>
+        </properties>
+      </processor>
+    </processors>
+    <connections>
+      <connection>
+        <id>conn-query-to-adapter</id>
+        <sourceId>query-db-polling</sourceId>
+        <sourceRelationship>success</sourceRelationship>
+        <destinationId>exec-polling-adapter</destinationId>
+      </connection>
+    </connections>
+    <funnels/>
+    <labels/>
+    <inputPorts/>
+    <outputPorts/>
+    <processGroups/>
+    <remoteProcessGroups/>
+    <variables/>
+  </rootGroup>
+  <controllerServices/>
+  <reportingTasks/>
+</flowController>
