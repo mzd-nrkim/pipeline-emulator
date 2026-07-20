@@ -650,6 +650,108 @@ describe('buildNodesAndEdges', () => {
     expect(kureEdge!.label).toBe('gold_chunked_documents');
   });
 
+  /* ── group nodes: 다중 그룹 topology ───────────────────────── */
+
+  describe('group nodes', () => {
+    /**
+     * 두 그룹(alpha, beta)에 각각 2개 자식 배치한 fixture.
+     * parentId는 그룹 소속을 결정하는 트리거 필드.
+     */
+    const multiGroupTopology: CanvasTopology = {
+      nodes: [
+        // 그룹 alpha 자식 2개
+        { id: 'node-alpha-1', role: 'transform', tool: 'docling-langchain', config: {}, parentId: 'node-group-alpha' },
+        { id: 'node-alpha-2', role: 'transform', tool: 'presidio',          config: {}, parentId: 'node-group-alpha' },
+        // 그룹 beta 자식 2개
+        { id: 'node-beta-1',  role: 'transform', tool: 'kure-embedding',    config: {}, parentId: 'node-group-beta' },
+        { id: 'node-beta-2',  role: 'index',     tool: 'elasticsearch',     config: {}, parentId: 'node-group-beta' },
+        // 그룹 미소속 노드
+        { id: 'node-standalone', role: 'ingest', tool: 'debezium',          config: {} },
+      ],
+      edges: [
+        { from: 'node-standalone', to: 'node-alpha-1', channels: ['data'] },
+        { from: 'node-alpha-1',    to: 'node-alpha-2', channels: ['data'] },
+        { from: 'node-alpha-2',    to: 'node-beta-1',  channels: ['data'] },
+        { from: 'node-beta-1',     to: 'node-beta-2',  channels: ['data'] },
+      ],
+    };
+
+    // Right: 그룹 소속 노드가 있는 data 뷰에서 그룹 id별 group 노드가 생성됨
+    it('Right: data 뷰에서 각 parentId에 대응하는 group 노드가 생성된다', () => {
+      const { nodes } = buildNodesAndEdges(multiGroupTopology, 'data');
+      const alphaGroup = nodes.find(n => n.id === 'node-group-alpha');
+      const betaGroup  = nodes.find(n => n.id === 'node-group-beta');
+      expect(alphaGroup).toBeDefined();
+      expect(alphaGroup!.type).toBe('group');
+      expect(betaGroup).toBeDefined();
+      expect(betaGroup!.type).toBe('group');
+    });
+
+    // B(경계): 그룹 소속 노드 0개면 group 노드 0개 — sampleTopology 회귀
+    it('B(경계): parentId 없는 sampleTopology에서 group 노드가 생성되지 않는다', () => {
+      const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+      const groupNodes = nodes.filter(n => n.type === 'group');
+      expect(groupNodes).toHaveLength(0);
+    });
+
+    // I(역·부정): 서로 다른 그룹키 2종에서 각 group 노드가 자기 자식만 포함
+    it('I(역·부정): alpha group 노드는 beta 자식을 포함하지 않고, beta group 노드는 alpha 자식을 포함하지 않는다', () => {
+      const { nodes } = buildNodesAndEdges(multiGroupTopology, 'data');
+      // alpha 자식 노드 확인
+      const alphaChild1 = nodes.find(n => n.id === 'node-alpha-1')!;
+      const alphaChild2 = nodes.find(n => n.id === 'node-alpha-2')!;
+      // beta 자식 노드 확인
+      const betaChild1 = nodes.find(n => n.id === 'node-beta-1')!;
+      const betaChild2 = nodes.find(n => n.id === 'node-beta-2')!;
+      // alpha 자식은 node-group-alpha에만 소속
+      expect(alphaChild1.parentId).toBe('node-group-alpha');
+      expect(alphaChild2.parentId).toBe('node-group-alpha');
+      // beta 자식은 node-group-beta에만 소속
+      expect(betaChild1.parentId).toBe('node-group-beta');
+      expect(betaChild2.parentId).toBe('node-group-beta');
+      // 교차 소속이 없음을 명시적으로 확인
+      expect(alphaChild1.parentId).not.toBe('node-group-beta');
+      expect(betaChild1.parentId).not.toBe('node-group-alpha');
+    });
+
+    // C(교차확인): 각 group 노드의 경계가 해당 그룹 자식 좌표에서만 산출됨
+    it('C(교차확인): 각 group 노드의 경계(position)가 해당 그룹 자식 좌표를 포함한다', () => {
+      const { nodes } = buildNodesAndEdges(multiGroupTopology, 'data');
+      const alphaGroup = nodes.find(n => n.id === 'node-group-alpha')!;
+      const betaGroup  = nodes.find(n => n.id === 'node-group-beta')!;
+
+      // alpha 자식들의 좌표
+      const alphaChildren = nodes.filter(n => n.parentId === 'node-group-alpha');
+      expect(alphaChildren.length).toBe(2);
+      const alphaXs = alphaChildren.map(n => n.position.x);
+      const alphaYs = alphaChildren.map(n => n.position.y);
+
+      // beta 자식들의 좌표
+      const betaChildren = nodes.filter(n => n.parentId === 'node-group-beta');
+      expect(betaChildren.length).toBe(2);
+      const betaXs = betaChildren.map(n => n.position.x);
+      const betaYs = betaChildren.map(n => n.position.y);
+
+      // group 노드 position은 자식 minX - 40, minY - 60 에서 시작
+      // 자식 좌표가 group 경계 안에 들어오는지: position.x <= 자식 x, position.y <= 자식 y
+      expect(alphaGroup.position.x).toBeLessThanOrEqual(Math.min(...alphaXs));
+      expect(alphaGroup.position.y).toBeLessThanOrEqual(Math.min(...alphaYs));
+      expect(betaGroup.position.x).toBeLessThanOrEqual(Math.min(...betaXs));
+      expect(betaGroup.position.y).toBeLessThanOrEqual(Math.min(...betaYs));
+
+      // group 노드 경계가 상대 그룹의 자식들 좌표로부터 독립적임 확인
+      // alpha group의 position이 beta 자식들로부터만 산출된 게 아님:
+      // alpha 자식이 없다면 alpha group도 없어야 함 (위 Right TC에서 이미 확인)
+      // 여기서는 beta 자식 좌표가 alpha group 경계 계산에 영향을 안 줬음을 확인
+      // — beta 자식 x는 alpha group position.x + alphaGroup.width 범위 밖일 수 있음
+      // 단순 검증: alpha 그룹과 beta 그룹은 서로 다른 위치에 배치됨
+      const alphaPos = alphaGroup.position;
+      const betaPos  = betaGroup.position;
+      const positionsDiffer = alphaPos.x !== betaPos.x || alphaPos.y !== betaPos.y;
+      expect(positionsDiffer).toBe(true);
+    });
+  });
+
   /* ── infra 뷰 엣지 type:'infra-floating' ────────────────────── */
 
   it('Cardinality: infra 뷰 엣지 모두에 type:"infra-floating" 부여', () => {
