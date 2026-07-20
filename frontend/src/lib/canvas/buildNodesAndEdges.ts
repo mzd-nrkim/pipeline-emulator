@@ -192,9 +192,10 @@ export function buildNodesAndEdges(
   // 4. FlowNode 생성
   const nodes: FlowNode[] = visibleNodes.map(n => {
     const entry = getToolEntry(n.tool);
+    const displayName = n.displayNameOverride ?? (entry ? entry.displayName : (n.tool || n.id));
     const catalogData = entry
-      ? { displayName: entry.displayName, vendor: entry.vendor, icon: entry.icon, accent: entry.accent }
-      : { displayName: n.tool || n.id, vendor: 'Unknown', icon: '❓', accent: '#6B7280' };
+      ? { displayName, vendor: entry.vendor, icon: entry.icon, accent: entry.accent }
+      : { displayName, vendor: 'Unknown', icon: '❓', accent: '#6B7280' };
 
     const applyMode = getRepresentativeApplyMode(n.tool);
     const conditions = nodeConditions.get(n.id);

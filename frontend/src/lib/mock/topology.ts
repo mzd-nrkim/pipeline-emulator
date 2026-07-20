@@ -211,6 +211,7 @@ export const mockTopology: CanvasTopology = {
       role: 'store',
       tool: 'mysql',
       label: 'MySQL 원본 DB',
+      displayNameOverride: 'MySQL 원본 DB',
       config: {
         host: 'mysql',
         database: 'source_db',
