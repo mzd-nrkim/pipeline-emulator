@@ -168,7 +168,7 @@ export function buildNodesAndEdges(
 
     return {
       id: n.id,
-      type: 'default',
+      type: 'lrnode',
       position: getPosition(n.id),
       data: {
         label: `${catalogData.icon} ${catalogData.displayName}\n[${n.role}]`,
