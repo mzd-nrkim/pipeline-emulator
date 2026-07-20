@@ -32,6 +32,17 @@ test.describe('Infra View — 인프라 연결 뷰', () => {
     expect(markerCount).toBeGreaterThan(0);
   });
 
+  test('infra-floating 엣지 path가 직선(M ... L ...) 형식이다', async ({ page }) => {
+    await page.getByRole('button', { name: '인프라', exact: true }).click();
+    await page.waitForTimeout(500);
+    await expect(page.locator('.svelte-flow__edge').first()).toBeAttached({ timeout: 5000 });
+    const hasLinearPath = await page.evaluate(() => {
+      const paths = [...document.querySelectorAll('.svelte-flow__edge-path')];
+      return paths.some(p => /^M[\d.\s-]+L[\d.\s-]+$/.test((p.getAttribute('d') ?? '').trim()));
+    });
+    expect(hasLinearPath).toBe(true);
+  });
+
   test('ES 노드가 인프라 뷰에 존재함 (force-directed 배치)', async ({ page }) => {
     await page.getByRole('button', { name: '인프라', exact: true }).click();
     await page.waitForTimeout(500);

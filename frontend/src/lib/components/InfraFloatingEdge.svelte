@@ -26,6 +26,7 @@
 
 {#if pathData}
   <path
+    class="svelte-flow__edge-path"
     d={pathData}
     stroke="var(--muted-foreground)"
     stroke-width="1.5"
