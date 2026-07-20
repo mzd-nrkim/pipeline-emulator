@@ -5,15 +5,15 @@ import type { CanvasTopology } from '../api/types.js';
  *
  * 구조:
  *   [debezium] ──┐
- *   [nifi]     ──┼──→ [s3-bronze] ──→ [airflow*] ──→ [presidio] ──→ [docling] ──→ [kure] ──→ [valkey] ──┬──→ [es] ──→ [kibana](infra)
- *   [dam]      ──┘                                                                                         └──→ [mysql]
+ *   [nifi]     ──┼──→ [s3-bronze] ──→ [airflow*] ──→ [presidio] ──→ [docling] ──→ [kure] ──→ [mock-api] ──→ [es] ──→ [kibana](infra)
+ *   [dam]      ──┘
  *
  * (* trigger=true)
  * data 채널: ─── / dependency 채널(infra뷰 전용): ···→
  * fan-in  : debezium + nifi + dam → s3-bronze
- * fan-out : valkey → es + mysql
  * infra   : mysql-container → debezium (dependency), zookeeper → nifi (dependency), es → kibana (dependency)
- *           valkey → debezium (dependency), es → airflow (dependency)
+ *           valkey → debezium (dependency, CDC Redis Stream 싱크), valkey → airflow (dependency, Celery 브로커)
+ *           es → airflow (dependency)
  *
  * ── 노드↔DAG↔docker 서비스 대응표 (SSOT — node-* 규약) ────────────────────────
  * 노드 ID            role               dagId                       docker 서비스
@@ -26,7 +26,7 @@ import type { CanvasTopology } from '../api/types.js';
  * node-presidio      transform          silver_2_masking            presidio
  * node-docling       transform          silver_1_structuring        airflow (DAG 내 실행)
  * node-kure          transform          gold_3_chunking             airflow (DAG 내 실행)
- * node-valkey        broker             (없음, 브로커)               valkey
+ * node-valkey        infra              (없음, 인프라)               valkey
  * node-es            index              gold_5_field_mapping        elasticsearch
  * node-mysql         store              (없음, 아카이브)             mysql
  * node-mysql-container store            (없음, 인프라)               mysql
@@ -44,14 +44,16 @@ import type { CanvasTopology } from '../api/types.js';
  *                 SEAWEEDFS_ENDPOINT=http://seaweedfs    seaweedfs       → airflow
  *                 CHUNKING_API_URL=http://mock-api       mock-api        → airflow
  *                 ENRICH_API_URL=http://mock-api         mock-api        → airflow (동일, 통합)
- *                 ES_HOST=elasticsearch                  es              → airflow (+신규)
+ *                 ES_HOST=elasticsearch                  es              → airflow
+ *                 CELERY_BROKER_URL=redis://valkey       valkey          → airflow (+신규, Celery 브로커)
  * debezium        dbHost=mysql (config)                  mysql-container → debezium (기존)
- *                 DEBEZIUM_SINK_REDIS_ADDRESS=valkey     valkey          → debezium (+신규)
+ *                 DEBEZIUM_SINK_REDIS_ADDRESS=valkey     valkey          → debezium (+신규, CDC Redis Stream 싱크)
  * nifi            NIFI_ZK_CONNECT_STRING=zookeeper       zookeeper       → nifi (+신규, mysql 제거)
  * kibana          (elasticsearch 내장 의존)              es              → kibana (기존)
  * ─────────────────────────────────────────────────────────────────────────────
  * 제거: mysql-container → nifi (nifi는 mysql 미의존 — 허위 엣지)
- * airflow는 SequentialExecutor라 valkey(브로커) 의존 없음 — 의도적 부재
+ * 제거: kure → valkey (data 엣지), valkey → es (data 엣지), valkey → mysql (data 엣지) — valkey는 infra 노드로 재모델링
+ * valkey는 CeleryExecutor 브로커(airflow) + CDC Redis Stream 싱크(debezium) — dependency 채널 전용
  */
 export const mockTopology: CanvasTopology = {
   nodes: [
@@ -153,11 +155,13 @@ export const mockTopology: CanvasTopology = {
         batchSize: 32,
       },
     },
+    /* ── 인프라: Valkey (dependency 채널 전용, 데이터뷰 미표시) ── */
     {
       id: 'node-valkey',
-      role: 'broker',
+      role: 'infra',
       tool: 'valkey',
-      label: 'Valkey Broker',
+      label: 'Valkey',
+      displayNameOverride: 'Valkey (Redis)',
       config: {
         host: 'valkey',
         port: 6379,
@@ -269,18 +273,13 @@ export const mockTopology: CanvasTopology = {
     { from: 'node-presidio', to: 'node-kure',     channels: ['data'] },
     { from: 'node-kure',     to: 'node-mock-api', channels: ['data'] },
     { from: 'node-mock-api', to: 'node-es',       channels: ['data'] },
-    { from: 'node-kure',     to: 'node-valkey',   channels: ['data'] },
-
-    /* fan-out: valkey → es + mysql */
-    { from: 'node-valkey', to: 'node-es',    channels: ['data'] },
-    { from: 'node-valkey', to: 'node-mysql', channels: ['data'] },
 
     /* infra dependency: es → kibana */
     { from: 'node-es', to: 'node-kibana', channels: ['dependency'] as ('data' | 'dependency')[] },
 
     /* infra: MySQL 컨테이너 → Debezium (의존성) */
     { from: 'node-mysql-container', to: 'node-debezium', channels: ['dependency'] as ('data' | 'dependency')[] },
-    /* debezium depends_on: valkey + DEBEZIUM_SINK_REDIS_ADDRESS + schema history redis */
+    /* debezium depends_on: valkey + DEBEZIUM_SINK_REDIS_ADDRESS (CDC Redis Stream 싱크) */
     { from: 'node-valkey',          to: 'node-debezium', channels: ['dependency'] as ('data' | 'dependency')[] },
 
     /* infra: docker-compose depends_on + env 기반 확충 */
@@ -292,8 +291,9 @@ export const mockTopology: CanvasTopology = {
     { from: 'node-mock-api',        to: 'node-airflow',  channels: ['dependency'] as ('data' | 'dependency')[] },
     /* airflow depends_on: elasticsearch + ES_HOST */
     { from: 'node-es',              to: 'node-airflow',  channels: ['dependency'] as ('data' | 'dependency')[] },
+    /* airflow CELERY_BROKER_URL=redis://valkey (Celery 브로커) */
+    { from: 'node-valkey',          to: 'node-airflow',  channels: ['dependency'] as ('data' | 'dependency')[] },
     /* nifi depends_on: zookeeper + NIFI_ZK_CONNECT_STRING */
     { from: 'node-zookeeper',       to: 'node-nifi',     channels: ['dependency'] as ('data' | 'dependency')[] },
-    /* airflow는 SequentialExecutor라 valkey(브로커) 의존 없음 — 의도적 부재 */
   ],
 };
