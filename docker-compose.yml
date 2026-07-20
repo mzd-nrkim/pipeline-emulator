@@ -45,7 +45,8 @@ services:
       _AIRFLOW_WWW_USER_CREATE: "true"
       _AIRFLOW_WWW_USER_USERNAME: admin
       _AIRFLOW_WWW_USER_PASSWORD: admin
-      _PIP_ADDITIONAL_REQUIREMENTS: "pyarrow boto3 pymysql sqlalchemy"
+      _PIP_ADDITIONAL_REQUIREMENTS: "pyarrow boto3 pymysql sqlalchemy presidio-analyzer presidio-anonymizer spacy"
+      # MASK=presidio  # 주석 처리 상태로 추가 — 데모 시에만 활성화 (.env에서 오버라이드)
       # ENRICH=real 전환 시 아래 두 값을 실제 엔드포인트 URL로 교체
       CHUNKING_API_URL: http://mock-api:8000/chunk  # real: https://your-chunking-api.example.com/chunk
       ENRICH_API_URL: http://mock-api:8000/enrich   # real: https://your-enrich-api.example.com/enrich
