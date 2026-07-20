@@ -33,8 +33,8 @@ export interface FlowEdge {
   target: string;
   animated: boolean;
   label?: string;
-  labelStyle?: Record<string, string | number>;
-  labelBgStyle?: Record<string, string | number>;
+  labelStyle?: string;
+  labelBgStyle?: string;
   labelBgPadding?: [number, number];
   labelBgBorderRadius?: number;
   labelClassName?: string;
@@ -179,8 +179,8 @@ export function buildNodesAndEdges(
       label: condition,
       labelBgPadding: [6, 2] as [number, number],
       labelBgBorderRadius: 9999,
-      labelStyle: { fontSize: '0.7rem', fontWeight: 600, textTransform: 'lowercase' as const },
-      labelBgStyle: { fillOpacity: 1 },
+      labelStyle: 'font-size: 0.7rem; font-weight: 600; text-transform: lowercase;',
+      labelBgStyle: 'fill-opacity: 1;',
       ...(conditionClass ? { labelClassName: conditionClass } : {}),
       ...(condition ? { sourceHandle: `source-${condition}` } : {}),
     };
