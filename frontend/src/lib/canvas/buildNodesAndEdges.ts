@@ -94,6 +94,7 @@ export interface FlowNode {
     applyMode?: string;
     outputs?: string[];
     outOfTeamScope?: boolean;
+    deployStatus: 'active' | 'planned' | 'absent';
   };
 }
 
@@ -212,6 +213,7 @@ export function buildNodesAndEdges(
         trigger: n.trigger ?? false,
         isInfra: view === 'infra',
         outOfTeamScope: n.outOfTeamScope ?? false,
+        deployStatus: n.deployStatus ?? 'active',
         ...(applyMode !== undefined ? { applyMode } : {}),
         ...(outputs !== undefined ? { outputs } : {}),
       },

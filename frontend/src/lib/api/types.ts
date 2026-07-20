@@ -106,6 +106,7 @@ export interface ToolNode {
   tool: string;
   config: Record<string, unknown>;
   outOfTeamScope?: boolean;
+  deployStatus?: 'active' | 'planned' | 'absent';
 }
 
 export interface Edge {
