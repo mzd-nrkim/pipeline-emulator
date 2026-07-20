@@ -9,7 +9,11 @@ test.describe('Node Detail Modal — 노드 상세·실행 이력 모달', () =>
 
   async function clickFirstNode(page: import('@playwright/test').Page) {
     await page.waitForTimeout(300);
-    const nodes = page.locator('.svelte-flow .svelte-flow__node');
+    // group 노드(node-airflow-group)는 pointer-events:none → 클릭 제외
+    // data-id 속성이 없거나 'node-airflow-group'이 아닌 tool 타입 노드만 대상
+    const nodes = page.locator(
+      '.svelte-flow .svelte-flow__node:not([data-id="node-airflow-group"])'
+    );
     await nodes.first().evaluate((el) =>
       el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }))
     );
