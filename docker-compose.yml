@@ -45,7 +45,7 @@ services:
       _AIRFLOW_WWW_USER_CREATE: "true"
       _AIRFLOW_WWW_USER_USERNAME: admin
       _AIRFLOW_WWW_USER_PASSWORD: admin
-      _PIP_ADDITIONAL_REQUIREMENTS: "pyarrow boto3 pymysql sqlalchemy presidio-analyzer presidio-anonymizer spacy"
+      _PIP_ADDITIONAL_REQUIREMENTS: "pyarrow boto3 pymysql sqlalchemy presidio-analyzer presidio-anonymizer spacy elasticsearch"
       # MASK=presidio  # 주석 처리 상태로 추가 — 데모 시에만 활성화 (.env에서 오버라이드)
       # ENRICH=real 전환 시 아래 두 값을 실제 엔드포인트 URL로 교체
       CHUNKING_API_URL: http://mock-api:8000/chunk  # real: https://your-chunking-api.example.com/chunk
@@ -57,6 +57,8 @@ services:
       MYSQL_DATABASE: pipeline_emulator
       MYSQL_USER: emulator
       MYSQL_PASSWORD: emulator_pass
+      ES_HOST: elasticsearch
+      ES_PORT: "9200"
     ports:
       - "8080:8080"
     volumes:
@@ -65,6 +67,8 @@ services:
       - airflow-logs:/opt/airflow/logs
     depends_on:
       mysql:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     command: ["bash", "-c", "airflow standalone"]
     healthcheck:
@@ -87,6 +91,24 @@ services:
       interval: 10s
       retries: 5
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
   ui-backend:
     build:
       context: ./ui-backend
@@ -99,6 +121,8 @@ services:
       MYSQL_USER: emulator
       MYSQL_PASSWORD: emulator_pass
       MYSQL_DATABASE: pipeline_emulator
+      ES_HOST: elasticsearch
+      ES_PORT: "9200"
     depends_on:
       mysql:
         condition: service_healthy
@@ -199,6 +223,7 @@ volumes:
   seaweedfs-data:
   mysql-data:
   airflow-logs:
+  elasticsearch-data:
   zookeeper-data:
   zookeeper-log:
   nifi-conf:

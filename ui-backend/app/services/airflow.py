@@ -13,6 +13,7 @@ DAG_IDS = [
     "gold_3_chunking",
     "gold_4_enrichment",
     "gold_5_field_mapping",
+    "gold_6_es_indexing",
 ]
 
 STAGE_DAG_MAP = {
@@ -24,7 +25,7 @@ STAGE_DAG_MAP = {
     "gold_chunked": "gold_3_chunking",
     "gold_enriched": "gold_4_enrichment",
     "gold_staged": "gold_5_field_mapping",
-    "search_serving": None,
+    "search_serving": "gold_6_es_indexing",
     # 캔버스 노드 ID (CanvasTopology 기준)
     "masking-task": "silver_2_masking",
     "chunking-task": "gold_3_chunking",
@@ -33,6 +34,7 @@ STAGE_DAG_MAP = {
     "node-docling": "silver_1_structuring",
     "node-kure": "gold_3_chunking",
     "node-es": "gold_5_field_mapping",
+    "node-es-search": "gold_6_es_indexing",
     "node-mock-api": "gold_4_enrichment",
 }
 
