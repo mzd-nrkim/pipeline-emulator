@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import stages, runs, sse, config as config_router, nodes, documents as documents_router, executions as executions_router, search as search_router, health
@@ -15,6 +16,12 @@ app.include_router(documents_router.router, prefix="/documents", tags=["document
 app.include_router(executions_router.router, prefix="/executions", tags=["executions"])
 app.include_router(search_router.router, prefix="/search", tags=["search"])
 app.include_router(health.router, prefix="/health", tags=["health"])
+
+# B-3: ENABLE_SERVICE_CONTROL flag 게이팅 — off(기본값) 시 라우터 미등록
+_svc_ctrl = os.environ.get("ENABLE_SERVICE_CONTROL", "0").strip().lower()
+if _svc_ctrl not in ("", "0", "false", "no", "off"):
+    from app.api import services as services_router
+    app.include_router(services_router.router, prefix="/services", tags=["services"])
 
 @app.get("/health")
 def health():
