@@ -297,6 +297,9 @@
 
   .status-absent {
     opacity: 0.4;
+  }
+
+  .status-absent .node-card {
     border-style: dashed;
   }
 
