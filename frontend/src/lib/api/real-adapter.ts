@@ -22,8 +22,25 @@ export async function fetchDocuments(): Promise<Document[]> {
   return res.json();
 }
 
-export async function fetchSearch(_query: string): Promise<SearchResult[]> {
-  throw new Error('ES 검색은 F1 계획 착수 시 활성화됩니다');
+export async function fetchSearch(query: string, mode: string = 'keyword'): Promise<SearchResult[]> {
+  const res = await fetch(`${BASE}/search?q=${encodeURIComponent(query)}&mode=${mode}&size=20`);
+  if (!res.ok) return [];
+  const raw: any[] = await res.json();
+  return raw.map((r) => {
+    const tags = r.metadata_tags || {};
+    return {
+      id: String(r.staged_id ?? ''),
+      title: r.summary || r.chunk_content?.slice(0, 80) || '',
+      summary: r.summary || '',
+      priority: (tags.importance_code ?? 'A') as import('./types.js').Priority,
+      security: (r.pclrty_class ?? 'INTERNAL') as import('./types.js').SecurityClass,
+      vehicleModel: (tags.vehicle_model ?? 'NX01') as import('./types.js').VehicleModel,
+      score: r.score ?? 0,
+      keywordScore: r.keyword_score ?? 0,
+      semanticScore: r.semantic_score ?? 0,
+      highlight: r.chunk_content?.slice(0, 200) || '',
+    };
+  });
 }
 
 export async function fetchDimensions(): Promise<Dimension[]> {

@@ -1,8 +1,11 @@
+import os
 from fastapi import APIRouter
 from app.services.mysql_aggregator import get_stage_counts, get_pii_stats
 from app.services.airflow import get_dag_runs
 
 router = APIRouter()
+
+_search_enabled = os.environ.get("SEARCH_ENABLED", "off")
 
 STAGE_META = [
     {"id": "ingestion", "name": "데이터 수집", "layer": "Bronze"},
@@ -12,7 +15,7 @@ STAGE_META = [
     {"id": "gold_chunked", "name": "Gold 청킹", "layer": "Gold"},
     {"id": "gold_enriched", "name": "Gold 엔리치먼트", "layer": "Gold"},
     {"id": "gold_staged", "name": "Gold Staged", "layer": "Gold"},
-    {"id": "search_serving", "name": "검색 서빙", "layer": "Serving", "planned": True},
+    {"id": "search_serving", "name": "검색 서빙", "layer": "Serving", "planned": _search_enabled == "off"},
 ]
 
 @router.get("/pii-stats")
