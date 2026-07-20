@@ -8,6 +8,7 @@
   import { getToolEntry } from '$lib/canvas/toolCatalog';
   import * as mockAdapter from '$lib/api/mock-adapter.js';
   import * as realAdapter from '$lib/api/real-adapter.js';
+  import { Dialog } from 'bits-ui';
 
   let { data }: { data: { stages: Stage[]; runs: Run[]; topology: CanvasTopology } } = $props();
 
@@ -22,7 +23,7 @@
   let localConfig = $state<Record<string, unknown>>({});
   let triggeredRunId = $state<string | null>(null);
   let triggerError = $state<string | null>(null);
-  let drawerOpen = $state(true);
+  let dialogOpen = $state(false);
   let drawerTab = $state<'node' | 'history'>('history');
 
   $effect(() => {
@@ -33,7 +34,7 @@
     selectedNode = node;
     triggeredRunId = null;
     triggerError = null;
-    if (node) drawerTab = 'node';
+    if (node) { drawerTab = 'node'; dialogOpen = true; }
   }
 
   async function handleTrigger() {
@@ -157,10 +158,15 @@
       />
     </div>
 
-    <!-- 오버레이 드로어 -->
-    {#if drawerOpen}
-      <div class="absolute right-0 top-0 h-full w-80 z-20 shadow-xl bg-surface border-l border-border flex flex-col">
-        <!-- 드로어 헤더 + 탭 + 닫기 -->
+    <!-- 노드 상세·실행 이력 모달 -->
+    <Dialog.Root bind:open={dialogOpen}>
+      <Dialog.Portal>
+        <Dialog.Overlay class="fixed inset-0 z-40 bg-black/50" />
+        <Dialog.Content
+          class="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 max-w-3xl w-[90vw] max-h-[85vh] bg-surface border border-border shadow-xl flex flex-col overflow-hidden"
+          aria-label="노드 상세 및 실행 이력"
+        >
+          <!-- 모달 헤더: 탭 + 닫기 -->
         <div class="shrink-0 flex items-center justify-between border-b border-border px-3 py-2">
           <div class="flex gap-0.5">
             <button
@@ -179,17 +185,15 @@
               실행 이력
             </button>
           </div>
-          <button
-            type="button"
-            onclick={() => drawerOpen = false}
+          <Dialog.Close
             class="text-muted-foreground hover:text-foreground text-xs leading-none px-1"
-            aria-label="드로어 닫기"
+            aria-label="모달 닫기"
           >
             ✕
-          </button>
+          </Dialog.Close>
         </div>
 
-        <!-- 드로어 콘텐츠 -->
+        <!-- 모달 콘텐츠 -->
         <div class="flex-1 overflow-auto">
 
           <!-- 노드 상세 탭 -->
@@ -508,17 +512,17 @@
             </div>
           {/if}
         </div>
-      </div>
-    {:else}
-      <!-- 드로어 열기 버튼 -->
-      <button
-        type="button"
-        onclick={() => drawerOpen = true}
-        class="absolute right-0 top-4 z-20 px-1.5 py-3 bg-surface border border-border border-r-0 rounded-l-sm text-[10px] font-mono text-muted-foreground hover:text-foreground shadow-sm writing-mode-vertical"
-        aria-label="드로어 열기"
-      >
-        ▶
-      </button>
-    {/if}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+    <!-- 실행 이력 열기 진입점 (모달 닫힌 상태에서 상시 가시, e2e 호환) -->
+    <button
+      type="button"
+      onclick={() => { dialogOpen = true; drawerTab = 'history'; }}
+      class="absolute right-4 top-4 z-10 px-3 py-1.5 bg-surface border border-border text-[10px] font-mono font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground shadow-sm"
+      aria-label="실행 이력 열기"
+    >
+      실행 이력
+    </button>
   </div>
 </div>
