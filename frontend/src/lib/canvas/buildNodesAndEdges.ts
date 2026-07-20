@@ -14,28 +14,26 @@ const INFRA_START_Y = 60;
  * infra 뷰 계층 정의 (dependency 채널 전용)
  * 계층 순서: storage → ingestion → processing → serving
  */
-const INFRA_LAYER_ORDER = ['storage', 'ingestion', 'processing', 'serving', 'other'] as const;
+const INFRA_LAYER_ORDER = ['storage', 'broker', 'ingestion', 'processing', 'serving', 'other'] as const;
 type InfraLayer = typeof INFRA_LAYER_ORDER[number];
 
 /** 노드 ID → infra 계층 매핑 */
 const INFRA_LAYER_MAP: Record<string, InfraLayer> = {
-  // storage: 인프라 컨테이너 / 스토리지
+  // storage: 인프라 컨테이너 / 스토리지 / coordination
   'node-mysql-container': 'storage',
   'node-seaweedfs':       'storage',
-  'node-valkey':          'storage',
+  'node-zookeeper':       'storage',
   'node-es':              'serving',
   'node-mysql':           'storage',
-  's3':                   'storage',
   'node-s3-bronze':       'storage',
+  // broker: 메시지 브로커
+  'node-valkey':          'broker',
   // ingestion: 수집 도구
   'node-debezium':        'ingestion',
   'node-nifi':            'ingestion',
   'node-dam':             'ingestion',
-  // processing: 처리 / 오케스트레이션
+  // processing: 처리 / 오케스트레이션 (DAG 내부 실행 노드는 infra 노드 아님 — 매핑 제외)
   'node-airflow':         'processing',
-  'node-presidio':        'processing',
-  'node-docling':         'processing',
-  'node-kure':            'processing',
   'node-mock-api':        'processing',
   // serving: 시각화 / API 서빙
   'node-kibana':          'serving',

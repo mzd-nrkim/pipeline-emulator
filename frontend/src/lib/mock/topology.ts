@@ -12,25 +12,27 @@ import type { CanvasTopology } from '../api/types.js';
  * data 채널: ─── / dependency 채널(infra뷰 전용): ···→
  * fan-in  : debezium + nifi + dam → s3-bronze
  * fan-out : valkey → es + mysql
- * infra   : mysql-container → debezium/nifi (dependency), es → kibana (dependency)
+ * infra   : mysql-container → debezium (dependency), zookeeper → nifi (dependency), es → kibana (dependency)
+ *           valkey → debezium (dependency), es → airflow (dependency)
  *
  * ── 노드↔DAG↔docker 서비스 대응표 (SSOT — node-* 규약) ────────────────────────
- * 노드 ID            role        dagId                       docker 서비스
+ * 노드 ID            role               dagId                       docker 서비스
  * ──────────────────────────────────────────────────────────────────────────────
- * node-debezium      ingest      (없음, 수집 전용)            debezium
- * node-nifi          ingest      (없음, 수집 전용)            nifi
- * node-dam           ingest      (없음, 수집 전용)            dam
- * node-s3-bronze     store       (없음, 스토리지)             seaweedfs/s3
- * node-airflow       transform   (오케스트레이터 — trigger)   airflow
- * node-presidio      transform   silver_2_masking            presidio
- * node-docling       transform   silver_1_structuring        airflow (DAG 내 실행)
- * node-kure          transform   gold_3_chunking             airflow (DAG 내 실행)
- * node-valkey        broker      (없음, 브로커)               valkey
- * node-es            index       gold_5_field_mapping        elasticsearch
- * node-mysql         store       (없음, 아카이브)             mysql
- * node-mysql-container store     (없음, 인프라)               mysql
- * node-seaweedfs     store       (없음, 인프라)               seaweedfs
- * node-mock-api      transform   gold_4_enrichment           mock-api
+ * node-debezium      ingest             (없음, 수집 전용)            debezium
+ * node-nifi          ingest             (없음, 수집 전용)            nifi
+ * node-dam           ingest             (없음, 수집 전용)            dam
+ * node-s3-bronze     store              (없음, 스토리지)             seaweedfs/s3
+ * node-airflow       transform          (오케스트레이터 — trigger)   airflow
+ * node-presidio      transform          silver_2_masking            presidio
+ * node-docling       transform          silver_1_structuring        airflow (DAG 내 실행)
+ * node-kure          transform          gold_3_chunking             airflow (DAG 내 실행)
+ * node-valkey        broker             (없음, 브로커)               valkey
+ * node-es            index              gold_5_field_mapping        elasticsearch
+ * node-mysql         store              (없음, 아카이브)             mysql
+ * node-mysql-container store            (없음, 인프라)               mysql
+ * node-seaweedfs     store              (없음, 인프라)               seaweedfs
+ * node-mock-api      transform          gold_4_enrichment           mock-api
+ * node-zookeeper     infra_coordinator  (없음, 인프라)               zookeeper
  * ──────────────────────────────────────────────────────────────────────────────
  * STAGE_DAG_MAP 키(ui-backend): node-presidio·node-docling·node-kure·node-es·node-mock-api
  *
@@ -42,10 +44,14 @@ import type { CanvasTopology } from '../api/types.js';
  *                 SEAWEEDFS_ENDPOINT=http://seaweedfs    seaweedfs       → airflow
  *                 CHUNKING_API_URL=http://mock-api       mock-api        → airflow
  *                 ENRICH_API_URL=http://mock-api         mock-api        → airflow (동일, 통합)
+ *                 ES_HOST=elasticsearch                  es              → airflow (+신규)
  * debezium        dbHost=mysql (config)                  mysql-container → debezium (기존)
- * nifi            connectionPool=dbcp2/mysql (config)    mysql-container → nifi (기존)
+ *                 DEBEZIUM_SINK_REDIS_ADDRESS=valkey     valkey          → debezium (+신규)
+ * nifi            NIFI_ZK_CONNECT_STRING=zookeeper       zookeeper       → nifi (+신규, mysql 제거)
  * kibana          (elasticsearch 내장 의존)              es              → kibana (기존)
  * ─────────────────────────────────────────────────────────────────────────────
+ * 제거: mysql-container → nifi (nifi는 mysql 미의존 — 허위 엣지)
+ * airflow는 SequentialExecutor라 valkey(브로커) 의존 없음 — 의도적 부재
  */
 export const mockTopology: CanvasTopology = {
   nodes: [
@@ -235,6 +241,16 @@ export const mockTopology: CanvasTopology = {
         port: 8000,
       },
     },
+    {
+      id: 'node-zookeeper',
+      role: 'infra_coordinator',
+      tool: 'zookeeper',
+      label: 'ZooKeeper 3.9',
+      config: {
+        connectString: 'zookeeper:2181',
+        tickTime: 2000,
+      },
+    },
   ],
 
   edges: [
@@ -259,9 +275,10 @@ export const mockTopology: CanvasTopology = {
     /* infra dependency: es → kibana */
     { from: 'node-es', to: 'node-kibana', channels: ['dependency'] as ('data' | 'dependency')[] },
 
-    /* infra: MySQL 컨테이너 → Debezium/NiFi (의존성) */
+    /* infra: MySQL 컨테이너 → Debezium (의존성) */
     { from: 'node-mysql-container', to: 'node-debezium', channels: ['dependency'] as ('data' | 'dependency')[] },
-    { from: 'node-mysql-container', to: 'node-nifi',     channels: ['dependency'] as ('data' | 'dependency')[] },
+    /* debezium depends_on: valkey + DEBEZIUM_SINK_REDIS_ADDRESS + schema history redis */
+    { from: 'node-valkey',          to: 'node-debezium', channels: ['dependency'] as ('data' | 'dependency')[] },
 
     /* infra: docker-compose depends_on + env 기반 확충 */
     /* airflow depends_on: mysql + MYSQL_HOST=mysql */
@@ -270,5 +287,10 @@ export const mockTopology: CanvasTopology = {
     { from: 'node-seaweedfs',       to: 'node-airflow',  channels: ['dependency'] as ('data' | 'dependency')[] },
     /* airflow CHUNKING_API_URL + ENRICH_API_URL → mock-api */
     { from: 'node-mock-api',        to: 'node-airflow',  channels: ['dependency'] as ('data' | 'dependency')[] },
+    /* airflow depends_on: elasticsearch + ES_HOST */
+    { from: 'node-es',              to: 'node-airflow',  channels: ['dependency'] as ('data' | 'dependency')[] },
+    /* nifi depends_on: zookeeper + NIFI_ZK_CONNECT_STRING */
+    { from: 'node-zookeeper',       to: 'node-nifi',     channels: ['dependency'] as ('data' | 'dependency')[] },
+    /* airflow는 SequentialExecutor라 valkey(브로커) 의존 없음 — 의도적 부재 */
   ],
 };
