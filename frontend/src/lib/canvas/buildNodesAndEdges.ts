@@ -43,6 +43,7 @@ export interface FlowEdge {
   labelBgBorderRadius?: number;
   labelClassName?: string;
   sourceHandle?: string;
+  type?: string;
 }
 
 export function buildNodesAndEdges(
@@ -196,6 +197,7 @@ export function buildNodesAndEdges(
       labelBgStyle: 'fill-opacity: 1;',
       ...(conditionClass ? { labelClassName: conditionClass } : {}),
       ...(condition ? { sourceHandle: `source-${condition}` } : {}),
+      ...(view === 'infra' ? { type: 'infra-floating' } : {}),
     };
   });
 
