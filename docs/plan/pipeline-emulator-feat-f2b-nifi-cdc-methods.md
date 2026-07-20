@@ -1,6 +1,6 @@
 # F2b. NiFi 프로세서 CDC (Polling·Trigger) — 기능 계획서
 
-> 상태: 미시작
+> 상태: 게이트통과-머지대기
 > 작성일: 2026-07-15 / 우선순위: ★★
 > 관계: [F2 Debezium CDC](./pipeline-emulator-feat-f2-realtime-cdc.md)의 **대안 CDC 방식 옵션**. Debezium(binlog 실시간)과 병렬로, NiFi 프로세서 기반 CDC(Polling/Trigger)를 **선택 가능**하게 한다.
 > 토글: `CDC_METHOD=debezium|polling|trigger` (기본 `debezium`, `CDC=on`일 때만 유효)
@@ -63,40 +63,40 @@
 
 ### A. CDC 방식 선택 토글
 
-- [ ] A-1. `CDC_METHOD=debezium|polling|trigger` 토글 도입 (path: docker-compose.yml + .env.example, 앵커: CDC 섹션, 의도: 방식 선택자·기본 debezium)
-  - [ ] `.env.example`에 `CDC_METHOD` + 값 설명 주석 추가 (path: .env.example, 앵커: CDC 섹션 말미)
-  - [ ] compose profiles로 방식별 서비스 조건부 기동 — polling/trigger는 `nifi` 프로파일, debezium은 기존 `cdc` 프로파일 (path: docker-compose.yml, 앵커: profiles)
+- [x] A-1. `CDC_METHOD=debezium|polling|trigger` 토글 도입 (path: docker-compose.yml + .env.example, 앵커: CDC 섹션, 의도: 방식 선택자·기본 debezium)
+  - [x] `.env.example`에 `CDC_METHOD` + 값 설명 주석 추가 (path: .env.example, 앵커: CDC 섹션 말미)
+  - [x] compose profiles로 방식별 서비스 조건부 기동 — polling/trigger는 `nifi` 프로파일, debezium은 기존 `cdc` 프로파일 (path: docker-compose.yml, 앵커: profiles)
 
 ### B. Polling 방식 (MySQL)
 
-- [ ] B-1. Polling maximum-value 컬럼 = F2가 이미 만든 `source_cft_problem_history.upd_dts`(ON UPDATE) **재사용** (path: db/init.sql 확인, 앵커: source_cft_problem_history.upd_dts, 의도: 신규 컬럼 마이그레이션 불요 — 재사용 확인)
-  - [ ] `upd_dts` 인덱스 부재 시에만 `CREATE INDEX IF NOT EXISTS idx_source_cft_upd_dts` 멱등 추가(Polling 조회 성능)
-- [ ] B-2. NiFi Polling 플로우 정의 (path: nifi/flows/polling/, 앵커: QueryDatabaseTableRecord, 의도: 변경행 조회)
-  - [ ] QueryDatabaseTableRecord: Table=원천, Maximum-value Columns=`updated_at`, DB Type=MySQL, Record Writer=Json, 스케줄 30s
-  - [ ] 출력을 polling 어댑터로 전달(PutFile 또는 ExecuteStreamCommand)
-- [ ] B-3. Polling 어댑터: 변경행 → `change_operation` 매핑 → `register_bronze_event` (path: scripts/cdc/polling_adapter.py 신규, 앵커: op 판정 함수, 의도: 계약 정규화)
-  - [ ] 최초 `row_hash`=insert, 재등장=update 판정(seen-key 상태) + DELETE 미감지 명시 로그
+- [x] B-1. Polling maximum-value 컬럼 = F2가 이미 만든 `source_cft_problem_history.upd_dts`(ON UPDATE) **재사용** (path: db/init.sql 확인, 앵커: source_cft_problem_history.upd_dts, 의도: 신규 컬럼 마이그레이션 불요 — 재사용 확인)
+  - [x] `upd_dts` 인덱스 부재 시에만 `CREATE INDEX IF NOT EXISTS idx_source_cft_upd_dts` 멱등 추가(Polling 조회 성능)
+- [x] B-2. NiFi Polling 플로우 정의 (path: nifi/flows/polling/, 앵커: QueryDatabaseTableRecord, 의도: 변경행 조회)
+  - [x] QueryDatabaseTableRecord: Table=원천, Maximum-value Columns=`updated_at`, DB Type=MySQL, Record Writer=Json, 스케줄 30s
+  - [x] 출력을 polling 어댑터로 전달(PutFile 또는 ExecuteStreamCommand)
+- [x] B-3. Polling 어댑터: 변경행 → `change_operation` 매핑 → `register_bronze_event` (path: scripts/cdc/polling_adapter.py 신규, 앵커: op 판정 함수, 의도: 계약 정규화)
+  - [x] 최초 `row_hash`=insert, 재등장=update 판정(seen-key 상태) + DELETE 미감지 명시 로그
 
 ### C. Trigger 방식 (MySQL)
 
-- [ ] C-1. `bronze_source_change_log` 테이블 + AFTER INSERT/UPDATE/DELETE 트리거 멱등 마이그레이션 (path: db/migrations/ 신규, 앵커: 원천 테이블 트리거, 의도: I/U/D 변경 로그) — 참조 §5.3~5.4 plpgsql을 MySQL 문법으로 이식
-  - [ ] `change_log` 테이블: `id AUTO_INCREMENT`, `operation ENUM('INSERT','UPDATE','DELETE')`, 키 컬럼, `changed_at`, `processed BOOL DEFAULT FALSE`, 인덱스 `(processed, changed_at)`
-  - [ ] MySQL 트리거 3종(INSERT/UPDATE/DELETE 각각) — `DROP TRIGGER IF EXISTS` 선행으로 멱등
-- [ ] C-2. NiFi Trigger 플로우 정의 (path: nifi/flows/trigger/, 앵커: QueryDatabaseTableRecord, 의도: 미처리 변경 소비)
-  - [ ] QueryDatabaseTableRecord: Table=`change_log`, WHERE `processed=FALSE`, Maximum-value=`id` → 어댑터
-  - [ ] 처리 후 `UPDATE change_log SET processed=TRUE WHERE id=...` PutSQL
-- [ ] C-3. Trigger 어댑터: `operation` → `change_operation` 1:1 정규화 → `register_bronze_event` (path: scripts/cdc/trigger_adapter.py 신규, 앵커: 매핑, 의도: 계약 정규화 + DELETE 포함)
+- [x] C-1. `bronze_source_change_log` 테이블 + AFTER INSERT/UPDATE/DELETE 트리거 멱등 마이그레이션 (path: db/migrations/ 신규, 앵커: 원천 테이블 트리거, 의도: I/U/D 변경 로그) — 참조 §5.3~5.4 plpgsql을 MySQL 문법으로 이식
+  - [x] `change_log` 테이블: `id AUTO_INCREMENT`, `operation ENUM('INSERT','UPDATE','DELETE')`, 키 컬럼, `changed_at`, `processed BOOL DEFAULT FALSE`, 인덱스 `(processed, changed_at)`
+  - [x] MySQL 트리거 3종(INSERT/UPDATE/DELETE 각각) — `DROP TRIGGER IF EXISTS` 선행으로 멱등
+- [x] C-2. NiFi Trigger 플로우 정의 (path: nifi/flows/trigger/, 앵커: QueryDatabaseTableRecord, 의도: 미처리 변경 소비)
+  - [x] QueryDatabaseTableRecord: Table=`change_log`, WHERE `processed=FALSE`, Maximum-value=`id` → 어댑터
+  - [x] 처리 후 `UPDATE change_log SET processed=TRUE WHERE id=...` PutSQL
+- [x] C-3. Trigger 어댑터: `operation` → `change_operation` 1:1 정규화 → `register_bronze_event` (path: scripts/cdc/trigger_adapter.py 신규, 앵커: 매핑, 의도: 계약 정규화 + DELETE 포함)
 
 ### D. 소스 변경 주입 (데모 트리거원)
 
-- [ ] D-1. 원천 테이블 INSERT/UPDATE/DELETE 주입 = F2의 `scripts/cdc/mutate_source.py` **재사용 확인** (path: scripts/cdc/mutate_source.py, 앵커: CLI --op, 의도: 신규 작성 아님 — 존재·동작 확인, 부족 시에만 보강)
+- [x] D-1. 원천 테이블 INSERT/UPDATE/DELETE 주입 = F2의 `scripts/cdc/mutate_source.py` **재사용 확인** (path: scripts/cdc/mutate_source.py, 앵커: CLI --op, 의도: 신규 작성 아님 — 존재·동작 확인, 부족 시에만 보강)
 
 ### Z. 머지 전·후 검증 (게이트 — 스킵 금지)
 
 #### Z-pre. 머지 전 (정적)
-- [ ] polling/trigger 어댑터 op 매핑 단위테스트 통과 (insert/update/delete + polling의 DELETE 미감지 케이스)
-- [ ] 마이그레이션 SQL dry/lint — `updated_at` ALTER·`change_log`+트리거 문법 검사(멱등 재실행 안전)
-- [ ] `docker compose --profile nifi config` 문법 통과 + 기본(프로파일 없음) 서비스 목록 불변
+- [x] polling/trigger 어댑터 op 매핑 단위테스트 통과 (insert/update/delete + polling의 DELETE 미감지 케이스)
+- [x] 마이그레이션 SQL dry/lint — `updated_at` ALTER·`change_log`+트리거 문법 검사(멱등 재실행 안전)
+- [x] `docker compose --profile nifi config` 문법 통과 + 기본(프로파일 없음) 서비스 목록 불변
 
 #### Z-post. push 후 (앱 기동 환경)
 - [ ] 마이그레이션 live 적용 + read-back(`updated_at` 컬럼·`change_log` 테이블·트리거 존재 확인)
