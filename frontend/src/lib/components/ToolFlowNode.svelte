@@ -58,6 +58,8 @@
   const resolvedAccent = $derived(accent || 'var(--primary)');
   const resolvedDisplayName = $derived(displayName || label || 'Unnamed');
 
+  const isInfra = $derived(d.isInfra as boolean | undefined);
+
   const applyModeConfig: Record<string, { emoji: string; label: string }> = {
     runtime: { emoji: '🟢', label: 'runtime' },
     restart: { emoji: '🟡', label: 'restart' },
@@ -129,7 +131,7 @@
 </div>
 
 <!-- target handle (왼쪽, 세로 중앙) -->
-<Handle type="target" position={Position.Left} style="top: calc(var(--node-card-height) / 2);" />
+<Handle type="target" position={Position.Left} style="top: calc(var(--node-card-height) / 2); {isInfra ? 'visibility: hidden;' : ''}" />
 
 <!-- source handle(s) (오른쪽, 균등 세로 분배) -->
 {#if outputs && outputs.length > 1}
@@ -138,11 +140,11 @@
       type="source"
       position={Position.Right}
       id={outputId}
-      style="top: calc(var(--node-card-height) * {(i + 1) / (outputs.length + 1)});"
+      style="top: calc(var(--node-card-height) * {(i + 1) / (outputs.length + 1)}); {isInfra ? 'visibility: hidden;' : ''}"
     />
   {/each}
 {:else}
-  <Handle type="source" position={Position.Right} style="top: calc(var(--node-card-height) / 2);" />
+  <Handle type="source" position={Position.Right} style="top: calc(var(--node-card-height) / 2); {isInfra ? 'visibility: hidden;' : ''}" />
 {/if}
 
 <style>
