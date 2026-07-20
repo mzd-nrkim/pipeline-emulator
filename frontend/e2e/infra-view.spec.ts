@@ -44,10 +44,10 @@ test.describe('Infra View — 인프라 연결 뷰', () => {
         (n as HTMLElement).innerText.includes('ES') ||
         (n as HTMLElement).innerText.includes('Elasticsearch')
       );
+      // Valkey는 infra dependency 채널로 이동 → storage 행 기준에서 제외
       const storageNode = nodes.find(n =>
         (n as HTMLElement).innerText.includes('MySQL') ||
-        (n as HTMLElement).innerText.includes('SeaweedFS') ||
-        (n as HTMLElement).innerText.includes('Valkey')
+        (n as HTMLElement).innerText.includes('SeaweedFS')
       );
 
       if (!esNode || !storageNode) return null;
@@ -86,10 +86,10 @@ test.describe('Infra View — 인프라 연결 뷰', () => {
         (n as HTMLElement).innerText.includes('ES') ||
         (n as HTMLElement).innerText.includes('Elasticsearch')
       );
+      // Valkey는 infra dependency 채널로 이동 → storage 행 기준에서 제외
       const storageNode = nodes.find(n =>
         (n as HTMLElement).innerText.includes('MySQL') ||
-        (n as HTMLElement).innerText.includes('SeaweedFS') ||
-        (n as HTMLElement).innerText.includes('Valkey')
+        (n as HTMLElement).innerText.includes('SeaweedFS')
       );
 
       if (!esNode || !storageNode) return null;
