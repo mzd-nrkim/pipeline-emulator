@@ -1,6 +1,6 @@
 /* Week 2 ui-backend 실제 어댑터 */
 import { PUBLIC_UI_BACKEND_URL } from '$env/static/public';
-import type { Stage, Run, Document, SearchResult, Dimension, CanvasTopology, PiiCount } from './types.js';
+import type { Stage, Run, Document, SearchResult, Dimension, CanvasTopology, PiiCount, TaskInstance } from './types.js';
 
 const BASE = PUBLIC_UI_BACKEND_URL || 'http://localhost:8001';
 
@@ -134,4 +134,11 @@ export async function fetchPiiStats(): Promise<PiiCount[]> {
     { type: 'masked', label: '마스킹 완료', count: stats.masked ?? 0 },
     { type: 'unmasked', label: '미마스킹', count: stats.unmasked ?? 0, planned: true },
   ];
+}
+
+export async function fetchExecutions(dagId: string, runId: string): Promise<TaskInstance[]> {
+  const params = new URLSearchParams({ dag_id: dagId, run_id: runId });
+  const res = await fetch(`${BASE}/executions?${params}`);
+  if (!res.ok) throw new Error(`fetchExecutions: ${res.status}`);
+  return res.json() as Promise<TaskInstance[]>;
 }
