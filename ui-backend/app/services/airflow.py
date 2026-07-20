@@ -28,6 +28,12 @@ STAGE_DAG_MAP = {
     # 캔버스 노드 ID (CanvasTopology 기준)
     "masking-task": "silver_2_masking",
     "chunking-task": "gold_3_chunking",
+    # 캔버스 노드 ID (CanvasTopology node-* 규약)
+    "node-presidio": "silver_2_masking",
+    "node-docling": "silver_1_structuring",
+    "node-kure": "gold_3_chunking",
+    "node-es": "gold_5_field_mapping",
+    "node-mock-api": "gold_4_enrichment",
 }
 
 def _get_dag_run_info(dag_id: str) -> dict:
