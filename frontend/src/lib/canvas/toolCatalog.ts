@@ -279,6 +279,22 @@ const catalog: ToolCatalogEntry[] = [
       { key: 'tickTime', label: 'Tick Time(ms)', type: 'number', group: '동작', applyMode: 'readonly' },
     ],
   },
+  {
+    id: 'mock-api',
+    displayName: 'Mock API (Enrichment)',
+    vendor: '내부',
+    category: 'task',
+    icon: '🔌',
+    accent: '#10B981',
+    configFields: [
+      { key: 'endpoint', label: '엔드포인트', type: 'text', group: '연결', applyMode: 'readonly' },
+      { key: 'method', label: 'HTTP 메서드', type: 'select', options: ['GET', 'POST', 'PUT', 'PATCH'], group: '동작', applyMode: 'readonly' },
+      { key: 'responseTemplate', label: '응답 템플릿', type: 'text', group: '동작', applyMode: 'runtime' },
+      { key: 'latencyMs', label: '응답 지연(ms)', type: 'number', placeholder: '100', group: '동작', applyMode: 'runtime' },
+      { key: 'statusCode', label: '응답 상태 코드', type: 'number', placeholder: '200', group: '동작', applyMode: 'runtime' },
+      { key: 'authToken', label: '인증 토큰', type: 'text', placeholder: '***', group: '인증', applyMode: 'readonly' },
+    ],
+  },
 ];
 
 const catalogMap: Map<string, ToolCatalogEntry> = new Map(
