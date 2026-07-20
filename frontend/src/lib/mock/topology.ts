@@ -127,7 +127,7 @@ export const mockTopology: CanvasTopology = {
       id: 'node-docling',
       role: 'transform',
       tool: 'docling-langchain',
-      label: 'Docling Chunker',
+      label: 'Docling Structuring',
       config: {
         dagId: 'silver_1_structuring',
         chunkSize: 512,
@@ -139,7 +139,7 @@ export const mockTopology: CanvasTopology = {
       id: 'node-kure',
       role: 'transform',
       tool: 'kure-embedding',
-      label: 'KURE Embedding',
+      label: 'KURE Chunking & Embedding',
       config: {
         dagId: 'gold_3_chunking',
         modelPath: 'models/kure-v1.onnx',
@@ -225,7 +225,7 @@ export const mockTopology: CanvasTopology = {
       id: 'node-mock-api',
       role: 'transform',
       tool: 'presidio',
-      label: 'Mock API (chunking/enrich)',
+      label: 'Mock API (Enrichment)',
       config: {
         dagId: 'gold_4_enrichment',
         chunkUrl: 'http://mock-api:8000/chunk',
