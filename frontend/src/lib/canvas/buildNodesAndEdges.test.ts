@@ -31,7 +31,7 @@ const sampleTopology: CanvasTopology = {
     { id: 'node-kure',      role: 'transform',  tool: 'kure-embedding',    config: {} },
     { id: 'node-mock-api',  role: 'transform',  tool: 'presidio',          config: {} },
     /* Infra: Valkey (dependency 채널 전용, 데이터 체인에서 제거) */
-    { id: 'node-valkey',    role: 'infra' as const, tool: 'valkey',        config: {} },
+    { id: 'node-valkey',    role: 'broker',         tool: 'valkey',        config: {} },
     /* Index */
     { id: 'node-es',        role: 'index',      tool: 'elasticsearch',     config: {} },
     /* Visualize */

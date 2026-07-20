@@ -163,7 +163,7 @@ export const mockTopology: CanvasTopology = {
     /* ── 인프라: Valkey (dependency 채널 전용, 데이터뷰 미표시) ── */
     {
       id: 'node-valkey',
-      role: 'infra',
+      role: 'broker',
       tool: 'valkey',
       label: 'Valkey',
       displayNameOverride: 'Valkey (Redis)',
