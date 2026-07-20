@@ -19,6 +19,7 @@
   let compareMode = $state(false);
   let activeRunId = $state<string | null>(null);
   let view = $state<'data' | 'infra'>('data');
+  let showOrphans = $state(false);
   let selectedNode = $state<ToolNode | null>(null);
   let localConfig = $state<Record<string, unknown>>({});
   let triggeredRunId = $state<string | null>(null);
@@ -141,6 +142,14 @@
             인프라
           </button>
         </div>
+        <button
+          type="button"
+          onclick={() => showOrphans = !showOrphans}
+          aria-pressed={showOrphans}
+          class="px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-tight rounded-xs border border-border transition-colors {showOrphans ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}"
+        >
+          연결 없는 노드 표시
+        </button>
       </div>
     </div>
   </div>
@@ -155,6 +164,7 @@
         ontrigger={(id) => activeRunId = id}
         {view}
         onnodeselect={handleNodeSelect}
+        hideOrphans={!showOrphans}
       />
     </div>
 
