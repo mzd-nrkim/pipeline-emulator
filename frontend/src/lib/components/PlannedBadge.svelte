@@ -1,6 +1,6 @@
 <script lang="ts">
   import { cn } from '$lib/utils.js';
-  let { class: className = '' }: { class?: string } = $props();
+  let { class: className = '', label = '예정' }: { class?: string; label?: string } = $props();
 </script>
 
 <span class={cn(
@@ -8,5 +8,5 @@
   'text-[9px] font-mono font-bold uppercase tracking-wider text-muted-foreground',
   className
 )}>
-  예정
+  {label}
 </span>

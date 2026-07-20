@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
+  import PlannedBadge from './PlannedBadge.svelte';
 
   let { data, selected }: NodeProps = $props();
 
@@ -14,6 +15,7 @@
   const outputs = $derived(d.outputs as string[] | undefined);
 
   const outOfTeamScope = $derived(d.outOfTeamScope as boolean | undefined);
+  const deployStatus = $derived((d.deployStatus as string | undefined) ?? 'active');
 
   const resolvedIcon = $derived(icon || '❓');
   const resolvedAccent = $derived(accent || 'var(--primary)');
@@ -31,6 +33,8 @@
 <div
   class="tool-flow-node"
   class:out-of-scope={outOfTeamScope}
+  class:status-planned={deployStatus === 'planned'}
+  class:status-absent={deployStatus === 'absent'}
   class:selected={selected}
   style="--node-accent: {resolvedAccent};"
 >
@@ -45,6 +49,13 @@
     <!-- trigger 배지 (우상단 절대 위치) -->
     {#if trigger}
       <span class="trigger-badge" title="trigger">⚡</span>
+    {/if}
+
+    <!-- deployStatus 배지 -->
+    {#if deployStatus === 'planned'}
+      <PlannedBadge label="예정" />
+    {:else if deployStatus === 'absent'}
+      <PlannedBadge label="없음" />
     {/if}
 
     <!-- hover/focus 상세 오버레이 -->
@@ -207,6 +218,16 @@
   /* outOfTeamScope grayout — opacity를 wrapper에 적용해 DOM 쿼리로 검출 가능하게 */
   .out-of-scope {
     opacity: 0.5;
+  }
+
+  /* deployStatus grayout — outOfTeamScope와 독립·중첩 안전 */
+  .status-planned {
+    opacity: 0.65;
+  }
+
+  .status-absent {
+    opacity: 0.4;
+    border-style: dashed;
   }
 
   .node-label-muted .node-display-name,
