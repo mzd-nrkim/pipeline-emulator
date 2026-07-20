@@ -154,13 +154,14 @@ describe('buildNodesAndEdges', () => {
     expect(edges.every(e => !e.animated)).toBe(true); // infra 뷰는 animated=false
   });
 
-  it('infra 뷰: mysql-container의 X좌표가 debezium/nifi보다 작음 (위상 순서)', () => {
+  it('infra 뷰: mysql-container의 Y좌표가 debezium/nifi보다 작음 (계층 순서: storage < ingestion)', () => {
     const { nodes } = buildNodesAndEdges(sampleTopology, 'infra');
     const mysqlNode = nodes.find(n => n.id === 'node-mysql-container');
     const debeziumNode = nodes.find(n => n.id === 'node-debezium');
     expect(mysqlNode).toBeDefined();
     expect(debeziumNode).toBeDefined();
-    expect(mysqlNode!.position.x).toBeLessThan(debeziumNode!.position.x);
+    // infra 뷰는 Y축으로 계층 분리(storage < ingestion), X축은 동일 계층 내 순서
+    expect(mysqlNode!.position.y).toBeLessThan(debeziumNode!.position.y);
   });
 
   it('뷰 왕복: data→infra→data 전환 후 data 뷰 엣지 수 동일', () => {

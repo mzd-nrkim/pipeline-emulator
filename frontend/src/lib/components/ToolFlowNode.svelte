@@ -3,19 +3,20 @@
 
   let { data }: NodeProps = $props();
 
-  const icon = (data as Record<string, unknown>).icon as string | undefined;
-  const accent = (data as Record<string, unknown>).accent as string | undefined;
-  const vendor = (data as Record<string, unknown>).vendor as string | undefined;
-  const displayName = (data as Record<string, unknown>).displayName as string | undefined;
-  const role = (data as Record<string, unknown>).role as string | undefined;
-  const trigger = (data as Record<string, unknown>).trigger as boolean | undefined;
-  const applyMode = (data as Record<string, unknown>).applyMode as string | undefined;
-  const status = (data as Record<string, unknown>).status as string | undefined;
-  const outputs = (data as Record<string, unknown>).outputs as string[] | undefined;
+  const d = $derived(data as Record<string, unknown>);
+  const icon = $derived(d.icon as string | undefined);
+  const accent = $derived(d.accent as string | undefined);
+  const vendor = $derived(d.vendor as string | undefined);
+  const displayName = $derived(d.displayName as string | undefined);
+  const role = $derived(d.role as string | undefined);
+  const trigger = $derived(d.trigger as boolean | undefined);
+  const applyMode = $derived(d.applyMode as string | undefined);
+  const status = $derived(d.status as string | undefined);
+  const outputs = $derived(d.outputs as string[] | undefined);
 
-  const resolvedIcon = icon || '❓';
-  const resolvedAccent = accent || 'var(--primary)';
-  const resolvedDisplayName = displayName || 'Unnamed';
+  const resolvedIcon = $derived(icon || '❓');
+  const resolvedAccent = $derived(accent || 'var(--primary)');
+  const resolvedDisplayName = $derived(displayName || 'Unnamed');
 
   const applyModeConfig: Record<string, { emoji: string; label: string }> = {
     runtime: { emoji: '🟢', label: 'runtime' },
@@ -24,7 +25,6 @@
     readonly: { emoji: '🔴', label: 'readonly' },
   };
 
-  const hasMultipleOutputs = outputs && outputs.length > 1;
 </script>
 
 <div
@@ -65,7 +65,7 @@
 <Handle type="target" position={Position.Left} />
 
 <!-- source handle(s) (오른쪽) -->
-{#if hasMultipleOutputs}
+{#if outputs && outputs.length > 1}
   {#each outputs as outputId, i}
     <Handle
       type="source"
