@@ -84,7 +84,7 @@
       fitView
       onnodeclick={({ node }) => handleNodeClick(node)}
     >
-      <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} bgColor="var(--surface-muted)" color="var(--border)" />
+      <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} bgColor="var(--surface-muted)" patternColor="var(--border)" />
       <Controls />
     </SvelteFlow>
   {/if}

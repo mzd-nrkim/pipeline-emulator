@@ -39,7 +39,7 @@
       </div>
     {/if}
     <SvelteFlow bind:nodes bind:edges nodeTypes={{ tool: ToolFlowNode as any }} fitView onnodeclick={({ node }) => { const clicked = topology.nodes.find(n => n.id === node.id) ?? null; onnodeselect?.(clicked); }}>
-      <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} bgColor="var(--surface-muted)" color="var(--border)" />
+      <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} bgColor="var(--surface-muted)" patternColor="var(--border)" />
       <Controls />
     </SvelteFlow>
   </div>
