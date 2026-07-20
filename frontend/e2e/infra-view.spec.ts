@@ -4,7 +4,7 @@ test.describe('Infra View — 인프라 연결 뷰', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/sample/pipeline');
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector('.svelte-flow .svelte-flow__node', { timeout: 5000 });
+    await expect(page.locator('.svelte-flow .svelte-flow__node').first()).toBeAttached({ timeout: 5000 });
   });
 
   test('인프라 뷰 전환: "인프라" 버튼 클릭 → "인프라 연결 뷰" 배지 가시성', async ({ page }) => {
