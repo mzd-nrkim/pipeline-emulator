@@ -84,8 +84,30 @@
       fitView
       onnodeclick={({ node }) => handleNodeClick(node)}
     >
-      <Background />
+      <Background variant="dots" gap={20} size={1.5} bgColor="var(--surface-muted)" color="var(--border)" />
       <Controls />
     </SvelteFlow>
   {/if}
 </div>
+
+<style>
+  :global(.svelte-flow__edge-path) {
+    stroke: var(--muted-foreground);
+    stroke-width: 1.5;
+  }
+  :global(.svelte-flow__controls) {
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+  :global(.svelte-flow__controls-button) {
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--foreground);
+    padding: 4px 6px;
+  }
+  :global(.svelte-flow__controls-button:hover) {
+    background: var(--surface-muted);
+  }
+</style>
