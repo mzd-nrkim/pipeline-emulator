@@ -105,10 +105,10 @@ def get_gold_staged_documents() -> list:
             if not title:
                 title = source_primary_key if source_primary_key else doc_id
 
-            # pii_pattern_types JSON 파싱 → piiCounts 리스트 변환
+            # pii_pattern_types JSON 파싱 → piiCounts 리스트 변환 (is_masked=TRUE인 문서만)
             pii_counts = []
             pii_raw = row.get("pii_pattern_types")
-            if pii_raw:
+            if row.get("is_masked") and pii_raw:
                 try:
                     pt = json.loads(pii_raw) if isinstance(pii_raw, str) else pii_raw
                     if isinstance(pt, dict):
