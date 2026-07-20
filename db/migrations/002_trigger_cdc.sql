@@ -1,3 +1,5 @@
+-- 실행 계정: root (binlog 활성 환경에서 CREATE TRIGGER에 SUPER 권한 필요)
+-- emulator 계정으로 실행 시 ERROR 1419 발생 → docker exec ... mysql -uroot -p<root_pass>
 -- F2b Trigger CDC: bronze_source_change_log 테이블 + AFTER 트리거 (MySQL, 멱등)
 -- 참조: 06_news_cdc_pipeline_plan.md §5.3~5.4 plpgsql → MySQL 이식
 
