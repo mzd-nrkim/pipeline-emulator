@@ -33,6 +33,11 @@ export interface FlowEdge {
   target: string;
   animated: boolean;
   label?: string;
+  labelStyle?: Record<string, string | number>;
+  labelBgStyle?: Record<string, string | number>;
+  labelBgPadding?: [number, number];
+  labelBgBorderRadius?: number;
+  labelClassName?: string;
   sourceHandle?: string;
 }
 
@@ -157,14 +162,29 @@ export function buildNodesAndEdges(
   });
 
   // 6. FlowEdge 생성
-  const edges: FlowEdge[] = visibleEdges.map((e, i) => ({
-    id: `e-${e.from}-${e.to}-${i}`,
-    source: e.from,
-    target: e.to,
-    animated: view === 'data',
-    label: e.condition ?? undefined,
-    ...(e.condition ? { sourceHandle: `source-${e.condition}` } : {}),
-  }));
+  const edges: FlowEdge[] = visibleEdges.map((e, i) => {
+    const condition = e.condition ?? undefined;
+    const conditionClass = condition === 'true'
+      ? 'edge-label-true'
+      : condition === 'false'
+        ? 'edge-label-false'
+        : condition
+          ? 'edge-label-default'
+          : undefined;
+    return {
+      id: `e-${e.from}-${e.to}-${i}`,
+      source: e.from,
+      target: e.to,
+      animated: view === 'data',
+      label: condition,
+      labelBgPadding: [6, 2] as [number, number],
+      labelBgBorderRadius: 9999,
+      labelStyle: { fontSize: '0.7rem', fontWeight: 600, textTransform: 'lowercase' as const },
+      labelBgStyle: { fillOpacity: 1 },
+      ...(conditionClass ? { labelClassName: conditionClass } : {}),
+      ...(condition ? { sourceHandle: `source-${condition}` } : {}),
+    };
+  });
 
   return { nodes, edges };
 }

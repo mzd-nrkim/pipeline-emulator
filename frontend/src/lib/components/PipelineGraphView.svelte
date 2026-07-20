@@ -87,7 +87,7 @@
       defaultEdgeOptions={defaultEdgeMarkerOptions}
       onnodeclick={({ node }) => handleNodeClick(node)}
     >
-      <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} bgColor="var(--surface-muted)" patternColor="var(--border)" />
+      <Background variant={BackgroundVariant.Dots} gap={16} size={1} bgColor="var(--surface-muted)" patternColor="var(--border)" />
       <Controls />
     </SvelteFlow>
   {/if}
