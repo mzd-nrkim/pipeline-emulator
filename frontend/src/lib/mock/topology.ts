@@ -264,9 +264,9 @@ export const mockTopology: CanvasTopology = {
     { from: 'node-s3-bronze', to: 'node-airflow', channels: ['data'] },
 
     /* task 체인 */
-    { from: 'node-airflow',  to: 'node-presidio', channels: ['data'] },
-    { from: 'node-presidio', to: 'node-docling',  channels: ['data'] },
-    { from: 'node-docling',  to: 'node-kure',     channels: ['data'] },
+    { from: 'node-airflow',  to: 'node-docling',  channels: ['data'] },
+    { from: 'node-docling',  to: 'node-presidio', channels: ['data'] },
+    { from: 'node-presidio', to: 'node-kure',     channels: ['data'] },
     { from: 'node-kure',     to: 'node-valkey',   channels: ['data'] },
 
     /* fan-out: valkey → es + mysql */
