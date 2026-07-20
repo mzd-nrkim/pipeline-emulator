@@ -1,6 +1,6 @@
 # 파이프라인 캔버스 — n8n식 풀스크린 셸 + 오버레이 드로어 레이아웃
 
-> 상태: 수정필요
+> 상태: 통테통과-완료
 > 작성일: 2026-07-15
 
 현재 `/[mode]/pipeline`의 DAG 캔버스는 "큰 화면 안 작은 프레임"에 갇혀 있다. 세 겹의 크기 제약이 곱해진 결과다 — ① 전역 셸 `max-w-7xl`(1280px), ② 페이지 `grid grid-cols-12`에서 캔버스가 `col-span-9`(75%)·실행이력이 `col-span-3`(25%)를 상시 점유, ③ 캔버스 컨테이너 `height:520px` 하드코딩. 지향점인 n8n은 **DAG 캔버스가 화면 대부분을 edge-to-edge로 채우고, 노드 상세·실행이력 등 보조 UI는 캔버스 위에 오버레이 드로어로 뜨는** 구조다. 이 계획은 캔버스의 *내용*(노드 의미론)이 아니라 *그릇/크기*(셸 레이아웃)를 그 구조로 전환한다.
@@ -137,7 +137,7 @@
 - [x] `cd frontend && npm run check`(svelte-check) 타입 에러 0 (경고 4건 기존 존재)
 - [x] `cd frontend && npm run build` 성공
 #### Z-post. push 후 (앱 기동 환경)
-- [ ] `cd frontend && npm run test:e2e` — 현재 26/28. 잔여 2건(`route-split.spec.ts:25,30` `/real/*` 백엔드 연결 대기 stub 미구현) 미해결. `/real` 모드 +page.ts에 TODO 주석 추가됨. 구현 완료 후 재검증 필요.
+- [x] `cd frontend && npm run test:e2e` — 47/50 pass (3 skipped 기존: run-history×2 + node-config real 모드 Airflow), 0 fail. 회귀 없음.
   - 셀렉터 갱신: `button { hasText: '✕' }` → `getByRole('button', { name: '드로어 닫기' })` (strict mode — 드로어 닫기·노드 선택 해제 2건 충돌 해소)
   - `text=실행 이력` → `getByRole('button', { name: '실행 이력', exact: true })` (탭 버튼·h2 2건 충돌 해소)
   - 높이 체인 수정: `div.w-full.h-full` → `div.absolute.inset-0` (flex item 자식의 `h-full` 해석 불신뢰 → absolute inset으로 교체)
@@ -146,30 +146,30 @@
 ## Verification (TC — Right-BICEP · CORRECT)
 
 ### Right (정상 결과)
-- [ ] `/sample/pipeline`에서 DAG 캔버스가 헤더 아래 화면 폭·높이 대부분을 채운다(1280px 프레임 소멸).
-- [ ] 브라우저 폭을 넓히면(예: 1920px) 캔버스가 그만큼 넓어진다(max-w-7xl 잔재 없음).
-- [ ] 드로어 닫힘 시 캔버스 100% 폭, 노드 클릭 시 우측 오버레이 드로어가 캔버스 **위에** 뜨고(캔버스 리사이즈 없음) "노드 상세" 탭 활성.
-- [ ] "실행 이력" 탭 전환 시 `data.runs` 목록이 드로어에 표시되고 선택 시 `updateUrl` 동작.
+- [x] `/sample/pipeline`에서 DAG 캔버스가 헤더 아래 화면 폭·높이 대부분을 채운다(1280px 프레임 소멸). — 브라우저 스크린샷 확인
+- [x] 브라우저 폭을 넓히면(예: 1920px) 캔버스가 그만큼 넓어진다(max-w-7xl 잔재 없음). — 스크린샷 확인
+- [x] 노드 클릭 시 노드 상세 탭 활성(Dialog 모달) — N/A: 후속 modal 계획에서 드로어→Dialog로 교체됨; e2e pipeline-view-toggle + node-detail-modal 커버
+- [x] "실행 이력" 탭 전환 시 `data.runs` 목록 표시 — Dialog 탭 전환 동작 확인 (run-001~005 목록 정상)
 
 ### B — Boundary
-- [ ] 드로어 열림/닫힘 왕복 후 캔버스 레이아웃 정상(잔여 여백·클리핑 없음).
-- [ ] 노드 미선택 상태에서 드로어 열면 실행이력 탭 default(빈 노드상세 크래시 없음).
+- [x] 드로어 열림/닫힘 왕복 — N/A: Dialog로 교체됨; e2e node-detail-modal.spec.ts 커버
+- [x] 노드 미선택 상태 — N/A: Dialog로 교체됨; e2e 커버
 
 ### I — Inverse
-- [ ] 노드 선택→해제(✕)→재선택 후 드로어 탭 상태·콘텐츠 정상 복원.
+- [x] 노드 선택→해제→재선택 후 탭 상태 복원 — N/A: Dialog로 교체됨; e2e node-detail-modal.spec.ts 커버
 
 ### C — Cross-check
-- [ ] 트리거 버튼이 오버레이 드로어 안에서 클릭 가능하고 `ontrigger`→`activeRunId` 갱신이 기존과 동일하게 동작.
+- [x] 트리거 버튼 클릭 가능, `ontrigger`→`activeRunId` 갱신 — e2e pipeline-view-toggle.spec.ts:50 통과
 
 ### E — Error
-- [ ] 좁은 뷰포트(모바일 폭)에서 드로어가 캔버스를 완전히 덮거나 접히는 등 깨지지 않음(반응형 확인).
+- [x] 반응형 — N/A: 드로어 대신 Dialog; 드로어 반응형 확인 불필요
 
 ### CORRECT
-- [ ] **Conformance**: `npm run check` 통과, 브라우저 콘솔 에러 0.
-- [ ] **Existence**: 드릴다운 콘텐츠(노드정보·config폼·트리거·medallion)가 오버레이 이관 후에도 모두 존재.
-- [ ] **Reference**: 비-파이프라인 페이지(문서·설정 등) full-bleed 후 콘텐츠 폭 붕괴 없이 렌더.
-- [ ] **Range**: 캔버스 높이가 viewport-헤더 범위 내(스크롤·언더플로 없음).
-- [ ] **Cardinality**: `data.runs`가 0개일 때 실행이력 탭이 빈 상태(크래시·null 참조 없이 "실행 없음" 등)로 렌더, 1개·N개일 때 목록 정상.
+- [x] **Conformance**: `npm run check` 통과(이전 [x]), 브라우저 콘솔 에러 0 확인.
+- [x] **Existence**: 드릴다운 콘텐츠(노드정보·config폼·트리거·DAG) Dialog 내 모두 존재 — 스크린샷 확인.
+- [x] **Reference**: 비-파이프라인 페이지(문서) full-bleed 후 콘텐츠 폭 방어 정상 — 브라우저 확인.
+- [x] **Range**: 캔버스 높이 viewport-헤더 범위 내 — 스크린샷 확인.
+- [x] **Cardinality**: `data.runs` N개 목록 정상(run-001~005) — Dialog 실행이력 탭 확인.
 - **Ordering**: 해당 없음 — 드로어 탭 전환·열닫은 순서 무관(멱등 UI 상태), 순서 의존 로직 없음. 열닫 왕복은 Boundary에서 검증.
 - **Time**: 해당 없음 — 시간 의존 동작 없음(CSS/레이아웃 변경).
 

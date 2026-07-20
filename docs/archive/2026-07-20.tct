@@ -1,0 +1,19 @@
+
+ pipeline-emulator 그래프가 마음에 안들어. n8n은 좌->우 그래프인데 이 그래프는 노드의 상하에 엣지가 닿아. 이거 바꿀 수 없을까?
+
+ http://localhost:5174/sample/pipeline 인프라 그래프좀 봐줘. 
+ 1) 엘라스틱서치는 실제로 띄울게 아니었던거 같은데 존재하는 이유가 있나?
+ 2) 실제하더라도, 데이터파이프라인(우리팀)에서 엘라스틱서치는 관심밖의 영역인데 하이라이트된 이유가 궁금하네
+ 3) 엘라스틱서치와 키바나가 관심도의 영역이야? 그래프에서 좌측에 있는 이유가 궁금하네.
+ 
+
+
+
+ pipeline-emulator 그래프 좀 봐줘.
+https://storage.ghost.io/c/08/a3/08a3cb77-16f2-4623-b90a-2936db90af0a/content/images/size/w1200/2026/01/n8n-screenshot-readme.png 
+이 이미지를 보면 크기가 큰 노드와 화살표 모양, 노드별 조건, 가용성이 아주 편리해보여.
+내 프로젝트도 이렇게 개선하고 싶어. 가능한가?
+
+
+docs/plan/pipeline-emulator-bug-canvas-real-alignment.md
+docs/plan/pipeline-emulator-canvas-fullscreen-layout.md
