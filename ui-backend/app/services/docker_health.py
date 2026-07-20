@@ -45,7 +45,7 @@ def collect_service_health() -> dict[str, str]:
     try:
         import docker  # type: ignore
         client = docker.from_env()
-        containers = client.containers.list(all=True)
+        containers = client.containers.list()
 
         service_health: dict[str, str] = {}
         for container in containers:
