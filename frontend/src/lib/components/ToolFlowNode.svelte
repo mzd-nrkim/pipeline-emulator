@@ -159,7 +159,6 @@
     height: var(--node-card-size);
     background: var(--card, var(--surface));
     border: 1px solid var(--border);
-    border-left: 4px solid var(--node-accent);
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -282,7 +281,6 @@
 
   .out-of-scope .node-card {
     border: 1px dashed var(--border);
-    border-left: 4px dashed var(--node-accent);
     background: var(--surface-muted);
   }
 
