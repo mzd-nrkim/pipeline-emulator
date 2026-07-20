@@ -2,6 +2,7 @@
   import { writable } from 'svelte/store';
   import { SvelteFlow, Background, Controls, type Node as FlowNode, type Edge as FlowEdge } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
+  import LRFlowNode from './LRFlowNode.svelte';
   import type { ToolNode, CanvasTopology, Stage } from '$lib/api/types.js';
   import { buildNodesAndEdges } from '$lib/canvas/buildNodesAndEdges.js';
 
@@ -43,7 +44,7 @@
         인프라 연결 뷰
       </div>
     {/if}
-    <SvelteFlow nodes={nodesStore} edges={edgesStore} fitView on:nodeclick={handleNodeClick}>
+    <SvelteFlow nodes={nodesStore} edges={edgesStore} nodeTypes={{ lrnode: LRFlowNode }} fitView on:nodeclick={handleNodeClick}>
       <Background />
       <Controls />
     </SvelteFlow>
