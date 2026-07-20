@@ -166,6 +166,7 @@ export const mockTopology: CanvasTopology = {
       role: 'index',
       tool: 'elasticsearch',
       label: 'Elasticsearch',
+      outOfTeamScope: true,
       config: {
         dagId: 'gold_5_field_mapping',
         index: 'lllm-docs',
@@ -179,6 +180,7 @@ export const mockTopology: CanvasTopology = {
       role: 'visualize',
       tool: 'kibana',
       label: 'Kibana',
+      outOfTeamScope: true,
       config: {
         space: 'lllm',
         dashboardId: 'pipeline-monitor',
