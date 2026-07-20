@@ -20,6 +20,15 @@ test.describe('Infra View — 인프라 연결 뷰', () => {
     expect(edgeCount).toBeGreaterThan(0);
   });
 
+  test('엣지에 ArrowClosed 마커(markerEnd)가 렌더된다', async ({ page }) => {
+    await page.waitForSelector('.svelte-flow .svelte-flow__edge', { timeout: 5000 });
+    const markerCount = await page.evaluate(() => {
+      const edgePaths = [...document.querySelectorAll('.svelte-flow__edge-path[marker-end]')];
+      return edgePaths.length;
+    });
+    expect(markerCount).toBeGreaterThan(0);
+  });
+
   test('ES 노드 serving 계층 위치: storage 행보다 y값이 큼', async ({ page }) => {
     await page.getByRole('button', { name: '인프라', exact: true }).click();
     await page.waitForTimeout(500);

@@ -3,6 +3,7 @@
   import '@xyflow/svelte/dist/style.css';
   import ToolFlowNode from '$lib/components/ToolFlowNode.svelte';
   import type { Stage } from '$lib/api/types.js';
+  import { defaultEdgeMarkerOptions } from '$lib/canvas/edgeMarker.js';
 
   let { stages, onselect }: { stages: Stage[]; onselect: (id: string) => void } = $props();
 
@@ -82,6 +83,7 @@
       nodesConnectable={false}
       elementsSelectable={true}
       fitView
+      defaultEdgeOptions={defaultEdgeMarkerOptions}
       onnodeclick={({ node }) => handleNodeClick(node)}
     >
       <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} bgColor="var(--surface-muted)" patternColor="var(--border)" />
