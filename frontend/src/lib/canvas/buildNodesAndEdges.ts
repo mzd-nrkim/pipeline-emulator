@@ -108,7 +108,8 @@ export interface FlowEdge {
 
 export function buildNodesAndEdges(
   topo: CanvasTopology,
-  view: 'data' | 'infra' = 'data'
+  view: 'data' | 'infra' = 'data',
+  hideOrphans: boolean = true
 ): { nodes: FlowNode[]; edges: FlowEdge[] } {
 
   // 1. 채널 필터: 현재 view에 해당하는 채널을 가진 엣지만 포함
@@ -119,13 +120,15 @@ export function buildNodesAndEdges(
     e.channels.includes(view === 'data' ? 'data' : 'dependency')
   );
 
-  // 2. 가시 그래프에서 연결된 노드 ID 집합 (고아 노드 숨김)
+  // 2. 가시 그래프에서 연결된 노드 ID 집합 (고아 노드 숨김 조건부)
   const connectedIds = new Set<string>();
   for (const e of visibleEdges) {
     connectedIds.add(e.from);
     connectedIds.add(e.to);
   }
-  const visibleNodes = topo.nodes.filter(n => connectedIds.has(n.id));
+  const visibleNodes = hideOrphans
+    ? topo.nodes.filter(n => connectedIds.has(n.id))
+    : topo.nodes;
 
   // 3. 배치 계산: infra 뷰는 계층 grouping, data 뷰는 위상정렬 depth
   let getPosition: (nodeId: string) => { x: number; y: number };
