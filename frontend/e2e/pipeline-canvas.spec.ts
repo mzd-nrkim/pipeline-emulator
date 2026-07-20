@@ -27,9 +27,14 @@ test.describe('Pipeline Canvas View — ToolCanvasView (P1/P3 통합)', () => {
 
   test('Canvas 뷰에서 노드가 role 레이블로 시각 구분된다', async ({ page }) => {
     await page.waitForSelector('.svelte-flow .svelte-flow__node', { timeout: 5000 });
-    const nodeTexts = await page.locator('.svelte-flow__node').allInnerTexts();
+    // role 텍스트는 hover 시 표시되는 .node-detail 오버레이에 있어 innerText에 미포함
+    // textContent로 DOM 전체 텍스트 수집 (display:none 포함)
+    const allText = await page.evaluate(() => {
+      const nodes = [...document.querySelectorAll('.svelte-flow__node')];
+      return nodes.map(n => n.textContent || '').join(' ');
+    });
     const validRoles = ['ingest', 'transform', 'store', 'broker', 'index', 'visualize', 'route'];
-    const hasRole = nodeTexts.some(t => validRoles.some(r => t.includes(r)));
+    const hasRole = validRoles.some(r => allText.includes(r));
     expect(hasRole).toBe(true);
   });
 

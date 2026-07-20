@@ -204,8 +204,8 @@
     max-width: 100%;
   }
 
-  /* outOfTeamScope grayout */
-  .out-of-scope .node-card {
+  /* outOfTeamScope grayout — opacity를 wrapper에 적용해 DOM 쿼리로 검출 가능하게 */
+  .out-of-scope {
     opacity: 0.5;
   }
 

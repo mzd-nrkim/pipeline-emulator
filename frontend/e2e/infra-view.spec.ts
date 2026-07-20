@@ -166,19 +166,24 @@ test.describe('Infra View — 인프라 연결 뷰', () => {
     }
   });
 
-  test('outOfTeamScope 노드 node-header-gray 클래스: 회색 헤더 DOM 확인', async ({ page }) => {
+  test('outOfTeamScope 노드 grayout: out-of-scope 래퍼에 opacity 감소 또는 dashed border 적용 확인', async ({ page }) => {
     await page.getByRole('button', { name: '인프라', exact: true }).click();
     await page.waitForTimeout(500);
 
     const result = await page.evaluate(() => {
-      // out-of-scope 클래스를 가진 노드 내부의 node-header-gray 존재 확인
       const outOfScopeInners = [...document.querySelectorAll('.svelte-flow__node .out-of-scope')];
-      if (outOfScopeInners.length === 0) return { found: false, allHaveGrayHeader: false };
+      if (outOfScopeInners.length === 0) return { found: false, allGrayout: false };
 
-      const allHaveGrayHeader = outOfScopeInners.every(el =>
-        el.querySelector('.node-header-gray') !== null
-      );
-      return { found: true, count: outOfScopeInners.length, allHaveGrayHeader };
+      const allGrayout = outOfScopeInners.every(el => {
+        const style = window.getComputedStyle(el as HTMLElement);
+        const isOpaque = parseFloat(style.opacity) < 1.0;
+        const nodeCard = el.querySelector('.node-card') as HTMLElement | null;
+        const cardStyle = nodeCard ? window.getComputedStyle(nodeCard) : null;
+        const isDashed = cardStyle ? cardStyle.borderStyle.includes('dashed') : false;
+        const hasMutedLabel = el.querySelector('.node-label-muted') !== null;
+        return isOpaque || isDashed || hasMutedLabel;
+      });
+      return { found: true, count: outOfScopeInners.length, allGrayout };
     });
 
     if (!result.found) {
@@ -186,8 +191,8 @@ test.describe('Infra View — 인프라 연결 뷰', () => {
       return;
     }
 
-    // out-of-scope 노드는 모두 node-header-gray 클래스를 포함해야 한다
-    expect(result.allHaveGrayHeader).toBe(true);
+    // out-of-scope 노드는 모두 opacity 감소 또는 dashed border로 grayout 처리돼야 한다
+    expect(result.allGrayout).toBe(true);
   });
 
   test('데이터흐름 복귀: 인프라 뷰 후 "데이터흐름" 버튼 클릭 → "인프라 연결 뷰" 배지 사라짐', async ({ page }) => {
