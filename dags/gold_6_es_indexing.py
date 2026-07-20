@@ -18,6 +18,7 @@ MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "emulator_pass")
 
 ES_HOST = os.environ.get("ES_HOST", "localhost")
 ES_PORT = int(os.environ.get("ES_PORT", "9200"))
+SEARCH_MODE = os.environ.get("SEARCH_ENABLED", "off")
 
 
 def _get_conn():
@@ -30,6 +31,16 @@ def _get_conn():
         charset="utf8mb4",
         cursorclass=pymysql.cursors.DictCursor,
     )
+
+
+def _embed(text: str) -> list:
+    """경량 sentence-transformers 임베딩 (SEARCH=hybrid 전용)."""
+    try:
+        from sentence_transformers import SentenceTransformer
+        model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+        return model.encode(text, normalize_embeddings=True).tolist()
+    except Exception:
+        return [0.0] * 384
 
 
 @dag(
@@ -90,22 +101,23 @@ def gold_es_indexing():
         es = Elasticsearch(f"http://{ES_HOST}:{ES_PORT}")
         index_name = "pdis_cft"
         if not es.indices.exists(index=index_name):
+            mappings = {
+                "properties": {
+                    "staged_id": {"type": "integer"},
+                    "chunk_content": {"type": "text", "analyzer": "standard"},
+                    "keywords": {"type": "keyword"},
+                    "summary": {"type": "text"},
+                    "category": {"type": "keyword"},
+                    "pclrty_class": {"type": "keyword"},
+                    "role_ids": {"type": "keyword"},
+                    "metadata_tags": {"type": "object", "enabled": True},
+                }
+            }
+            if SEARCH_MODE == "hybrid":
+                mappings["properties"]["content_vector"] = {"type": "dense_vector", "dims": 384, "index": True, "similarity": "cosine"}
             es.indices.create(
                 index=index_name,
-                body={
-                    "mappings": {
-                        "properties": {
-                            "staged_id": {"type": "integer"},
-                            "chunk_content": {"type": "text", "analyzer": "standard"},
-                            "keywords": {"type": "keyword"},
-                            "summary": {"type": "text"},
-                            "category": {"type": "keyword"},
-                            "pclrty_class": {"type": "keyword"},
-                            "role_ids": {"type": "keyword"},
-                            "metadata_tags": {"type": "object", "enabled": True},
-                        }
-                    }
-                },
+                body={"mappings": mappings},
             )
         return index_name
 
@@ -122,20 +134,23 @@ def gold_es_indexing():
             es_field_info = doc.get("es_field_info") or {}
             routing = es_field_info.get("routing", doc.get("pclrty_class", "INTERNAL"))
             metadata_tags = doc.get("metadata_tags") or {}
+            _source = {
+                "staged_id": doc["staged_id"],
+                "chunk_content": doc.get("chunk_content") or "",
+                "keywords": doc.get("keywords") or "",
+                "summary": doc.get("summary") or "",
+                "category": doc.get("category") or "",
+                "pclrty_class": doc.get("pclrty_class") or "",
+                "role_ids": doc.get("role_ids") or [],
+                "metadata_tags": metadata_tags,
+            }
+            if SEARCH_MODE == "hybrid":
+                _source["content_vector"] = _embed(doc.get("chunk_content") or "")
             actions.append({
                 "_index": index_name,
                 "_id": str(doc["staged_id"]),
                 "_routing": routing,
-                "_source": {
-                    "staged_id": doc["staged_id"],
-                    "chunk_content": doc.get("chunk_content") or "",
-                    "keywords": doc.get("keywords") or "",
-                    "summary": doc.get("summary") or "",
-                    "category": doc.get("category") or "",
-                    "pclrty_class": doc.get("pclrty_class") or "",
-                    "role_ids": doc.get("role_ids") or [],
-                    "metadata_tags": metadata_tags,
-                },
+                "_source": _source,
             })
         bulk(es, actions)
         return [doc["staged_id"] for doc in staged_docs]
