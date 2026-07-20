@@ -581,4 +581,72 @@ describe('buildNodesAndEdges', () => {
       expect(n1.position.y).toBe(n2.position.y);
     });
   });
+
+  /* ── Group 노드·parentId·viaTable ───────────────────────────── */
+
+  const groupTopology: CanvasTopology = {
+    nodes: [
+      { id: 'node-airflow',   role: 'transform', tool: 'apache-airflow', config: {}, trigger: true },
+      { id: 'node-docling',   role: 'transform', tool: 'docling-langchain', config: {}, parentId: 'node-airflow-group' },
+      { id: 'node-presidio',  role: 'transform', tool: 'presidio',          config: {}, parentId: 'node-airflow-group' },
+      { id: 'node-kure',      role: 'transform', tool: 'kure-embedding',    config: {}, parentId: 'node-airflow-group' },
+      { id: 'node-mock-api',  role: 'transform', tool: 'presidio',          config: {}, displayNameOverride: 'Mock API' },
+      { id: 'node-es',        role: 'index',     tool: 'elasticsearch',     config: {} },
+    ],
+    edges: [
+      { from: 'node-airflow',  to: 'node-docling',  channels: ['data'], viaTable: 'bronze_structured_raw' } as any,
+      { from: 'node-docling',  to: 'node-presidio', channels: ['data'], viaTable: 'silver_structured_documents' } as any,
+      { from: 'node-presidio', to: 'node-kure',     channels: ['data'], viaTable: 'silver_masked_documents' } as any,
+      { from: 'node-kure',     to: 'node-mock-api', channels: ['data', 'dependency'] as ('data' | 'dependency')[], viaTable: 'gold_chunked_documents' } as any,
+      { from: 'node-mock-api', to: 'node-es',       channels: ['data'], viaTable: 'gold_enriched_documents' } as any,
+    ],
+  };
+
+  it('Group: data 뷰에서 type:group 노드가 생성된다', () => {
+    const { nodes } = buildNodesAndEdges(groupTopology, 'data');
+    const groupNode = nodes.find(n => n.id === 'node-airflow-group');
+    expect(groupNode).toBeDefined();
+    expect(groupNode!.type).toBe('group');
+  });
+
+  it('Group: group 노드는 nodes 배열 앞에 위치한다', () => {
+    const { nodes } = buildNodesAndEdges(groupTopology, 'data');
+    expect(nodes[0].id).toBe('node-airflow-group');
+  });
+
+  it('Group: 자식 노드에 parentId와 extent가 설정된다', () => {
+    const { nodes } = buildNodesAndEdges(groupTopology, 'data');
+    const docling = nodes.find(n => n.id === 'node-docling')!;
+    expect(docling).toBeDefined();
+    expect(docling.parentId).toBe('node-airflow-group');
+    expect(docling.extent).toBe('parent');
+  });
+
+  it('Group: group 미소속 노드(mock-api, es)는 parentId 미설정', () => {
+    const { nodes } = buildNodesAndEdges(groupTopology, 'data');
+    const mockApi = nodes.find(n => n.id === 'node-mock-api')!;
+    const es = nodes.find(n => n.id === 'node-es')!;
+    expect(mockApi.parentId).toBeUndefined();
+    expect(es.parentId).toBeUndefined();
+  });
+
+  it('Group: infra 뷰에서는 group 노드가 생성되지 않는다', () => {
+    const { nodes } = buildNodesAndEdges(groupTopology, 'infra');
+    const groupNode = nodes.find(n => n.type === 'group');
+    expect(groupNode).toBeUndefined();
+  });
+
+  it('viaTable: viaTable이 있는 엣지는 label로 표시된다', () => {
+    const { edges } = buildNodesAndEdges(groupTopology, 'data');
+    const doclingEdge = edges.find(e => e.source === 'node-docling' && e.target === 'node-presidio');
+    expect(doclingEdge).toBeDefined();
+    expect(doclingEdge!.label).toBe('silver_structured_documents');
+  });
+
+  it('viaTable: condition 없고 viaTable 있는 엣지에 label이 viaTable 값', () => {
+    const { edges } = buildNodesAndEdges(groupTopology, 'data');
+    const kureEdge = edges.find(e => e.source === 'node-kure' && e.target === 'node-mock-api');
+    expect(kureEdge).toBeDefined();
+    expect(kureEdge!.label).toBe('gold_chunked_documents');
+  });
 });
