@@ -13,11 +13,35 @@ class ConfigRequest(BaseModel):
     config: dict = {}
 
 
+def _mapped_dag_id(node_id: str) -> str:
+    """STAGE_DAG_MAP에서 node_id에 대응하는 dag_id를 반환한다.
+    키가 없거나 값이 None이면 HTTPException(404)를 발생시킨다.
+    에러 메시지에 지원 노드 목록을 포함한다.
+    """
+    supported = [k for k, v in STAGE_DAG_MAP.items() if v is not None]
+    if node_id not in STAGE_DAG_MAP:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"노드 '{node_id}'는 알 수 없는 노드 ID입니다. "
+                f"지원 노드: {supported}"
+            ),
+        )
+    dag_id = STAGE_DAG_MAP[node_id]
+    if dag_id is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"노드 '{node_id}'는 DAG 매핑이 없습니다 (트리거 불가 노드). "
+                f"트리거 가능 노드: {supported}"
+            ),
+        )
+    return dag_id
+
+
 @router.post("/{node_id}/trigger")
 def trigger_node(node_id: str, body: TriggerRequest):
-    dag_id = STAGE_DAG_MAP.get(node_id)
-    if dag_id is None:
-        raise HTTPException(status_code=404, detail=f"No DAG mapped for node_id '{node_id}'")
+    dag_id = _mapped_dag_id(node_id)
     try:
         dag_run_id = trigger_dag(dag_id, body.conf)
     except Exception as e:
@@ -27,9 +51,7 @@ def trigger_node(node_id: str, body: TriggerRequest):
 
 @router.post("/{node_id}/config")
 def config_node(node_id: str, body: ConfigRequest):
-    dag_id = STAGE_DAG_MAP.get(node_id)
-    if dag_id is None:
-        raise HTTPException(status_code=404, detail=f"No DAG mapped for node_id '{node_id}'")
+    dag_id = _mapped_dag_id(node_id)
 
     # runtime 키: is_paused, variable — Airflow REST API를 통해 즉시 적용 가능
     RUNTIME_KEYS = {"is_paused", "variable"}
