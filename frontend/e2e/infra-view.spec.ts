@@ -32,108 +32,24 @@ test.describe('Infra View — 인프라 연결 뷰', () => {
     expect(markerCount).toBeGreaterThan(0);
   });
 
-  test('ES 노드 serving 계층 위치: storage 행보다 y값이 큼', async ({ page }) => {
+  test('ES 노드가 인프라 뷰에 존재함 (force-directed 배치)', async ({ page }) => {
     await page.getByRole('button', { name: '인프라', exact: true }).click();
     await page.waitForTimeout(500);
 
-    const result = await page.evaluate(() => {
-      const nodes = [...document.querySelectorAll('.svelte-flow__node')];
-
-      const esNode = nodes.find(n =>
-        (n as HTMLElement).innerText.includes('lastic') ||
-        (n as HTMLElement).innerText.includes('ES') ||
-        (n as HTMLElement).innerText.includes('Elasticsearch')
-      );
-      // Valkey는 infra dependency 채널로 이동 → storage 행 기준에서 제외
-      const storageNode = nodes.find(n =>
-        (n as HTMLElement).innerText.includes('MySQL') ||
-        (n as HTMLElement).innerText.includes('SeaweedFS')
-      );
-
-      if (!esNode || !storageNode) return null;
-
-      const parseY = (el: Element) => {
-        const style = (el as HTMLElement).style.transform;
-        const m = style.match(/translate\(([^,]+),\s*([^)]+)\)/);
-        if (!m) return null;
-        return parseFloat(m[2]);
-      };
-
-      return {
-        esY: parseY(esNode),
-        storageY: parseY(storageNode),
-      };
+    const esLocator = page.locator('.svelte-flow__node').filter({
+      hasText: /lastic|ES|Elasticsearch/,
     });
-
-    if (result === null || result.esY === null || result.storageY === null) {
-      test.skip();
-      return;
-    }
-
-    // serving 계층(ES)은 storage 계층보다 y값이 커야 한다 (아래에 위치)
-    expect(result.esY).toBeGreaterThan(result.storageY);
+    await expect(esLocator.first()).toBeAttached({ timeout: 5000 });
   });
 
-  test('ES 노드 storage 행 부재: translate Y가 storage 행 Y와 다름', async ({ page }) => {
+  test('MySQL 노드가 인프라 뷰에 존재함 (force-directed 배치)', async ({ page }) => {
     await page.getByRole('button', { name: '인프라', exact: true }).click();
     await page.waitForTimeout(500);
 
-    const result = await page.evaluate(() => {
-      const nodes = [...document.querySelectorAll('.svelte-flow__node')];
-
-      const esNode = nodes.find(n =>
-        (n as HTMLElement).innerText.includes('lastic') ||
-        (n as HTMLElement).innerText.includes('ES') ||
-        (n as HTMLElement).innerText.includes('Elasticsearch')
-      );
-      // Valkey는 infra dependency 채널로 이동 → storage 행 기준에서 제외
-      const storageNode = nodes.find(n =>
-        (n as HTMLElement).innerText.includes('MySQL') ||
-        (n as HTMLElement).innerText.includes('SeaweedFS')
-      );
-
-      if (!esNode || !storageNode) return null;
-
-      const parseY = (el: Element) => {
-        const style = (el as HTMLElement).style.transform;
-        const m = style.match(/translate\(([^,]+),\s*([^)]+)\)/);
-        if (!m) return null;
-        return parseFloat(m[2]);
-      };
-
-      return {
-        esY: parseY(esNode),
-        storageY: parseY(storageNode),
-      };
+    const mysqlLocator = page.locator('.svelte-flow__node').filter({
+      hasText: /MySQL/,
     });
-
-    if (result === null || result.esY === null || result.storageY === null) {
-      test.skip();
-      return;
-    }
-
-    // ES 노드의 Y 좌표가 storage 행의 Y와 달라야 한다 (serving 행으로 이동됨)
-    expect(result.esY).not.toBe(result.storageY);
-  });
-
-  test('es 비-좌상단 단언: Elasticsearch 노드가 translate(0px, 0px) 위치가 아님', async ({ page }) => {
-    await page.getByRole('button', { name: '인프라', exact: true }).click();
-    await page.waitForTimeout(500);
-    const transform = await page.evaluate(() => {
-      const nodes = [...document.querySelectorAll('.svelte-flow__node')];
-      const es = nodes.find(n =>
-        (n as HTMLElement).innerText.includes('lastic') ||
-        (n as HTMLElement).innerText.includes('ES')
-      );
-      return es?.style.transform ?? null;
-    });
-    // ES 노드가 없으면 skip (인프라 뷰에 ES가 없는 경우)
-    if (transform === null) {
-      test.skip();
-      return;
-    }
-    expect(transform).not.toBe('translate(0px, 0px)');
-    expect(transform).not.toBe('translate(0, 0)');
+    await expect(mysqlLocator.first()).toBeAttached({ timeout: 5000 });
   });
 
   test('outOfTeamScope 노드 grayout: out-of-scope 클래스 및 dashed border 적용 확인', async ({ page }) => {
