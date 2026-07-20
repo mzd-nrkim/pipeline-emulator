@@ -121,6 +121,7 @@ def generate_records(num_problems: int = 5) -> list[dict]:
             "display_content": (
                 f"담당부서: {fake.company()} 품질팀\n"
                 f"담당자: {fake.name()}\n"
+                f"주소: {fake.address()}\n"
                 f"{pii_block}"
             ),
             # fan-out 관계 데이터
