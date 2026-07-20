@@ -75,16 +75,13 @@
 >
   <!-- 카드 본체 -->
   <div class="node-card">
-    <!-- accent 배경 틴트 -->
-    <div class="node-card-tint"></div>
-
     <!-- 아이콘 중앙 배치 -->
     {#if iconSpec.kind === 'brand' && SI_ICONS[iconSpec.slug]}
       <svg class="node-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
         <path d={SI_ICONS[iconSpec.slug].path}/>
       </svg>
     {:else if iconSpec.kind === 'lucide' && LUCIDE_ICONS[iconSpec.name]}
-      <svelte:component this={LUCIDE_ICONS[iconSpec.name]} class="node-icon" size={20} strokeWidth={1.5}/>
+      <svelte:component this={LUCIDE_ICONS[iconSpec.name]} class="node-icon" size={44} strokeWidth={1.75}/>
     {:else}
       <span class="node-icon">{iconSpec.kind === 'emoji' ? iconSpec.char : '❓'}</span>
     {/if}
@@ -143,6 +140,7 @@
 <style>
   :root {
     --node-card-size: 80px;
+    --node-icon-size: 44px;
   }
 
   .tool-flow-node {
@@ -169,23 +167,13 @@
     overflow: hidden;
   }
 
-  /* accent 틴트 오버레이 */
-  .node-card-tint {
-    position: absolute;
-    inset: 0;
-    background: var(--node-accent);
-    opacity: 0.1;
-    pointer-events: none;
-    border-radius: inherit;
-  }
-
   .node-icon {
     position: relative;
-    font-size: 2.2rem;
+    font-size: var(--node-icon-size);
     line-height: 1;
     z-index: 1;
-    width: 20px;
-    height: 20px;
+    width: var(--node-icon-size);
+    height: var(--node-icon-size);
     display: flex;
     align-items: center;
     justify-content: center;
