@@ -60,6 +60,10 @@
   const resolvedDisplayName = $derived(displayName || label || 'Unnamed');
 
   const isInfra = $derived(d.isInfra as boolean | undefined);
+  const serviceControlEnabled = $derived((d.serviceControlEnabled as boolean | undefined) ?? false);
+  const hasServiceControl = $derived(serviceControlEnabled && runtimeHealth !== 'unknown');
+
+  let confirmingStop = $state(false);
 
   const applyModeConfig: Record<string, { emoji: string; label: string }> = {
     runtime: { emoji: '🟢', label: 'runtime' },
@@ -67,6 +71,20 @@
     code: { emoji: '🔵', label: 'code' },
     readonly: { emoji: '🔒', label: 'readonly' },
   };
+
+  async function handleServiceStop() {
+    const ok = window.confirm('컨테이너를 중지합니다. 계속하시겠습니까?');
+    if (!ok) return;
+    const { api } = await import('../api/client.js');
+    const serviceId = (d.serviceId as string | undefined) ?? (d.toolId as string | undefined) ?? '';
+    await api.setServicePower(serviceId, 'stop');
+  }
+
+  async function handleServiceStart() {
+    const { api } = await import('../api/client.js');
+    const serviceId = (d.serviceId as string | undefined) ?? (d.toolId as string | undefined) ?? '';
+    await api.setServicePower(serviceId, 'start');
+  }
 
 </script>
 
@@ -133,6 +151,24 @@
       <span class="node-vendor">{vendor}</span>
     {/if}
   </div>
+
+  {#if hasServiceControl}
+    <div class="service-control-bar">
+      {#if runtimeHealth === 'up' || runtimeHealth === 'degraded'}
+        <button
+          class="svc-btn svc-btn-stop"
+          title="서비스 중지"
+          onclick={handleServiceStop}
+        >🔴 중지</button>
+      {:else if runtimeHealth === 'down'}
+        <button
+          class="svc-btn svc-btn-start"
+          title="서비스 시작"
+          onclick={handleServiceStart}
+        >🟢 시작</button>
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <!-- target handle (왼쪽, 세로 중앙) -->
@@ -339,6 +375,38 @@
   }
 
   /* .cat-task .node-card — 기본값(--border) 유지, 추가 스타일 불필요 */
+
+  /* 서비스 제어 버튼 바 */
+  .service-control-bar {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+    justify-content: center;
+  }
+
+  .svc-btn {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--card, var(--surface));
+    color: var(--foreground);
+    cursor: pointer;
+    white-space: nowrap;
+    line-height: 1.4;
+  }
+
+  .svc-btn:hover {
+    background: var(--muted);
+  }
+
+  .svc-btn-stop {
+    border-color: #ef4444;
+  }
+
+  .svc-btn-start {
+    border-color: #22c55e;
+  }
 
   /* 선택 상태 */
   .selected .node-card {

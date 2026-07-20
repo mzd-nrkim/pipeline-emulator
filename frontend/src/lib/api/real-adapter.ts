@@ -83,6 +83,22 @@ export async function fetchServiceHealth(): Promise<Record<string, string>> {
   }
 }
 
+export async function setServicePower(service: string, action: 'start' | 'stop' | 'restart'): Promise<void> {
+  const res = await fetch(`${BASE}/services/${service}/power`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action }),
+  });
+  if (!res.ok) {
+    let detail = `setServicePower: ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.detail) detail = body.detail;
+    } catch { /* ignore */ }
+    throw new Error(detail);
+  }
+}
+
 export async function setNodeConfig(nodeId: string, config: Record<string, unknown>): Promise<Record<string, unknown>> {
   const res = await fetch(`${BASE}/nodes/${nodeId}/config`, {
     method: 'POST',

@@ -40,6 +40,10 @@ export async function fetchServiceHealth(): Promise<Record<string, string>> {
   return { 'node-airflow': 'up', 'node-mysql': 'up', 'node-es': 'up' };
 }
 
+export async function setServicePower(service: string, action: 'start' | 'stop' | 'restart'): Promise<void> {
+  console.log(`[mock] setServicePower: service=${service} action=${action}`);
+}
+
 /* SSE stub (Week 2 활성화) */
 export function subscribePipelineStatus(_onChange: (event: unknown) => void): () => void {
   return () => {}; // noop cleanup
