@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
   import PlannedBadge from './PlannedBadge.svelte';
+  import { resolveNodeIcon } from '../canvas/nodeIcon.js';
 
   let { data, selected }: NodeProps = $props();
 
@@ -17,7 +18,7 @@
   const outOfTeamScope = $derived(d.outOfTeamScope as boolean | undefined);
   const deployStatus = $derived((d.deployStatus as string | undefined) ?? 'active');
 
-  const resolvedIcon = $derived(icon || '❓');
+  const iconSpec = $derived(resolveNodeIcon(d.toolId as string ?? '', d.icon as string ?? '❓', d.category as string | undefined));
   const resolvedAccent = $derived(accent || 'var(--primary)');
   const resolvedDisplayName = $derived(displayName || 'Unnamed');
 
@@ -44,7 +45,7 @@
     <div class="node-card-tint"></div>
 
     <!-- 아이콘 중앙 배치 -->
-    <span class="node-icon">{resolvedIcon}</span>
+    <span class="node-icon">{iconSpec.char ?? iconSpec.name ?? iconSpec.slug ?? '❓'}</span>
 
     <!-- trigger 배지 (우상단 절대 위치) -->
     {#if trigger}
