@@ -25,7 +25,7 @@
     "vitest": "^3.0.0"
   },
   "dependencies": {
-    "@xyflow/svelte": "^0.1.39",
+    "@xyflow/svelte": "^1.6.2",
     "bits-ui": "^1.8.0",
     "clsx": "^2.1.1",
     "lucide-svelte": "^0.475.0",
