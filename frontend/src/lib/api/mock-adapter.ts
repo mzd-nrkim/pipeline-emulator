@@ -36,6 +36,10 @@ export async function setNodeConfig(_nodeId: string, _config: Record<string, unk
   // mock noop
 }
 
+export async function fetchServiceHealth(): Promise<Record<string, string>> {
+  return { 'node-airflow': 'up', 'node-mysql': 'up', 'node-es': 'up' };
+}
+
 /* SSE stub (Week 2 활성화) */
 export function subscribePipelineStatus(_onChange: (event: unknown) => void): () => void {
   return () => {}; // noop cleanup

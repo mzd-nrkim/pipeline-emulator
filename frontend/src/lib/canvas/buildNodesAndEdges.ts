@@ -250,6 +250,65 @@ export function buildNodesAndEdges(
   return { nodes: [...groupNodes, ...nodes], edges };
 }
 
+/**
+ * 헬스 폴링 헬퍼 — 5s 주기, 탭 비활성 중단, 실패 시 backoff(최대 30s)
+ * @returns cleanup 함수 (clearInterval/clearTimeout)
+ */
+export function startHealthPolling(
+  adapter: { fetchServiceHealth: () => Promise<Record<string, string>> },
+  onUpdate: (health: Record<string, string>) => void
+): () => void {
+  const BASE_INTERVAL = 5000;
+  const MAX_INTERVAL = 30000;
+
+  let timerId: ReturnType<typeof setTimeout> | null = null;
+  let currentInterval = BASE_INTERVAL;
+  let destroyed = false;
+
+  async function tick() {
+    if (destroyed) return;
+    if (typeof document !== 'undefined' && document.hidden) {
+      // 탭 비활성 시 중단, 다음 visibility change 때 재개
+      timerId = null;
+      return;
+    }
+    try {
+      const health = await adapter.fetchServiceHealth();
+      onUpdate(health);
+      currentInterval = BASE_INTERVAL;
+    } catch {
+      currentInterval = Math.min(currentInterval * 2, MAX_INTERVAL);
+    }
+    if (!destroyed) {
+      timerId = setTimeout(tick, currentInterval);
+    }
+  }
+
+  // 탭 가시성 복귀 시 즉시 재개
+  function onVisibilityChange() {
+    if (!document.hidden && timerId === null && !destroyed) {
+      tick();
+    }
+  }
+
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', onVisibilityChange);
+  }
+
+  timerId = setTimeout(tick, BASE_INTERVAL);
+
+  return () => {
+    destroyed = true;
+    if (timerId !== null) {
+      clearTimeout(timerId);
+      timerId = null;
+    }
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    }
+  };
+}
+
 // 위상정렬 + 최장경로 depth 계산
 function computeDepths(
   nodes: ToolNode[],

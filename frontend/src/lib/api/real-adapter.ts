@@ -73,6 +73,16 @@ export async function triggerNode(nodeId: string, conf: Record<string, unknown>)
   return res.json();
 }
 
+export async function fetchServiceHealth(): Promise<Record<string, string>> {
+  try {
+    const res = await fetch(`${BASE}/health/services`);
+    if (!res.ok) return {};
+    return res.json();
+  } catch {
+    return {};
+  }
+}
+
 export async function setNodeConfig(nodeId: string, config: Record<string, unknown>): Promise<Record<string, unknown>> {
   const res = await fetch(`${BASE}/nodes/${nodeId}/config`, {
     method: 'POST',

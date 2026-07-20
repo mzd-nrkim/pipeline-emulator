@@ -53,6 +53,7 @@
   const outOfTeamScope = $derived(d.outOfTeamScope as boolean | undefined);
   const deployStatus = $derived((d.deployStatus as string | undefined) ?? 'active');
   const category = $derived(d.category as string ?? 'task');
+  const runtimeHealth = $derived((d.runtimeHealth as string | undefined) ?? 'unknown');
 
   const iconSpec = $derived(resolveNodeIcon(d.toolId as string ?? '', d.icon as string ?? '❓', d.category as string | undefined));
   const resolvedAccent = $derived(accent || 'var(--primary)');
@@ -91,6 +92,15 @@
       <svelte:component this={LUCIDE_ICONS[iconSpec.name]} class="node-icon" size={44} strokeWidth={1.75}/>
     {:else}
       <span class="node-icon">{iconSpec.kind === 'emoji' ? iconSpec.char : '❓'}</span>
+    {/if}
+
+    <!-- 런타임 헬스 신호등 dot (좌상단) -->
+    {#if runtimeHealth === 'up'}
+      <span class="runtime-health-dot runtime-health-up" title="up"></span>
+    {:else if runtimeHealth === 'down'}
+      <span class="runtime-health-dot runtime-health-down" title="down"></span>
+    {:else if runtimeHealth === 'degraded'}
+      <span class="runtime-health-dot runtime-health-degraded" title="degraded"></span>
     {/if}
 
     <!-- trigger 배지 (우상단 절대 위치) -->
@@ -225,6 +235,30 @@
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: var(--node-card-size);
+  }
+
+  /* 런타임 헬스 신호등 dot — 좌상단 절대 위치 */
+  .runtime-health-dot {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .runtime-health-up {
+    background-color: #22c55e;
+  }
+
+  .runtime-health-down {
+    background-color: #ef4444;
+  }
+
+  .runtime-health-degraded {
+    background-color: #eab308;
   }
 
   /* trigger 배지 — 우상단 절대 위치 */
