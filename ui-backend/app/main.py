@@ -18,7 +18,3 @@ app.include_router(executions_router.router, prefix="/executions", tags=["execut
 def health():
     return {"status": "ok"}
 
-@app.get("/stages")  # 최상위 alias (pipeline 페이지 호환)
-def get_stages_alias():
-    from app.api.stages import get_stages
-    return get_stages()
