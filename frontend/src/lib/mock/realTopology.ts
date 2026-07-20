@@ -171,6 +171,19 @@ export const realTopology: CanvasTopology = {
       },
     },
     {
+      id: 'node-es-search',
+      role: 'index',
+      tool: 'elasticsearch',
+      label: 'Elasticsearch Indexing',
+      deployStatus: 'active',
+      config: {
+        dagId: 'gold_6_es_indexing',
+        index: 'pdis_cft',
+        bulkSize: 100,
+        esFieldInfo: 'text,dense_vector',
+      },
+    },
+    {
       id: 'node-kibana',
       role: 'visualize',
       tool: 'kibana',
@@ -260,6 +273,8 @@ export const realTopology: CanvasTopology = {
     { from: 'node-presidio', to: 'node-kure',     channels: ['data'] },
     { from: 'node-kure',     to: 'node-mock-api', channels: ['data'] },
     { from: 'node-mock-api', to: 'node-es',       channels: ['data'] },
+    /* gold_5 field_mapping(staging) → gold_6 es_indexing */
+    { from: 'node-es',       to: 'node-es-search', channels: ['data'] },
     /* gold_5 field_mapping → gold_staged_documents (MySQL) */
     { from: 'node-mock-api', to: 'node-mysql',    channels: ['data'] },
 
