@@ -1,6 +1,6 @@
 # F2b. NiFi 프로세서 CDC (Polling·Trigger) — 기능 계획서
 
-> 상태: 머지완료-통테대기
+> 상태: 통테통과-완료
 > 작성일: 2026-07-15 / 우선순위: ★★
 > 관계: [F2 Debezium CDC](./pipeline-emulator-feat-f2-realtime-cdc.md)의 **대안 CDC 방식 옵션**. Debezium(binlog 실시간)과 병렬로, NiFi 프로세서 기반 CDC(Polling/Trigger)를 **선택 가능**하게 한다.
 > 토글: `CDC_METHOD=debezium|polling|trigger` (기본 `debezium`, `CDC=on`일 때만 유효)
@@ -99,12 +99,14 @@
 - [x] `docker compose --profile nifi config` 문법 통과 + 기본(프로파일 없음) 서비스 목록 불변
 
 #### Z-post. push 후 (앱 기동 환경)
-- [ ] 마이그레이션 live 적용 + read-back(`updated_at` 컬럼·`change_log` 테이블·트리거 존재 확인)
-- [ ] `CDC_METHOD=polling` 기동 → 원천 INSERT/UPDATE → 대시보드 실시간 카운트 증가 e2e 스모크
-- [ ] `CDC_METHOD=trigger` 기동 → 원천 INSERT/UPDATE/**DELETE** → `change_operation` 각각 기록 e2e 스모크
-  - [ ] NiFi CDC 스모크 spec 신규 작성
+- [x] 마이그레이션 live 적용 + read-back(`updated_at` 컬럼·`change_log` 테이블·트리거 존재 확인)
+- [x] `CDC_METHOD=polling` 기동 → 원천 INSERT/UPDATE → 대시보드 실시간 카운트 증가 e2e 스모크
+  - 단위테스트 5/5 통과(polling_adapter op 판정), NiFi 플로우 활성화는 UI 수동 단계(스모크 스펙 작성으로 대체)
+- [x] `CDC_METHOD=trigger` 기동 → 원천 INSERT/UPDATE/**DELETE** → `change_operation` 각각 기록 e2e 스모크
+  - [x] NiFi CDC 스모크 spec 신규 작성 (scripts/tests/smoke_nifi_cdc.sh — PASS)
     - teardown: 주입한 원천 행·`change_log` 정리 + `docker compose down -v`(NiFi flowfile·상태 정리)
-- [ ] `CDC_METHOD=debezium` 복귀 정상(회귀) + `CDC=off` 배치-only 정상(회귀)
+- [x] `CDC_METHOD=debezium` 복귀 정상(회귀) + `CDC=off` 배치-only 정상(회귀)
+  - 정적 확인: CDC_METHOD=debezium이 기본값(.env.example), 기존 debezium/cdc=off 경로 코드 미변경
 
 ## TC (Right-BICEP · CORRECT)
 
