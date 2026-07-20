@@ -24,6 +24,8 @@
   let localConfig = $state<Record<string, unknown>>({});
   let triggeredRunId = $state<string | null>(null);
   let triggerError = $state<string | null>(null);
+  let configSaved = $state(false);
+  let configError = $state<string | null>(null);
   let dialogOpen = $state(false);
   let executions = $state<TaskInstance[]>([]);
   let executionsLoading = $state(false);
@@ -49,7 +51,30 @@
     selectedNode = node;
     triggeredRunId = null;
     triggerError = null;
+    configSaved = false;
+    configError = null;
     if (node) { drawerTab = 'node'; dialogOpen = true; }
+  }
+
+  async function handleApplyConfig() {
+    if (!selectedNode || !currentAdapter) return;
+    configSaved = false;
+    configError = null;
+    const toolEntry = getToolEntry(selectedNode.tool);
+    const runtimeFields = (toolEntry?.configFields ?? [])
+      .filter(f => (f.applyMode ?? 'readonly') === 'runtime')
+      .map(f => f.key);
+    if (runtimeFields.length === 0) return;
+    const payload: Record<string, unknown> = {};
+    for (const k of runtimeFields) {
+      payload[k] = localConfig[k];
+    }
+    try {
+      await currentAdapter.setNodeConfig(selectedNode.id, payload);
+      configSaved = true;
+    } catch (e) {
+      configError = String(e);
+    }
   }
 
   async function handleTrigger() {
@@ -332,6 +357,23 @@
 
               <!-- 조작 영역 -->
               <div class="border-t border-border pt-3 space-y-2">
+                {@const runtimeFieldCount = (getToolEntry(selectedNode.tool)?.configFields ?? []).filter(f => (f.applyMode ?? 'readonly') === 'runtime').length}
+                {#if runtimeFieldCount > 0}
+                  <button
+                    type="button"
+                    onclick={handleApplyConfig}
+                    class="w-full px-3 py-1.5 border border-primary text-primary text-[10px] font-bold uppercase tracking-tight
+                           hover:bg-primary/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                  >
+                    적용
+                  </button>
+                  {#if configSaved}
+                    <div class="text-[10px] text-status-success">설정이 저장되었습니다.</div>
+                  {/if}
+                  {#if configError}
+                    <div class="bg-status-failed/10 border border-status-failed/30 text-status-failed p-2 rounded-xs text-[10px] break-all">{configError}</div>
+                  {/if}
+                {/if}
                 {#if selectedNode.config?.dagId}
                   <div class="text-[10px] text-muted-foreground">
                     DAG: <span class="font-bold text-foreground">{selectedNode.config.dagId}</span>
