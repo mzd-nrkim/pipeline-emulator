@@ -147,9 +147,61 @@ services:
     profiles:
       - cdc
 
+  # ─────────────────────────────────────────
+  # NiFi 스택 (profiles: [nifi] — 기본 기동 시 비활성)
+  # 기동: COMPOSE_PROFILES=nifi docker compose up
+  # ─────────────────────────────────────────
+
+  zookeeper:
+    image: zookeeper:3.9.4
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_PORT: 2181
+    volumes:
+      - zookeeper-data:/data
+      - zookeeper-log:/datalog
+    profiles:
+      - nifi
+
+  nifi:
+    image: apache/nifi:2.0.0
+    environment:
+      NIFI_WEB_HTTP_PORT: 8443
+      NIFI_CLUSTER_IS_NODE: "false"
+      NIFI_ZK_CONNECT_STRING: zookeeper:2181
+      NIFI_ELECTION_MAX_WAIT: 30 sec
+      # 싱글노드 독립 실행
+      SINGLE_USER_CREDENTIALS_USERNAME: admin
+      SINGLE_USER_CREDENTIALS_PASSWORD: adminadminadmin
+    ports:
+      - "8443:8443"
+    volumes:
+      - nifi-conf:/opt/nifi/nifi-current/conf
+      - ./nifi/flows:/opt/nifi/nifi-current/conf/flow_storage
+      - nifi-content:/opt/nifi/nifi-current/content_repository
+      - nifi-provenance:/opt/nifi/nifi-current/provenance_repository
+      - nifi-logs:/opt/nifi/nifi-current/logs
+    depends_on:
+      zookeeper:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost:8443/nifi-api/controller/config", "--insecure"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    profiles:
+      - nifi
+
 volumes:
   seaweedfs-data:
   mysql-data:
   airflow-logs:
+  zookeeper-data:
+  zookeeper-log:
+  nifi-conf:
+  nifi-content:
+  nifi-provenance:
+  nifi-logs:
 
 # frontend: dev-serve 방식으로 실행. npm run dev (PUBLIC_UI_BACKEND_URL=http://localhost:8001)
