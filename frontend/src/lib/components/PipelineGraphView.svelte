@@ -82,7 +82,7 @@
       nodesConnectable={false}
       elementsSelectable={true}
       fitView
-      onnodeclick={(event) => handleNodeClick(event.detail.node)}
+      onnodeclick={({ node }) => handleNodeClick(node)}
     >
       <Background />
       <Controls />
