@@ -82,7 +82,7 @@
     <SvelteFlow
       nodes={nodesStore}
       edges={edgesStore}
-      nodeTypes={{ lrnode: LRFlowNode }}
+      nodeTypes={{ lrnode: LRFlowNode as any }}
       nodesDraggable={false}
       nodesConnectable={false}
       elementsSelectable={true}

@@ -44,7 +44,7 @@
         인프라 연결 뷰
       </div>
     {/if}
-    <SvelteFlow nodes={nodesStore} edges={edgesStore} nodeTypes={{ lrnode: LRFlowNode }} fitView on:nodeclick={handleNodeClick}>
+    <SvelteFlow nodes={nodesStore} edges={edgesStore} nodeTypes={{ lrnode: LRFlowNode as any }} fitView on:nodeclick={handleNodeClick}>
       <Background />
       <Controls />
     </SvelteFlow>
