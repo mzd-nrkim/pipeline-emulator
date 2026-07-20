@@ -8,6 +8,7 @@
   import { getToolEntry } from '$lib/canvas/toolCatalog';
   import * as mockAdapter from '$lib/api/mock-adapter.js';
   import * as realAdapter from '$lib/api/real-adapter.js';
+  import { Dialog } from 'bits-ui';
 
   let { data }: { data: { stages: Stage[]; runs: Run[]; topology: CanvasTopology } } = $props();
 
@@ -22,7 +23,7 @@
   let localConfig = $state<Record<string, unknown>>({});
   let triggeredRunId = $state<string | null>(null);
   let triggerError = $state<string | null>(null);
-  let drawerOpen = $state(true);
+  let dialogOpen = $state(false);
   let drawerTab = $state<'node' | 'history'>('history');
 
   $effect(() => {
@@ -33,7 +34,7 @@
     selectedNode = node;
     triggeredRunId = null;
     triggerError = null;
-    if (node) drawerTab = 'node';
+    if (node) { drawerTab = 'node'; dialogOpen = true; }
   }
 
   async function handleTrigger() {
@@ -157,8 +158,8 @@
       />
     </div>
 
-    <!-- 오버레이 드로어 -->
-    {#if drawerOpen}
+    <!-- 노드 상세·실행 이력 패널 (Phase B에서 Dialog로 전환) -->
+    {#if dialogOpen}
       <div class="absolute right-0 top-0 h-full w-80 z-20 shadow-xl bg-surface border-l border-border flex flex-col">
         <!-- 드로어 헤더 + 탭 + 닫기 -->
         <div class="shrink-0 flex items-center justify-between border-b border-border px-3 py-2">
@@ -181,9 +182,9 @@
           </div>
           <button
             type="button"
-            onclick={() => drawerOpen = false}
+            onclick={() => dialogOpen = false}
             class="text-muted-foreground hover:text-foreground text-xs leading-none px-1"
-            aria-label="드로어 닫기"
+            aria-label="패널 닫기"
           >
             ✕
           </button>
@@ -509,16 +510,15 @@
           {/if}
         </div>
       </div>
-    {:else}
-      <!-- 드로어 열기 버튼 -->
-      <button
-        type="button"
-        onclick={() => drawerOpen = true}
-        class="absolute right-0 top-4 z-20 px-1.5 py-3 bg-surface border border-border border-r-0 rounded-l-sm text-[10px] font-mono text-muted-foreground hover:text-foreground shadow-sm writing-mode-vertical"
-        aria-label="드로어 열기"
-      >
-        ▶
-      </button>
     {/if}
+    <!-- 실행 이력 열기 진입점 (모달 닫힌 상태에서 상시 가시, e2e 호환) -->
+    <button
+      type="button"
+      onclick={() => { dialogOpen = true; drawerTab = 'history'; }}
+      class="absolute right-4 top-4 z-10 px-3 py-1.5 bg-surface border border-border text-[10px] font-mono font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground shadow-sm"
+      aria-label="실행 이력 열기"
+    >
+      실행 이력
+    </button>
   </div>
 </div>
