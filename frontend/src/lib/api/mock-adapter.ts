@@ -1,5 +1,5 @@
 import { stages, runs, documents, searchResults, dimensions, topology } from '../mock/selectors.js';
-import type { Stage, Run, Document, SearchResult, Dimension, CanvasTopology } from './types.js';
+import type { Stage, Run, Document, SearchResult, Dimension, CanvasTopology, PiiCount } from './types.js';
 
 export async function fetchStages(): Promise<Stage[]> {
   return stages;
@@ -47,4 +47,12 @@ export async function setServicePower(service: string, action: 'start' | 'stop' 
 /* SSE stub (Week 2 활성화) */
 export function subscribePipelineStatus(_onChange: (event: unknown) => void): () => void {
   return () => {}; // noop cleanup
+}
+
+export function fetchPiiStats(): PiiCount[] {
+  return [
+    { type: 'total', label: '전체 감지', count: 42 },
+    { type: 'masked', label: '마스킹 완료', count: 38 },
+    { type: 'unmasked', label: '미마스킹', count: 4, planned: true },
+  ];
 }

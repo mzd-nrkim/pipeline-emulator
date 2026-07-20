@@ -2,6 +2,9 @@
   import { page } from '$app/state';
   import StatusDot from '$lib/components/StatusDot.svelte';
   import PlannedBadge from '$lib/components/PlannedBadge.svelte';
+  import PiiCountGrid from '$lib/components/PiiCountGrid.svelte';
+  import * as mockAdapter from '$lib/api/mock-adapter.js';
+  import * as realAdapter from '$lib/api/real-adapter.js';
   import type { Stage, Dimension } from '$lib/api/types.js';
 
   let { data }: { data: { stages: Stage[]; dimensions: Dimension[] } } = $props();
@@ -10,6 +13,20 @@
   const currentConfig = $derived(
     data.dimensions.map(d => ({ label: d.label, value: d.current, planned: !!d.planned }))
   );
+
+  const currentAdapter = page.params.mode === 'real' ? realAdapter : mockAdapter;
+  let piiStats = $state<import('$lib/api/types.js').PiiCount[]>([]);
+  let piiStatsLoading = $state(false);
+  let piiStatsError = $state<string | null>(null);
+
+  $effect(() => {
+    piiStatsLoading = true;
+    piiStatsError = null;
+    Promise.resolve(currentAdapter.fetchPiiStats())
+      .then(data => { piiStats = data; })
+      .catch(e => { piiStatsError = String(e); })
+      .finally(() => { piiStatsLoading = false; });
+  });
 
   const substitutions = [
     { from: 'Kafka 수집', to: '로컬 스크립트 수집기' },
@@ -115,6 +132,18 @@
         {/each}
       </ul>
     </div>
+  </section>
+
+  <!-- PII 통계 -->
+  <section class="px-6 py-4 border-b border-border">
+    <h2 class="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground mb-3">PII 감지 통계</h2>
+    {#if piiStatsLoading}
+      <div class="text-xs text-muted-foreground">로딩 중…</div>
+    {:else if piiStatsError}
+      <div class="text-xs text-status-failed">{piiStatsError}</div>
+    {:else}
+      <PiiCountGrid counts={piiStats} />
+    {/if}
   </section>
 
   <!-- 6개 처리 단계 미리보기 -->
