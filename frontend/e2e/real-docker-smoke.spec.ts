@@ -28,6 +28,37 @@ test.describe('real-docker smoke — real 트리거 → dag_run_id 단언', () =
       { headers: { Authorization: 'Basic ' + btoa('admin:admin') } },
     );
   });
+
+  test('node-es-search real 트리거 → HTTP 200 + 유효 dag_run_id (gold_6_es_indexing)', async ({ page }) => {
+    // Airflow 헬스체크
+    const health = await page.request.get(`${AIRFLOW}/health`).catch(() => null);
+    if (!health || health.status() !== 200) {
+      test.skip();
+      return;
+    }
+
+    // gold_6_es_indexing unpause (테스트 환경에서 paused일 수 있음)
+    await page.request.patch(`${AIRFLOW}/api/v1/dags/gold_6_es_indexing`, {
+      data: { is_paused: false },
+      headers: { Authorization: 'Basic ' + btoa('admin:admin') },
+    });
+
+    const res = await page.request.post(`${UI_BACKEND}/nodes/node-es-search/trigger`, {
+      data: {},
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty('dag_run_id');
+    expect(typeof body.dag_run_id).toBe('string');
+    expect(body.dag_run_id.length).toBeGreaterThan(0);
+    expect(body.node_id).toBe('node-es-search');
+
+    // teardown: 생성된 dag_run 삭제
+    await page.request.delete(
+      `${AIRFLOW}/api/v1/dags/gold_6_es_indexing/dagRuns/${encodeURIComponent(body.dag_run_id)}`,
+      { headers: { Authorization: 'Basic ' + btoa('admin:admin') } },
+    );
+  });
 });
 
 test.describe('real-docker smoke — ui-backend /documents', () => {
