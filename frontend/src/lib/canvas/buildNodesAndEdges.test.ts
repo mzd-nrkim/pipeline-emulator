@@ -163,15 +163,16 @@ describe('buildNodesAndEdges', () => {
     expect(edges.every(e => !e.animated)).toBe(true); // infra 뷰는 animated=false
   });
 
-  it('infra 뷰: mysql-container의 Y좌표가 debezium보다 작음 (계층 순서: storage < ingestion)', () => {
+  it('infra 뷰: mysql-container와 debezium이 유한 좌표를 가진다 (force-directed 배치)', () => {
     const { nodes } = buildNodesAndEdges(sampleTopology, 'infra');
     const mysqlNode = nodes.find(n => n.id === 'node-mysql-container');
     const debeziumNode = nodes.find(n => n.id === 'node-debezium');
     expect(mysqlNode).toBeDefined();
     expect(debeziumNode).toBeDefined();
-    // infra 뷰는 Y축으로 계층 분리(storage < ingestion), X축은 동일 계층 내 순서
-    // nifi는 교정 후 infra 뷰 미표시 (dependency 엣지 없음)
-    expect(mysqlNode!.position.y).toBeLessThan(debeziumNode!.position.y);
+    expect(Number.isFinite(mysqlNode!.position.x)).toBe(true);
+    expect(Number.isFinite(mysqlNode!.position.y)).toBe(true);
+    expect(Number.isFinite(debeziumNode!.position.x)).toBe(true);
+    expect(Number.isFinite(debeziumNode!.position.y)).toBe(true);
   });
 
   it('뷰 왕복: data→infra→data 전환 후 data 뷰 엣지 수 동일', () => {
@@ -534,33 +535,50 @@ describe('buildNodesAndEdges', () => {
 
   /* ── INFRA_LAYER_MAP: node-es → serving 계층 ────────────────── */
 
-  it('infra 뷰: node-es가 serving 계층 Y좌표를 가진다 (node-kibana와 동일 Y)', () => {
+  it('infra 뷰: node-es가 유한 좌표를 가진다 (force-directed 배치)', () => {
     const { nodes } = buildNodesAndEdges(sampleTopology, 'infra');
     const esNode = nodes.find(n => n.id === 'node-es')!;
     const kibanaNode = nodes.find(n => n.id === 'node-kibana')!;
     expect(esNode).toBeDefined();
     expect(kibanaNode).toBeDefined();
-    // node-es와 node-kibana 모두 serving 계층 → 동일 Y좌표
-    expect(esNode.position.y).toBe(kibanaNode.position.y);
+    expect(Number.isFinite(esNode.position.x)).toBe(true);
+    expect(Number.isFinite(esNode.position.y)).toBe(true);
+    expect(Number.isFinite(kibanaNode.position.x)).toBe(true);
+    expect(Number.isFinite(kibanaNode.position.y)).toBe(true);
   });
 
-  it('infra 뷰: node-es(serving)가 node-debezium(ingestion)보다 Y좌표가 크다', () => {
+  it('infra 뷰: node-es·node-debezium이 유한 좌표를 가진다 (force-directed 배치)', () => {
     const { nodes } = buildNodesAndEdges(sampleTopology, 'infra');
     const esNode = nodes.find(n => n.id === 'node-es')!;
     const debeziumNode = nodes.find(n => n.id === 'node-debezium')!;
     expect(esNode).toBeDefined();
     expect(debeziumNode).toBeDefined();
-    // serving 계층은 ingestion 계층보다 Y좌표가 크다 (아래에 배치)
-    expect(esNode.position.y).toBeGreaterThan(debeziumNode.position.y);
+    expect(Number.isFinite(esNode.position.x)).toBe(true);
+    expect(Number.isFinite(esNode.position.y)).toBe(true);
+    expect(Number.isFinite(debeziumNode.position.x)).toBe(true);
+    expect(Number.isFinite(debeziumNode.position.y)).toBe(true);
   });
 
-  it('infra 뷰: node-mysql-container(storage)가 node-es(serving)보다 Y좌표가 작다', () => {
+  it('infra 뷰: node-mysql-container·node-es가 유한 좌표를 가진다 (force-directed 배치)', () => {
     const { nodes } = buildNodesAndEdges(sampleTopology, 'infra');
     const mysqlContainerNode = nodes.find(n => n.id === 'node-mysql-container')!;
     const esNode = nodes.find(n => n.id === 'node-es')!;
     expect(mysqlContainerNode).toBeDefined();
     expect(esNode).toBeDefined();
-    // storage 계층은 serving 계층보다 Y좌표가 작다 (위에 배치)
-    expect(mysqlContainerNode.position.y).toBeLessThan(esNode.position.y);
+    expect(Number.isFinite(mysqlContainerNode.position.x)).toBe(true);
+    expect(Number.isFinite(mysqlContainerNode.position.y)).toBe(true);
+    expect(Number.isFinite(esNode.position.x)).toBe(true);
+    expect(Number.isFinite(esNode.position.y)).toBe(true);
+  });
+
+  it('infra 뷰 결정성: 동일 토폴로지 2회 호출 시 좌표 동일', () => {
+    const { nodes: nodes1 } = buildNodesAndEdges(sampleTopology, 'infra');
+    const { nodes: nodes2 } = buildNodesAndEdges(sampleTopology, 'infra');
+    expect(nodes1.length).toBe(nodes2.length);
+    nodes1.forEach((n1, i) => {
+      const n2 = nodes2[i];
+      expect(n1.position.x).toBe(n2.position.x);
+      expect(n1.position.y).toBe(n2.position.y);
+    });
   });
 });

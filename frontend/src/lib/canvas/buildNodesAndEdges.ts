@@ -1,82 +1,9 @@
 import type { CanvasTopology, ToolNode, ToolRole } from '$lib/api/types.js';
 import { getToolEntry } from './toolCatalog.js';
+import { computeForceLayout } from './forceLayout.js';
 
 const COL_GAP = 280;
 const ROW_GAP = 140;
-
-// infra 뷰 계층 grouping 배치 상수
-const INFRA_COL_GAP = 300;
-const INFRA_ROW_GAP = 160;
-const INFRA_START_X = 60;
-const INFRA_START_Y = 60;
-
-/**
- * infra 뷰 계층 정의 (dependency 채널 전용)
- * 계층 순서: storage → ingestion → processing → serving
- */
-const INFRA_LAYER_ORDER = ['storage', 'broker', 'ingestion', 'processing', 'serving', 'other'] as const;
-type InfraLayer = typeof INFRA_LAYER_ORDER[number];
-
-/** 노드 ID → infra 계층 매핑 */
-const INFRA_LAYER_MAP: Record<string, InfraLayer> = {
-  // storage: 인프라 컨테이너 / 스토리지 / coordination
-  'node-mysql-container': 'storage',
-  'node-seaweedfs':       'storage',
-  'node-zookeeper':       'storage',
-  'node-es':              'serving',
-  'node-mysql':           'storage',
-  'node-s3-bronze':       'storage',
-  // broker: 메시지 브로커
-  'node-valkey':          'broker',
-  // ingestion: 수집 도구
-  'node-debezium':        'ingestion',
-  'node-nifi':            'ingestion',
-  'node-dam':             'ingestion',
-  // processing: 처리 / 오케스트레이션 (DAG 내부 실행 노드는 infra 노드 아님 — 매핑 제외)
-  'node-airflow':         'processing',
-  'node-mock-api':        'processing',
-  // serving: 시각화 / API 서빙
-  'node-kibana':          'serving',
-};
-
-/** 노드 ID로 infra 계층을 반환. 매핑이 없으면 'other' */
-function getInfraLayer(nodeId: string): InfraLayer {
-  return INFRA_LAYER_MAP[nodeId] ?? 'other';
-}
-
-/**
- * infra 뷰 전용 계층 grouping 배치 계산
- * - y축: 계층별 고정 (storage=0, ingestion=1, processing=2, serving=3, other=4)
- * - x축: 계층 내 노드 순번 균등 분배
- * - computeDepths를 사용하지 않아 in-degree 0 오판 해소
- */
-function computeInfraPositions(
-  nodes: import('$lib/api/types.js').ToolNode[]
-): Map<string, { x: number; y: number }> {
-  // 계층별 노드 그룹핑
-  const layerGroups = new Map<InfraLayer, string[]>();
-  for (const layer of INFRA_LAYER_ORDER) {
-    layerGroups.set(layer, []);
-  }
-  for (const n of nodes) {
-    const layer = getInfraLayer(n.id);
-    layerGroups.get(layer)!.push(n.id);
-  }
-
-  const positions = new Map<string, { x: number; y: number }>();
-  let layerIndex = 0;
-  for (const layer of INFRA_LAYER_ORDER) {
-    const ids = layerGroups.get(layer)!;
-    if (ids.length === 0) continue;
-    const y = INFRA_START_Y + layerIndex * INFRA_ROW_GAP;
-    ids.forEach((id, i) => {
-      const x = INFRA_START_X + i * INFRA_COL_GAP;
-      positions.set(id, { x, y });
-    });
-    layerIndex++;
-  }
-  return positions;
-}
 
 export interface FlowNode {
   id: string;
@@ -137,9 +64,13 @@ export function buildNodesAndEdges(
   let getPosition: (nodeId: string) => { x: number; y: number };
 
   if (view === 'infra') {
-    // infra 뷰: 계층 grouping 배치 (computeDepths 미사용 — in-degree 0 오판 해소)
-    const infraPos = computeInfraPositions(visibleNodes);
-    getPosition = (nodeId) => infraPos.get(nodeId) ?? { x: 0, y: 0 };
+    // infra 뷰: force-directed 배치 (d3-force, 결정적 초기 좌표, 300 tick)
+    const forcePositions = computeForceLayout(
+      visibleNodes,
+      visibleEdges.map(e => ({ source: e.from, target: e.to }))
+    );
+    const forcePosMap = new Map(forcePositions.map(p => [p.id, { x: p.x, y: p.y }]));
+    getPosition = (nodeId) => forcePosMap.get(nodeId) ?? { x: 0, y: 0 };
   } else {
     // data 뷰: 기존 위상정렬 X좌표 (Kahn's algorithm + 최장 경로)
     const depth = computeDepths(visibleNodes, visibleEdges);
