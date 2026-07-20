@@ -24,6 +24,7 @@ export interface FlowNode {
     outputs?: string[];
     outOfTeamScope?: boolean;
     deployStatus: 'active' | 'planned' | 'absent';
+    runtimeHealth: 'up' | 'down' | 'degraded' | 'unknown';
     parentId?: string;
     groupId?: string;
   };
@@ -162,6 +163,7 @@ export function buildNodesAndEdges(
         isInfra: view === 'infra',
         outOfTeamScope: n.outOfTeamScope ?? false,
         deployStatus: n.deployStatus ?? 'active',
+        runtimeHealth: n.runtimeHealth ?? 'unknown',
         ...(applyMode !== undefined ? { applyMode } : {}),
         ...(outputs !== undefined ? { outputs } : {}),
         ...(nodeGroupId ? { parentId: nodeGroupId } : {}),

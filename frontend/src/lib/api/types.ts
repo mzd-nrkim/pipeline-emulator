@@ -108,6 +108,7 @@ export interface ToolNode {
   config: Record<string, unknown>;
   outOfTeamScope?: boolean;
   deployStatus?: 'active' | 'planned' | 'absent';
+  runtimeHealth?: 'up' | 'down' | 'degraded' | 'unknown';
   displayNameOverride?: string;
   parentId?: string;
   group?: string;
