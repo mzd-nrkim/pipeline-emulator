@@ -229,9 +229,10 @@ export function buildNodesAndEdges(
         const absMinX = Math.min(...origXs);
         const absMinY = Math.min(...origYs);
 
-        // A-1: 그룹 자식 0-origin 상대좌표 재배치 (x = idx*COL_GAP, y = 0)
-        childNodes.forEach((child, idx) => {
-          child.position = { x: idx * COL_GAP, y: 0 };
+        // A-1: 원래 절대 x 기준 오름차순 정렬 (DAG 깊이 = 위상정렬 결과)
+        const sortedChildren = [...childNodes].sort((a, b) => a.position.x - b.position.x);
+        sortedChildren.forEach((child, idx) => {
+          child.position = { x: PAD_X + idx * COL_GAP, y: PAD_TOP };
         });
 
         // A-2: 그룹 박스 크기 = 자식 수 기준 (0-origin 상대좌표)
