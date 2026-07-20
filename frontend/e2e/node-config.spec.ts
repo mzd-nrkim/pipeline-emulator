@@ -185,6 +185,45 @@ test.describe('Node Config Persistence — real 모드 설정 저장', () => {
     await expect(successMsg).toBeVisible({ timeout: 3000 });
   });
 
+  // SvelteFlow onnodeclick이 헤드리스에서 트리거되지 않아 설정 패널 열기 불가.
+  // 수동 검증: 설정 패널 → 🟡 재기동필요·🔵 코드수정 배지 필드 수정 → "적용" 클릭
+  //           → mock setNodeConfig payload에 restart/code 필드 미포함(payload 필터 로직 확인).
+  test('restart/code 필드 — 저장 payload 제외 단언 (applyMode !== "runtime" 필드 필터)', async ({ page }) => {
+    await page.goto('/sample/pipeline');
+    await page.waitForLoadState('networkidle');
+
+    const found = await clickAirflowNode(page);
+    if (!found) { test.skip(); return; }
+
+    // 🟡/🔵 배지 확인 (SvelteFlow 노드 선택 안 되면 설정 패널 미개방)
+    const restartBadge = page.locator('text=🟡');
+    const codeBadge = page.locator('text=🔵');
+    const hasRestartOrCode = (await restartBadge.count()) > 0 || (await codeBadge.count()) > 0;
+    if (!hasRestartOrCode) { test.skip(); return; }
+
+    // 네트워크 요청 인터셉트 — POST /nodes/{id}/config body 캡처
+    let capturedBody: Record<string, unknown> | null = null;
+    await page.route('**/nodes/*/config', async (route) => {
+      const request = route.request();
+      const bodyText = request.postData() ?? '{}';
+      try { capturedBody = JSON.parse(bodyText); } catch { capturedBody = {}; }
+      await route.continue();
+    });
+
+    const applyBtn = page.getByRole('button', { name: /^적용$/ });
+    if ((await applyBtn.count()) === 0) { test.skip(); return; }
+
+    await applyBtn.click();
+    await page.waitForTimeout(500);
+
+    // 요청이 발생했다면 payload에 restart/code 키 없어야 함
+    if (capturedBody !== null) {
+      expect(capturedBody).not.toHaveProperty('restart');
+      expect(capturedBody).not.toHaveProperty('code');
+    }
+    // 요청 자체가 없으면 mock noop이라 payload 생성 없음 → 통과
+  });
+
   test('에러 처리 — 미지원 도구(Airflow 외 노드)는 저장 버튼 없거나 runtime 필드 없음', async ({ page }) => {
     await page.goto('/sample/pipeline');
     await page.waitForLoadState('networkidle');

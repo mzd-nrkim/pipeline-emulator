@@ -199,4 +199,22 @@ test.describe('Run History — 실행 이력 패널', () => {
     const bodyText = await page.locator('body').innerText();
     expect(bodyText.length).toBeGreaterThan(0);
   });
+
+  test('빈 결과 상태 — dagId 없는 run 선택 시 태스크 인스턴스 영역 미표시 또는 "결과 없음"', async ({ page }) => {
+    // mock runs에 dagId 없음 → fetchExecutions 미호출 → executions=[] → 영역 미표시
+    const historyBtn = page.locator('button').filter({ hasText: /실행 이력/ });
+    await historyBtn.first().click();
+    await page.waitForTimeout(500);
+
+    const runItemBtn = page.locator('ul li button').first();
+    if ((await runItemBtn.count()) === 0) { test.skip(); return; }
+
+    await runItemBtn.click();
+    await page.waitForTimeout(500);
+
+    // 태스크 인스턴스 영역 없거나 "결과 없음" 텍스트 중 하나
+    const instanceAreaCount = await page.locator('text=태스크 인스턴스').count();
+    const noResultCount = await page.locator('text=결과 없음').count();
+    expect(instanceAreaCount === 0 || noResultCount > 0).toBe(true);
+  });
 });
