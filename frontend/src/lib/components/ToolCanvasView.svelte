@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { SvelteFlow, Background, Controls, type Node as FlowNode, type Edge as FlowEdge } from '@xyflow/svelte';
+  import { SvelteFlow, Background, Controls, BackgroundVariant, type Node as FlowNode, type Edge as FlowEdge } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import ToolFlowNode from '$lib/components/ToolFlowNode.svelte';
   import type { ToolNode, CanvasTopology, Stage } from '$lib/api/types.js';
@@ -39,7 +39,7 @@
       </div>
     {/if}
     <SvelteFlow bind:nodes bind:edges nodeTypes={{ tool: ToolFlowNode as any }} fitView onnodeclick={({ node }) => { const clicked = topology.nodes.find(n => n.id === node.id) ?? null; onnodeselect?.(clicked); }}>
-      <Background variant="dots" gap={20} size={1.5} bgColor="var(--surface-muted)" color="var(--border)" />
+      <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} bgColor="var(--surface-muted)" color="var(--border)" />
       <Controls />
     </SvelteFlow>
   </div>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { SvelteFlow, Background, Controls, type Node, type Edge } from '@xyflow/svelte';
+  import { SvelteFlow, Background, Controls, BackgroundVariant, type Node, type Edge } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import ToolFlowNode from '$lib/components/ToolFlowNode.svelte';
   import type { Stage } from '$lib/api/types.js';
@@ -84,7 +84,7 @@
       fitView
       onnodeclick={({ node }) => handleNodeClick(node)}
     >
-      <Background variant="dots" gap={20} size={1.5} bgColor="var(--surface-muted)" color="var(--border)" />
+      <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} bgColor="var(--surface-muted)" color="var(--border)" />
       <Controls />
     </SvelteFlow>
   {/if}
