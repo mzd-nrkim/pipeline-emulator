@@ -37,15 +37,17 @@ services:
       context: .
       dockerfile: DockerfileAirflow
     environment:
-      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/airflow.db
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR:-SequentialExecutor}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW_SQL_CONN:-sqlite:////opt/airflow/airflow.db}
       AIRFLOW__WEBSERVER__SECRET_KEY: pipeline_emulator_secret
       AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
       _AIRFLOW_DB_MIGRATE: "true"
       _AIRFLOW_WWW_USER_CREATE: "true"
       _AIRFLOW_WWW_USER_USERNAME: admin
       _AIRFLOW_WWW_USER_PASSWORD: admin
-      _PIP_ADDITIONAL_REQUIREMENTS: "pyarrow boto3 pymysql sqlalchemy presidio-analyzer presidio-anonymizer spacy elasticsearch"
+      _PIP_ADDITIONAL_REQUIREMENTS: "pyarrow boto3 pymysql sqlalchemy presidio-analyzer presidio-anonymizer spacy elasticsearch celery[redis]"
+      CELERY__BROKER_URL: ${CELERY_BROKER_URL:-}
+      CELERY__RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-}
       # MASK=presidio  # 주석 처리 상태로 추가 — 데모 시에만 활성화 (.env에서 오버라이드)
       # ENRICH=real 전환 시 아래 두 값을 실제 엔드포인트 URL로 교체
       CHUNKING_API_URL: http://mock-api:8000/chunk  # real: https://your-chunking-api.example.com/chunk
