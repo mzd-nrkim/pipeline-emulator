@@ -249,7 +249,7 @@ export const mockTopology: CanvasTopology = {
     {
       id: 'node-mock-api',
       role: 'transform',
-      tool: 'presidio',
+      tool: 'mock-api',
       displayNameOverride: 'Mock API (Enrichment)',
       config: {
         dagId: 'gold_4_enrichment',
@@ -276,11 +276,10 @@ export const mockTopology: CanvasTopology = {
     { from: 'node-nifi',     to: 'node-s3-bronze', channels: ['data'] },
     { from: 'node-dam',      to: 'node-s3-bronze', channels: ['data'] },
 
-    /* s3-bronze → airflow (직결, branch 제거) */
-    { from: 'node-s3-bronze', to: 'node-airflow', channels: ['data'] },
+    /* s3-bronze → docling (직결, airflow data-edge 제거 — node-airflow는 infra dependency 노드로 보존) */
+    { from: 'node-s3-bronze', to: 'node-docling',  channels: ['data'], viaTable: 'bronze_structured_raw' },
 
     /* task 체인 */
-    { from: 'node-airflow',  to: 'node-docling',  channels: ['data'], viaTable: 'bronze_structured_raw' },
     { from: 'node-docling',  to: 'node-presidio', channels: ['data'], viaTable: 'silver_structured_documents' },
     { from: 'node-presidio', to: 'node-kure',     channels: ['data'], viaTable: 'silver_masked_documents' },
     { from: 'node-kure',     to: 'node-mock-api', channels: ['data', 'dependency'] as ('data' | 'dependency')[], viaTable: 'gold_chunked_documents' },
