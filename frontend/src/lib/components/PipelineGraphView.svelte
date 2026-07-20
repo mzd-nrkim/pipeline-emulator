@@ -2,6 +2,7 @@
   import { writable } from 'svelte/store';
   import { SvelteFlow, Background, Controls, type Node, type Edge } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
+  import LRFlowNode from './LRFlowNode.svelte';
   import type { Stage } from '$lib/api/types.js';
 
   let { stages, onselect }: { stages: Stage[]; onselect: (id: string) => void } = $props();
@@ -33,7 +34,7 @@
 
       return {
         id: stage.id,
-        type: 'default',
+        type: 'lrnode',
         position: { x: LAYER_X[layer] ?? 0, y },
         data: { label: stage.name },
         style: stage.planned
@@ -81,6 +82,7 @@
     <SvelteFlow
       nodes={nodesStore}
       edges={edgesStore}
+      nodeTypes={{ lrnode: LRFlowNode }}
       nodesDraggable={false}
       nodesConnectable={false}
       elementsSelectable={true}
