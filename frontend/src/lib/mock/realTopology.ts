@@ -108,6 +108,8 @@ export const realTopology: CanvasTopology = {
       role: 'transform',
       tool: 'presidio',
       label: 'Presidio PII',
+      parentId: 'node-airflow-group',
+      group: 'airflow',
       config: {
         dagId: 'silver_2_masking',
         // T1-4: recognizers 실측값, nlpEngine 추가
@@ -121,6 +123,8 @@ export const realTopology: CanvasTopology = {
       role: 'transform',
       tool: 'docling-langchain',
       label: 'Docling Structuring',
+      parentId: 'node-airflow-group',
+      group: 'airflow',
       config: {
         dagId: 'silver_1_structuring',
         // T1-5: chunkSize/chunkOverlap 제거, structuring 성격(RDB→JSON) 반영
@@ -133,6 +137,8 @@ export const realTopology: CanvasTopology = {
       role: 'transform',
       tool: 'kure-embedding',
       label: 'KURE Chunking & Embedding',
+      parentId: 'node-airflow-group',
+      group: 'airflow',
       config: {
         dagId: 'gold_3_chunking',
         // T1-1: modelPath 실측값, outputDim 384, 청킹(섹션 3분할) 담당
@@ -241,7 +247,7 @@ export const realTopology: CanvasTopology = {
     {
       id: 'node-mock-api',
       role: 'transform',
-      tool: 'presidio',
+      tool: 'mock-api',
       displayNameOverride: 'Mock API (Enrichment)',
       config: {
         dagId: 'gold_4_enrichment',
@@ -268,11 +274,10 @@ export const realTopology: CanvasTopology = {
     { from: 'node-nifi',     to: 'node-s3-bronze', channels: ['data'] },
     { from: 'node-dam',      to: 'node-s3-bronze', channels: ['data'] },
 
-    /* s3-bronze → airflow (직결, branch 제거) */
-    { from: 'node-s3-bronze', to: 'node-airflow', channels: ['data'] },
+    /* s3-bronze → docling (data 직결) */
+    { from: 'node-s3-bronze', to: 'node-docling', channels: ['data'] },
 
     /* task 체인 */
-    { from: 'node-airflow',  to: 'node-docling',  channels: ['data'] },
     { from: 'node-docling',  to: 'node-presidio', channels: ['data'] },
     { from: 'node-presidio', to: 'node-kure',     channels: ['data'] },
     { from: 'node-kure',     to: 'node-mock-api', channels: ['data'] },
