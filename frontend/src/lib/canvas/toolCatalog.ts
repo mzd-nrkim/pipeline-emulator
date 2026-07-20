@@ -118,8 +118,8 @@ const catalog: ToolCatalogEntry[] = [
   },
   {
     id: 'docling-langchain',
-    displayName: 'Docling + LangChain',
-    vendor: 'Docling/LangChain',
+    displayName: 'Structuring',
+    vendor: 'Airflow DAG',
     category: 'task',
     icon: '📄',
     accent: '#764ABC',
