@@ -81,28 +81,17 @@
   class:cat-sink={category === 'sink'}
   style="--node-accent: {resolvedAccent};"
 >
-  <!-- 카드 본체 (가로형: 좌측 아이콘 + 우측 텍스트) -->
+  <!-- 카드 본체 (n8n 정사각) -->
   <div class="node-card">
-    <!-- 좌측 아이콘 영역 -->
-    <div class="node-icon-area">
-      {#if iconSpec.kind === 'brand' && SI_ICONS[iconSpec.slug]}
-        <svg class="node-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
-          <path d={SI_ICONS[iconSpec.slug].path}/>
-        </svg>
-      {:else if iconSpec.kind === 'lucide' && LUCIDE_ICONS[iconSpec.name]}
-        <svelte:component this={LUCIDE_ICONS[iconSpec.name]} class="node-icon" size={44} strokeWidth={1.75}/>
-      {:else}
-        <span class="node-icon">{iconSpec.kind === 'emoji' ? iconSpec.char : '❓'}</span>
-      {/if}
-    </div>
-
-    <!-- 우측 텍스트 영역 -->
-    <div class="node-text-area">
-      <span class="node-display-name">{resolvedDisplayName}</span>
-      {#if vendor}
-        <span class="node-vendor">{vendor}</span>
-      {/if}
-    </div>
+    {#if iconSpec.kind === 'brand' && SI_ICONS[iconSpec.slug]}
+      <svg class="node-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+        <path d={SI_ICONS[iconSpec.slug].path}/>
+      </svg>
+    {:else if iconSpec.kind === 'lucide' && LUCIDE_ICONS[iconSpec.name]}
+      <svelte:component this={LUCIDE_ICONS[iconSpec.name]} class="node-icon" size={44} strokeWidth={1.75}/>
+    {:else}
+      <span class="node-icon">{iconSpec.kind === 'emoji' ? iconSpec.char : '❓'}</span>
+    {/if}
 
     <!-- trigger 배지 (우상단 절대 위치) -->
     {#if trigger}
@@ -128,10 +117,16 @@
       {/if}
     </div>
   </div>
+  <div class="node-label" class:node-label-muted={outOfTeamScope}>
+    <span class="node-display-name">{resolvedDisplayName}</span>
+    {#if vendor}
+      <span class="node-vendor">{vendor}</span>
+    {/if}
+  </div>
 </div>
 
 <!-- target handle (왼쪽, 세로 중앙) -->
-<Handle type="target" position={Position.Left} style="top: calc(var(--node-card-height) / 2); {isInfra ? 'visibility: hidden;' : ''}" />
+<Handle type="target" position={Position.Left} style="top: calc(var(--node-card-size) / 2); {isInfra ? 'visibility: hidden;' : ''}" />
 
 <!-- source handle(s) (오른쪽, 균등 세로 분배) -->
 {#if outputs && outputs.length > 1}
@@ -140,17 +135,16 @@
       type="source"
       position={Position.Right}
       id={outputId}
-      style="top: calc(var(--node-card-height) * {(i + 1) / (outputs.length + 1)}); {isInfra ? 'visibility: hidden;' : ''}"
+      style="top: calc(var(--node-card-size) * {(i + 1) / (outputs.length + 1)}); {isInfra ? 'visibility: hidden;' : ''}"
     />
   {/each}
 {:else}
-  <Handle type="source" position={Position.Right} style="top: calc(var(--node-card-height) / 2); {isInfra ? 'visibility: hidden;' : ''}" />
+  <Handle type="source" position={Position.Right} style="top: calc(var(--node-card-size) / 2); {isInfra ? 'visibility: hidden;' : ''}" />
 {/if}
 
 <style>
   :root {
-    --node-card-width: 180px;
-    --node-card-height: 64px;
+    --node-card-size: 80px;
     --node-icon-size: 44px;
   }
 
@@ -158,34 +152,24 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     gap: 0;
     font-family: var(--font-sans, 'Inter', ui-sans-serif, system-ui, sans-serif);
   }
 
-  /* 카드 본체 — 가로형 flex */
+  /* 카드 본체 — n8n 정사각 flex */
   .node-card {
     position: relative;
-    width: var(--node-card-width);
-    height: var(--node-card-height);
+    width: var(--node-card-size);
+    height: var(--node-card-size);
     background: var(--card, var(--surface));
     border: 1px solid var(--border);
     border-radius: 8px;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
+    justify-content: center;
     align-items: center;
     overflow: hidden;
-  }
-
-  /* 좌측 아이콘 영역 — 고정 너비, 세로 중앙 */
-  .node-icon-area {
-    flex: 0 0 var(--node-icon-size);
-    width: var(--node-icon-size);
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 4px;
   }
 
   .node-icon {
@@ -209,39 +193,38 @@
     color: var(--node-accent, currentColor);
   }
 
-  /* 우측 텍스트 영역 — flex-grow, 좌측 구분선 */
-  .node-text-area {
-    flex: 1 1 0;
-    min-width: 0;
+  /* 외부 라벨 */
+  .node-label {
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    align-items: center;
+    text-align: center;
+    max-width: var(--node-card-size);
     gap: 2px;
-    padding: 4px 8px 4px 6px;
-    border-left: 1px solid var(--border);
-    overflow: hidden;
+    margin-top: 4px;
+  }
+
+  .node-label-muted {
+    opacity: 0.5;
   }
 
   .node-display-name {
-    font-size: 0.82rem;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 500;
     color: var(--foreground);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 100%;
-    line-height: 1.3;
+    max-width: var(--node-card-size);
   }
 
   .node-vendor {
-    font-size: 0.7rem;
-    font-weight: 400;
+    font-size: 10px;
     color: var(--muted-foreground);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 100%;
-    line-height: 1.2;
+    max-width: var(--node-card-size);
   }
 
   /* trigger 배지 — 우상단 절대 위치 */
