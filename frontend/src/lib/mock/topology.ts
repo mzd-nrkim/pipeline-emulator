@@ -282,7 +282,7 @@ export const mockTopology: CanvasTopology = {
     { from: 'node-airflow',  to: 'node-docling',  channels: ['data'], viaTable: 'bronze_structured_raw' },
     { from: 'node-docling',  to: 'node-presidio', channels: ['data'], viaTable: 'silver_structured_documents' },
     { from: 'node-presidio', to: 'node-kure',     channels: ['data'], viaTable: 'silver_masked_documents' },
-    { from: 'node-kure',     to: 'node-mock-api', channels: ['data'], viaTable: 'gold_chunked_documents' },
+    { from: 'node-kure',     to: 'node-mock-api', channels: ['data', 'dependency'] as ('data' | 'dependency')[], viaTable: 'gold_chunked_documents' },
     { from: 'node-mock-api', to: 'node-es',       channels: ['data'], viaTable: 'gold_enriched_documents' },
     /* gold_5 field_mapping → gold_staged_documents (MySQL) */
     { from: 'node-mock-api', to: 'node-mysql',    channels: ['data'], viaTable: 'gold_staged_documents' },
