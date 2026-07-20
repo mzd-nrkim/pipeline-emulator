@@ -250,7 +250,7 @@
                         {:else if applyMode === 'code'}
                           <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[9px] font-bold rounded-xs bg-blue-100 text-blue-700 border border-blue-300">🔵 코드수정</span>
                         {:else}
-                          <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[9px] font-bold rounded-xs bg-red-100 text-red-700 border border-red-300">🔴 읽기전용</span>
+                          <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[9px] font-bold rounded-xs bg-slate-100 text-slate-500 border border-slate-300">🔒 읽기전용</span>
                         {/if}
                       </div>
                       {#if field.type === 'text'}

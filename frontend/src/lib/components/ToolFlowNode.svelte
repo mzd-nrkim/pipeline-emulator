@@ -23,7 +23,7 @@
     runtime: { emoji: '🟢', label: 'runtime' },
     restart: { emoji: '🟡', label: 'restart' },
     code: { emoji: '🔵', label: 'code' },
-    readonly: { emoji: '🔴', label: 'readonly' },
+    readonly: { emoji: '🔒', label: 'readonly' },
   };
 
 </script>
@@ -166,7 +166,7 @@
   }
 
   .detail-row {
-    font-size: 0.6rem;
+    font-size: 0.72rem;
     color: var(--card, var(--surface));
     white-space: nowrap;
     overflow: hidden;
@@ -180,12 +180,12 @@
     align-items: center;
     gap: 1px;
     padding: 4px 2px 0;
-    max-width: calc(var(--node-card-size) + 24px);
+    max-width: calc(var(--node-card-size) + 48px);
     text-align: center;
   }
 
   .node-display-name {
-    font-size: 0.75rem;
+    font-size: 0.9rem;
     font-weight: 600;
     color: var(--foreground);
     white-space: nowrap;
@@ -195,7 +195,7 @@
   }
 
   .node-vendor {
-    font-size: 0.65rem;
+    font-size: 0.78rem;
     font-weight: 400;
     color: var(--muted-foreground);
     white-space: nowrap;
