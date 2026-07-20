@@ -21,7 +21,10 @@ test.describe('Infra View — 인프라 연결 뷰', () => {
   });
 
   test('엣지에 ArrowClosed 마커(markerEnd)가 렌더된다', async ({ page }) => {
-    await page.waitForSelector('.svelte-flow .svelte-flow__edge', { timeout: 5000 });
+    await page.getByRole('button', { name: '인프라', exact: true }).click();
+    await page.waitForTimeout(500);
+    // SVG <g> 요소는 Playwright visibility 판정이 불안정 — toBeAttached 사용
+    await expect(page.locator('.svelte-flow__edge').first()).toBeAttached({ timeout: 5000 });
     const markerCount = await page.evaluate(() => {
       const edgePaths = [...document.querySelectorAll('.svelte-flow__edge-path[marker-end]')];
       return edgePaths.length;
