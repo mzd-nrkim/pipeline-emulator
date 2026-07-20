@@ -3,12 +3,15 @@ from fastapi import APIRouter
 
 router = APIRouter()
 
+_mask = os.environ.get("MASK", "regex")
+
 FLAGS = {
-    "masking": os.environ.get("MASK", "regex"),
+    "masking": _mask,
     "search": os.environ.get("SEARCH_ENABLED", "off"),
     "chunking": os.environ.get("CHUNKING_METHOD", "rule_based"),
     "enrichment": os.environ.get("ENRICHMENT_METHOD", "rule_based"),
-    "presidio_layer": os.environ.get("PRESIDIO_LAYER", "layer1"),
+    # presidio_layer: MASK=presidio 시 True로 연동, 그 외에는 PRESIDIO_LAYER 환경변수 사용
+    "presidio_layer": True if _mask == "presidio" else os.environ.get("PRESIDIO_LAYER", "layer1"),
     "executor": os.environ.get("AIRFLOW__CORE__EXECUTOR", "LocalExecutor"),
     "es_cluster": os.environ.get("ES_CLUSTER", "off"),
 }
