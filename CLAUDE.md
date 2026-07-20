@@ -25,7 +25,7 @@ SvelteKit 프론트엔드 + FastAPI UI 백엔드 + Airflow DAG + MySQL + Seaweed
 |--------|------|
 | 프론트엔드 | SvelteKit 2 + Svelte 5 + TypeScript + TailwindCSS 4 + @xyflow/svelte |
 | UI 백엔드 | FastAPI 0.110 + Uvicorn + Pydantic 2 + PyMySQL |
-| 파이프라인 | Apache Airflow (SequentialExecutor, sqlite) |
+| 파이프라인 | Apache Airflow (SequentialExecutor+SQLite 기본, CeleryExecutor+MySQL 옵션: F6) |
 | Mock API | FastAPI (청킹·보강 엔드포인트 시뮬레이션) |
 | DB | MySQL 8.0 (`pipeline_emulator` 스키마) |
 | 스토리지 | SeaweedFS (S3 호환, 포트 8333) |
@@ -65,6 +65,9 @@ cd frontend && npx playwright test e2e/real-docker-smoke.spec.ts
 
 # CDC 포함 기동
 COMPOSE_PROFILES=cdc docker compose up -d
+
+# CeleryExecutor 분산 모드 (F6)
+AIRFLOW_EXECUTOR=CeleryExecutor AIRFLOW_SQL_CONN=mysql+pymysql://emulator:emulator_pass@mysql:3306/pipeline_emulator CELERY_BROKER_URL=redis://valkey:6379/1 CELERY_RESULT_BACKEND=db+mysql+pymysql://emulator:emulator_pass@mysql:3306/pipeline_emulator COMPOSE_PROFILES=celery docker compose up -d
 ```
 
 ### 정적 검증 (pre-gate)
@@ -106,6 +109,7 @@ git branch -d <branch>
 
 주요 변수:
 - `CDC=off|on` + `COMPOSE_PROFILES=cdc` — CDC 서비스 활성화
+- `AIRFLOW_EXECUTOR` + `COMPOSE_PROFILES=celery` — CeleryExecutor 분산 모드 활성화 (F6)
 - `PUBLIC_UI_BACKEND_URL` — 프론트엔드가 바라보는 백엔드 URL
 - `MASK=regex` — PII 엔진 모드
 

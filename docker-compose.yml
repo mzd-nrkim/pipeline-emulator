@@ -37,15 +37,17 @@ services:
       context: .
       dockerfile: DockerfileAirflow
     environment:
-      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/airflow.db
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR:-SequentialExecutor}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW_SQL_CONN:-sqlite:////opt/airflow/airflow.db}
       AIRFLOW__WEBSERVER__SECRET_KEY: pipeline_emulator_secret
       AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
       _AIRFLOW_DB_MIGRATE: "true"
       _AIRFLOW_WWW_USER_CREATE: "true"
       _AIRFLOW_WWW_USER_USERNAME: admin
       _AIRFLOW_WWW_USER_PASSWORD: admin
-      _PIP_ADDITIONAL_REQUIREMENTS: "pyarrow boto3 pymysql sqlalchemy presidio-analyzer presidio-anonymizer spacy elasticsearch"
+      _PIP_ADDITIONAL_REQUIREMENTS: "pyarrow boto3 pymysql sqlalchemy presidio-analyzer presidio-anonymizer spacy elasticsearch celery[redis]"
+      CELERY__BROKER_URL: ${CELERY_BROKER_URL:-}
+      CELERY__RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-}
       # MASK=presidio  # 주석 처리 상태로 추가 — 데모 시에만 활성화 (.env에서 오버라이드)
       # ENRICH=real 전환 시 아래 두 값을 실제 엔드포인트 URL로 교체
       CHUNKING_API_URL: http://mock-api:8000/chunk  # real: https://your-chunking-api.example.com/chunk
@@ -133,6 +135,50 @@ services:
       retries: 5
 
   # ─────────────────────────────────────────
+  # Celery 스택 (profiles: [celery] — 기본 기동 시 비활성)
+  # 기동: AIRFLOW_EXECUTOR=CeleryExecutor AIRFLOW_SQL_CONN=mysql+pymysql://emulator:emulator_pass@mysql:3306/pipeline_emulator \
+  #       CELERY_BROKER_URL=redis://valkey:6379/1 CELERY_RESULT_BACKEND=db+mysql+pymysql://emulator:emulator_pass@mysql:3306/pipeline_emulator \
+  #       COMPOSE_PROFILES=celery docker compose up -d
+  # ─────────────────────────────────────────
+
+  airflow-worker:
+    build:
+      context: .
+      dockerfile: DockerfileAirflow
+    command: ["bash", "-c", "airflow celery worker"]
+    environment:
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR:-CeleryExecutor}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW_SQL_CONN:-mysql+pymysql://emulator:emulator_pass@mysql:3306/pipeline_emulator}
+      AIRFLOW__WEBSERVER__SECRET_KEY: pipeline_emulator_secret
+      AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
+      _AIRFLOW_DB_MIGRATE: "false"
+      _PIP_ADDITIONAL_REQUIREMENTS: "pyarrow boto3 pymysql sqlalchemy presidio-analyzer presidio-anonymizer spacy elasticsearch celery[redis]"
+      CHUNKING_API_URL: http://mock-api:8000/chunk
+      ENRICH_API_URL: http://mock-api:8000/enrich
+      SEAWEEDFS_ENDPOINT: http://seaweedfs:8333
+      SEAWEEDFS_ACCESS_KEY: any
+      SEAWEEDFS_SECRET_KEY: any
+      MYSQL_HOST: mysql
+      MYSQL_DATABASE: pipeline_emulator
+      MYSQL_USER: emulator
+      MYSQL_PASSWORD: emulator_pass
+      ES_HOST: elasticsearch
+      ES_PORT: "9200"
+      CELERY__BROKER_URL: ${CELERY_BROKER_URL:-redis://valkey:6379/1}
+      CELERY__RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-db+mysql+pymysql://emulator:emulator_pass@mysql:3306/pipeline_emulator}
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./pii_engine:/opt/airflow/pii_engine
+      - airflow-logs:/opt/airflow/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    profiles:
+      - celery
+
+  # ─────────────────────────────────────────
   # CDC 스택 (profiles: [cdc] — 기본 기동 시 비활성)
   # 기동: COMPOSE_PROFILES=cdc docker compose up
   # ─────────────────────────────────────────
@@ -147,6 +193,7 @@ services:
       retries: 5
     profiles:
       - cdc
+      - celery
 
   debezium:
     image: debezium/server:2.7.3.Final
