@@ -357,8 +357,7 @@
 
               <!-- 조작 영역 -->
               <div class="border-t border-border pt-3 space-y-2">
-                {@const runtimeFieldCount = (getToolEntry(selectedNode.tool)?.configFields ?? []).filter(f => (f.applyMode ?? 'readonly') === 'runtime').length}
-                {#if runtimeFieldCount > 0}
+                {#if (getToolEntry(selectedNode.tool)?.configFields ?? []).filter(f => (f.applyMode ?? 'readonly') === 'runtime').length > 0}
                   <button
                     type="button"
                     onclick={handleApplyConfig}

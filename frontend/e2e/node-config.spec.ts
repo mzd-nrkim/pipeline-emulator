@@ -13,10 +13,13 @@ test.describe('Node Config Persistence — real 모드 설정 저장', () => {
     for (let i = 0; i < count; i++) {
       const text = await nodes.nth(i).innerText();
       if (text.includes('Airflow')) {
-        await nodes.nth(i).evaluate((el) =>
-          el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }))
-        );
-        await page.waitForTimeout(500);
+        const box = await nodes.nth(i).boundingBox();
+        if (box) {
+          await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        } else {
+          await nodes.nth(i).click({ force: true });
+        }
+        await page.waitForTimeout(600);
         return true;
       }
     }
@@ -35,10 +38,13 @@ test.describe('Node Config Persistence — real 모드 설정 저장', () => {
     for (let i = 0; i < count; i++) {
       const text = await nodes.nth(i).innerText();
       if (!text.includes('Airflow')) {
-        await nodes.nth(i).evaluate((el) =>
-          el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }))
-        );
-        await page.waitForTimeout(500);
+        const box = await nodes.nth(i).boundingBox();
+        if (box) {
+          await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        } else {
+          await nodes.nth(i).click({ force: true });
+        }
+        await page.waitForTimeout(600);
         return true;
       }
     }
@@ -144,6 +150,39 @@ test.describe('Node Config Persistence — real 모드 설정 저장', () => {
     // 성공 응답 메시지 확인 ("저장" 또는 "applied" 포함 텍스트)
     const successLocator = page.locator('text=/저장|applied/i');
     await expect(successLocator.first()).toBeVisible({ timeout: 8000 });
+  });
+
+  // SvelteFlow onnodeclick이 헤드리스 Playwright에서 트리거되지 않아
+  // selectedNode 상태를 e2e에서 설정하기 어렵습니다.
+  // 수동 검증: mock 모드 /sample/pipeline → Airflow 노드 클릭 → 설정 패널 열림
+  //            → "적용" 버튼 표시 → 클릭 → "설정이 저장되었습니다." 피드백 확인
+  test('mock 모드 — Airflow 노드 "적용" 버튼 표시 + 클릭 → 성공 피드백', async ({ page }) => {
+    await page.goto('/sample/pipeline');
+    await page.waitForLoadState('networkidle');
+
+    const found = await clickAirflowNode(page);
+    if (!found) {
+      test.skip();
+      return;
+    }
+
+    // "적용" 버튼 존재 확인 (runtime 필드가 있을 때만 표시, SvelteFlow onnodeclick 트리거 여부에 의존)
+    const applyBtn = page.getByRole('button', { name: /^적용$/ });
+    const applyBtnCount = await applyBtn.count();
+    if (applyBtnCount === 0) {
+      // 헤드리스 환경에서 SvelteFlow 노드 선택이 안 됨 → skip
+      test.skip();
+      return;
+    }
+
+    await expect(applyBtn).toBeVisible({ timeout: 3000 });
+
+    // mock setNodeConfig는 noop + 성공 반환 → 성공 피드백 확인
+    await applyBtn.click();
+    await page.waitForTimeout(500);
+
+    const successMsg = page.locator('text=설정이 저장되었습니다.');
+    await expect(successMsg).toBeVisible({ timeout: 3000 });
   });
 
   test('에러 처리 — 미지원 도구(Airflow 외 노드)는 저장 버튼 없거나 runtime 필드 없음', async ({ page }) => {

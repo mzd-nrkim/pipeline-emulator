@@ -132,6 +132,30 @@ test.describe('Run History — 실행 이력 패널', () => {
     expect(hasCompareUI).toBe(true);
   });
 
+  test('dagId 없는 mock run 선택 — 태스크 인스턴스 영역 미표시', async ({ page }) => {
+    const historyBtn = page.locator('button').filter({ hasText: /실행 이력/ });
+    await historyBtn.first().click();
+    await page.waitForTimeout(500);
+
+    // mock runs에 dagId 없음 → run 클릭해도 fetchExecutions 호출 없음 → executions=[]
+    // RunHistoryItem은 <li> 내 <button onclick={onclick}> 구조
+    // 비교 모드 아닐 때 ul > li > button (w-full 버튼)으로 선택
+    const runItemBtn = page.locator('ul li button').first();
+    const runItemBtnCount = await runItemBtn.count();
+    if (runItemBtnCount === 0) {
+      test.skip();
+      return;
+    }
+
+    await runItemBtn.click();
+    await page.waitForTimeout(500);
+
+    // 태스크 인스턴스 영역은 executionsLoading||executionsError||executions.length>0 조건이라
+    // dagId 없으면 fetchExecutions 미호출 → executions=[] → 영역 미표시
+    const instanceAreaCount = await page.locator('text=태스크 인스턴스').count();
+    expect(instanceAreaCount).toBe(0);
+  });
+
   test('에러 없는 렌더: stageCounts가 없는 run도 "데이터 없음" 텍스트로 안전 표시', async ({ page }) => {
     const historyBtn = page.locator('button').filter({ hasText: /실행 이력/ });
     await historyBtn.first().click();
