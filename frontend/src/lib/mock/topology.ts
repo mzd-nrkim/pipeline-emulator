@@ -267,6 +267,8 @@ export const mockTopology: CanvasTopology = {
     { from: 'node-airflow',  to: 'node-docling',  channels: ['data'] },
     { from: 'node-docling',  to: 'node-presidio', channels: ['data'] },
     { from: 'node-presidio', to: 'node-kure',     channels: ['data'] },
+    { from: 'node-kure',     to: 'node-mock-api', channels: ['data'] },
+    { from: 'node-mock-api', to: 'node-es',       channels: ['data'] },
     { from: 'node-kure',     to: 'node-valkey',   channels: ['data'] },
 
     /* fan-out: valkey → es + mysql */
