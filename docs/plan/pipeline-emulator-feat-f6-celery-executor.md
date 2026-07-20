@@ -1,6 +1,6 @@
 # F6. CeleryExecutor 분산 전환 — 기능 계획서
 
-> 작성일: 2026-07-14 / 상태: 구현완료-게이트대기 / 우선순위: ★
+> 작성일: 2026-07-14 / 상태: 머지완료-통테대기 / 우선순위: ★
 > 방향전환 판단(2026-07-15): **보류/재평가**. Airflow 실행엔진 계층 종속. 백엔드 엔진이 유지되면 유효하나, 도구 제어면 데모에서의 가치는 낮음 → 우선순위 하향·재산정 대상.
 > 인덱스: [pipeline-emulator-post-mvp-roadmap.md](./pipeline-emulator-post-mvp-roadmap.md)
 > 토글: `PROFILE=local|celery` (기본 `local`)

@@ -46,8 +46,8 @@ services:
       _AIRFLOW_WWW_USER_USERNAME: admin
       _AIRFLOW_WWW_USER_PASSWORD: admin
       _PIP_ADDITIONAL_REQUIREMENTS: "pyarrow boto3 pymysql sqlalchemy presidio-analyzer presidio-anonymizer spacy elasticsearch celery[redis]"
-      CELERY__BROKER_URL: ${CELERY_BROKER_URL:-}
-      CELERY__RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-}
+      AIRFLOW__CELERY__BROKER_URL: ${CELERY_BROKER_URL:-}
+      AIRFLOW__CELERY__RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-}
       # MASK=presidio  # 주석 처리 상태로 추가 — 데모 시에만 활성화 (.env에서 오버라이드)
       # ENRICH=real 전환 시 아래 두 값을 실제 엔드포인트 URL로 교체
       CHUNKING_API_URL: http://mock-api:8000/chunk  # real: https://your-chunking-api.example.com/chunk
@@ -142,9 +142,7 @@ services:
   # ─────────────────────────────────────────
 
   airflow-worker:
-    build:
-      context: .
-      dockerfile: DockerfileAirflow
+    image: pipeline-emulator-airflow:latest
     command: ["bash", "-c", "airflow celery worker"]
     environment:
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR:-CeleryExecutor}
@@ -164,8 +162,8 @@ services:
       MYSQL_PASSWORD: emulator_pass
       ES_HOST: elasticsearch
       ES_PORT: "9200"
-      CELERY__BROKER_URL: ${CELERY_BROKER_URL:-redis://valkey:6379/1}
-      CELERY__RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-db+mysql+pymysql://emulator:emulator_pass@mysql:3306/pipeline_emulator}
+      AIRFLOW__CELERY__BROKER_URL: ${CELERY_BROKER_URL:-redis://valkey:6379/1}
+      AIRFLOW__CELERY__RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-db+mysql+pymysql://emulator:emulator_pass@mysql:3306/pipeline_emulator}
     volumes:
       - ./dags:/opt/airflow/dags
       - ./pii_engine:/opt/airflow/pii_engine
