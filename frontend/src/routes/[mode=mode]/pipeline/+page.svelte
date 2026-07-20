@@ -26,9 +26,20 @@
   let triggerError = $state<string | null>(null);
   let dialogOpen = $state(false);
   let drawerTab = $state<'node' | 'history'>('history');
+  let liveStageCounts = $state<Record<string, number>>({});
 
   $effect(() => {
     localConfig = { ...(selectedNode?.config ?? {}) };
+  });
+
+  $effect(() => {
+    const cleanup = currentAdapter.subscribePipelineStatus((event: unknown) => {
+      const e = event as { type: string; counts: Record<string, number> };
+      if (e.type === 'stage_update') {
+        liveStageCounts = { ...e.counts };
+      }
+    });
+    return cleanup;
   });
 
   function handleNodeSelect(node: ToolNode | null) {
@@ -177,6 +188,7 @@
         topology={data.topology}
         adapter={currentAdapter}
         stages={data.stages}
+        liveStageCounts={liveStageCounts}
         ontrigger={(id) => activeRunId = id}
         {view}
         onnodeselect={handleNodeSelect}
