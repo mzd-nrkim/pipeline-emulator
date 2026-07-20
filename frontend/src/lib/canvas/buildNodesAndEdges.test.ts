@@ -408,4 +408,78 @@ describe('buildNodesAndEdges', () => {
     const esEdge = edges.find(e => e.source === 'node-valkey' && e.target === 'node-es');
     expect(esEdge?.label).toBe('elasticsearch');
   });
+
+  /* ── outOfTeamScope 전달 ─────────────────────────────────────── */
+
+  it('outOfTeamScope: node-es data.outOfTeamScope === true (data 뷰)', () => {
+    const topoWithScope: CanvasTopology = {
+      nodes: [
+        ...sampleTopology.nodes.map(n =>
+          n.id === 'node-es' || n.id === 'node-kibana'
+            ? { ...n, outOfTeamScope: true }
+            : n
+        ),
+      ],
+      edges: sampleTopology.edges,
+    };
+    const { nodes } = buildNodesAndEdges(topoWithScope, 'data');
+    const esNode = nodes.find(n => n.id === 'node-es')!;
+    expect(esNode).toBeDefined();
+    expect(esNode.data.outOfTeamScope).toBe(true);
+  });
+
+  it('outOfTeamScope: node-kibana data.outOfTeamScope === true (infra 뷰)', () => {
+    const topoWithScope: CanvasTopology = {
+      nodes: [
+        ...sampleTopology.nodes.map(n =>
+          n.id === 'node-es' || n.id === 'node-kibana'
+            ? { ...n, outOfTeamScope: true }
+            : n
+        ),
+      ],
+      edges: sampleTopology.edges,
+    };
+    const { nodes } = buildNodesAndEdges(topoWithScope, 'infra');
+    const kibanaNode = nodes.find(n => n.id === 'node-kibana')!;
+    expect(kibanaNode).toBeDefined();
+    expect(kibanaNode.data.outOfTeamScope).toBe(true);
+  });
+
+  it('outOfTeamScope: 미설정 노드 data.outOfTeamScope === false', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'data');
+    const debeziumNode = nodes.find(n => n.id === 'node-debezium')!;
+    expect(debeziumNode.data.outOfTeamScope).toBe(false);
+  });
+
+  /* ── INFRA_LAYER_MAP: node-es → serving 계층 ────────────────── */
+
+  it('infra 뷰: node-es가 serving 계층 Y좌표를 가진다 (node-kibana와 동일 Y)', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'infra');
+    const esNode = nodes.find(n => n.id === 'node-es')!;
+    const kibanaNode = nodes.find(n => n.id === 'node-kibana')!;
+    expect(esNode).toBeDefined();
+    expect(kibanaNode).toBeDefined();
+    // node-es와 node-kibana 모두 serving 계층 → 동일 Y좌표
+    expect(esNode.position.y).toBe(kibanaNode.position.y);
+  });
+
+  it('infra 뷰: node-es(serving)가 node-debezium(ingestion)보다 Y좌표가 크다', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'infra');
+    const esNode = nodes.find(n => n.id === 'node-es')!;
+    const debeziumNode = nodes.find(n => n.id === 'node-debezium')!;
+    expect(esNode).toBeDefined();
+    expect(debeziumNode).toBeDefined();
+    // serving 계층은 ingestion 계층보다 Y좌표가 크다 (아래에 배치)
+    expect(esNode.position.y).toBeGreaterThan(debeziumNode.position.y);
+  });
+
+  it('infra 뷰: node-mysql-container(storage)가 node-es(serving)보다 Y좌표가 작다', () => {
+    const { nodes } = buildNodesAndEdges(sampleTopology, 'infra');
+    const mysqlContainerNode = nodes.find(n => n.id === 'node-mysql-container')!;
+    const esNode = nodes.find(n => n.id === 'node-es')!;
+    expect(mysqlContainerNode).toBeDefined();
+    expect(esNode).toBeDefined();
+    // storage 계층은 serving 계층보다 Y좌표가 작다 (위에 배치)
+    expect(mysqlContainerNode.position.y).toBeLessThan(esNode.position.y);
+  });
 });
