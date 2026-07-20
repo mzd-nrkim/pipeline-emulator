@@ -148,7 +148,7 @@ services:
     command: ["bash", "-c", "airflow celery worker"]
     environment:
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR:-CeleryExecutor}
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW_SQL_CONN:-sqlite:////opt/airflow/airflow.db}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW_SQL_CONN:-mysql+pymysql://emulator:emulator_pass@mysql:3306/pipeline_emulator}
       AIRFLOW__WEBSERVER__SECRET_KEY: pipeline_emulator_secret
       AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
       _AIRFLOW_DB_MIGRATE: "false"
