@@ -52,6 +52,7 @@
 
   const outOfTeamScope = $derived(d.outOfTeamScope as boolean | undefined);
   const deployStatus = $derived((d.deployStatus as string | undefined) ?? 'active');
+  const category = $derived(d.category as string ?? 'task');
 
   const iconSpec = $derived(resolveNodeIcon(d.toolId as string ?? '', d.icon as string ?? '❓', d.category as string | undefined));
   const resolvedAccent = $derived(accent || 'var(--primary)');
@@ -72,6 +73,10 @@
   class:status-planned={deployStatus === 'planned'}
   class:status-absent={deployStatus === 'absent'}
   class:selected={selected}
+  class:cat-source={category === 'source'}
+  class:cat-task={category === 'task'}
+  class:cat-switch={category === 'switch'}
+  class:cat-sink={category === 'sink'}
   style="--node-accent: {resolvedAccent};"
 >
   <!-- 카드 본체 (가로형: 좌측 아이콘 + 우측 텍스트) -->
@@ -297,6 +302,21 @@
     border: 1px dashed var(--border);
     background: var(--surface-muted);
   }
+
+  /* 카테고리별 저채도 테두리 — 벤더 accent(강색)와 색 축 분리 */
+  .cat-source .node-card {
+    border-color: var(--cat-source-border);
+  }
+
+  .cat-switch .node-card {
+    border-color: var(--cat-switch-border);
+  }
+
+  .cat-sink .node-card {
+    border-color: var(--cat-sink-border);
+  }
+
+  /* .cat-task .node-card — 기본값(--border) 유지, 추가 스타일 불필요 */
 
   /* 선택 상태 */
   .selected .node-card {
