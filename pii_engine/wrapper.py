@@ -68,10 +68,10 @@ def detect_and_mask(text: str) -> dict:
         ner_result = layer2_ner.detect_and_mask_ner(layer1_result["masked_text"], nlp_engine)
 
         # Step 3: 결과 merge
+        # NER 카운트는 0이어도 키를 포함 (presidio 모드 식별 가능하도록)
         merged_counts = dict(layer1_result["pattern_counts"])
         for ner_type, cnt in ner_result["ner_counts"].items():
-            if cnt > 0:
-                merged_counts[ner_type] = merged_counts.get(ner_type, 0) + cnt
+            merged_counts[ner_type] = merged_counts.get(ner_type, 0) + cnt
 
         total = sum(merged_counts.values())
         return {
