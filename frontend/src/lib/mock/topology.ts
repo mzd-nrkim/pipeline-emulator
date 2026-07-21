@@ -129,8 +129,7 @@ export const mockTopology: CanvasTopology = {
       role: 'transform',
       tool: 'presidio',
       label: 'Presidio PII',
-      group: 'airflow',
-      parentId: 'node-airflow-group',
+      parentId: 'node-airflow',
       config: {
         dagId: 'silver_2_masking',
         recognizers: 'phone,email,rrn',
@@ -143,8 +142,7 @@ export const mockTopology: CanvasTopology = {
       role: 'transform',
       tool: 'docling-langchain',
       label: 'Docling Structuring',
-      group: 'airflow',
-      parentId: 'node-airflow-group',
+      parentId: 'node-airflow',
       config: {
         dagId: 'silver_1_structuring',
         chunkSize: 512,
@@ -157,8 +155,7 @@ export const mockTopology: CanvasTopology = {
       role: 'transform',
       tool: 'kure-embedding',
       label: 'KURE Chunking & Embedding',
-      group: 'airflow',
-      parentId: 'node-airflow-group',
+      parentId: 'node-airflow',
       config: {
         dagId: 'gold_3_chunking',
         modelPath: 'models/kure-v1.onnx',
