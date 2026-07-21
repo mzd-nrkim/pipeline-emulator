@@ -7,7 +7,7 @@ SvelteKit 프론트엔드 + FastAPI UI 백엔드 + Airflow DAG + MySQL + Seaweed
 
 ## 계획서 위치
 
-이 프로젝트의 계획서는 **`docs/plan/`** 에 저장한다 (`plans/` 아님).
+이 프로젝트의 계획서는 **`docs/plan/`** 에 저장한다 (`plans/` 폴더 생성 금지).
 
 | 유형 | 저장 위치 |
 |------|-----------|
