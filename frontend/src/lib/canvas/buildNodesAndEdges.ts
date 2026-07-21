@@ -87,27 +87,51 @@ export function buildNodesAndEdges(
 
   // collapsed 그룹 처리: collapsedGroups에 속한 그룹의 자식 노드 ID set 수집
   const collapsedChildIds = new Set<string>();
+  // childId → 소속 collapsed groupId 매핑 (경계 엣지 재배선에 사용)
+  const childToGroup = new Map<string, string>();
   if (collapsedGroups.size > 0) {
     for (const node of topo.nodes) {
       const nodeParentId = (node as any).parentId as string | undefined;
       if (nodeParentId && collapsedGroups.has(nodeParentId)) {
         collapsedChildIds.add(node.id);
+        childToGroup.set(node.id, nodeParentId);
       }
     }
     // visibleNodes에서 collapsed 그룹 자식 제외
     visibleNodes = visibleNodes.filter(n => !collapsedChildIds.has(n.id));
-    // visibleEdges에서 collapsed 그룹 내부 엣지(양 끝이 모두 collapsed 그룹 자식인 엣지) 제외
-    visibleEdges = visibleEdges.filter(e =>
-      !(collapsedChildIds.has(e.from) && collapsedChildIds.has(e.to))
-    );
+    // 경계 엣지 재배선: 양 끝∈C → drop, from∈C&&to∉C → (G,to), from∉C&&to∈C → (from,G), 둘 다∉C → 유지
+    const seenEdgeKeys = new Set<string>();
+    const rewiredEdges: typeof visibleEdges = [];
+    for (const e of visibleEdges) {
+      const fromInC = collapsedChildIds.has(e.from);
+      const toInC = collapsedChildIds.has(e.to);
+      if (fromInC && toInC) continue; // 내부 엣지 drop
+      let newFrom = fromInC ? childToGroup.get(e.from)! : e.from;
+      let newTo = toInC ? childToGroup.get(e.to)! : e.to;
+      if (newFrom === newTo) continue; // self-loop drop (G→자신)
+      const key = `${newFrom}->${newTo}`;
+      if (seenEdgeKeys.has(key)) continue; // dedupe (C-2)
+      seenEdgeKeys.add(key);
+      rewiredEdges.push(fromInC || toInC ? { ...e, from: newFrom, to: newTo } : e);
+    }
+    visibleEdges = rewiredEdges;
   }
 
   // 3. 배치 계산: data·infra 공통 위상정렬 depth 계층 배치 (LR 방향)
   //    depth = X축(좌→우 의존 방향), 같은 depth = Y축 분산. 결정적·비겹침.
-  const depth = computeDepths(visibleNodes, visibleEdges);
+  // C-3: collapsed groupId를 정점으로 주입 — data 뷰에서 node-airflow 등 컨테이너는 visibleNodes에 없으므로
+  // 재배선 엣지로 depth 산출을 위해 synthetic 정점으로 추가
+  const collapsedGroupSyntheticNodes = [...collapsedGroups]
+    .filter(gId => topo.nodes.some(n => (n as any).parentId === gId))
+    .map(id => ({ id }) as import('$lib/api/types.js').ToolNode);
+  const allDepthNodes = collapsedGroupSyntheticNodes.length > 0
+    ? [...visibleNodes, ...collapsedGroupSyntheticNodes]
+    : visibleNodes;
+  const depth = computeDepths(allDepthNodes, visibleEdges);
   const depthCounters = new Map<number, number>();
   const posCache = new Map<string, { x: number; y: number }>();
-  for (const n of visibleNodes) {
+  // visibleNodes + collapsed groupIds를 함께 posCache에 등록
+  for (const n of allDepthNodes) {
     const d = depth.get(n.id) ?? 0;
     const idx = depthCounters.get(d) ?? 0;
     depthCounters.set(d, idx + 1);
@@ -297,7 +321,7 @@ export function buildNodesAndEdges(
         id: groupId,
         type: 'group',
         // A-2: 그룹 박스 절대 position = 원래 자식 절대 minX/minY - 패딩
-        position: { x: absMinX - PAD_X, y: absMinY - PAD_TOP },
+        position: isCollapsed ? getPosition(groupId) : { x: absMinX - PAD_X, y: absMinY - PAD_TOP },
         data: {
           ...meta,
           // A-3: 그룹 노드에 trigger:true 부여
