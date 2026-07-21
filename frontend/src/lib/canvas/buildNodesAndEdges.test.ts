@@ -781,13 +781,16 @@ describe('buildNodesAndEdges', () => {
       expect(groupNode.data.childCount).toBe(3);
     });
 
-    it('Conformance: collapsed 시 그룹 박스 width=200, height=100', () => {
+    it('Conformance: collapsed 시 type:tool(로고 카드)로 방출', () => {
       const collapsedGroups = new Set(['node-airflow']);
       const { nodes } = buildNodesAndEdges(groupTopology, 'data', true, collapsedGroups);
       const groupNode = nodes.find(n => n.id === 'node-airflow')!;
       expect(groupNode).toBeDefined();
-      expect((groupNode as any).width).toBe(200);
-      expect((groupNode as any).height).toBe(100);
+      // 접힘 = ToolFlowNode(로고 카드)로 렌더 → type:'tool'
+      expect(groupNode.type).toBe('tool');
+      // data.collapsed=true, childCount 보존
+      expect(groupNode.data.collapsed).toBe(true);
+      expect(groupNode.data.childCount).toBe(3);
     });
 
     it('Inverse: collapsed=false(expanded) 시 자식 노드 포함·기존 크기 유지', () => {

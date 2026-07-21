@@ -315,23 +315,44 @@ export function buildNodesAndEdges(
             accent: '#888888',
             role: 'group',
           };
-      const finalWidth = isCollapsed ? 200 : groupWidth;
-      const finalHeight = isCollapsed ? 100 : groupHeight;
-      groupNodes.push({
-        id: groupId,
-        type: 'group',
-        // A-2: 그룹 박스 절대 position = 원래 자식 절대 minX/minY - 패딩
-        position: isCollapsed ? getPosition(groupId) : { x: absMinX - PAD_X, y: absMinY - PAD_TOP },
-        data: {
-          ...meta,
-          // A-3: 그룹 노드에 trigger:true 부여
-          trigger: true,
-          deployStatus: 'active',
-          collapsed: isCollapsed,
-          childCount: actualChildCount,
-        },
-        ...(({ width: finalWidth, height: finalHeight } as any)),
-      });
+      if (isCollapsed) {
+        // 접힘 시 tool 노드로 렌더 — ToolFlowNode(로고 카드)가 표시되도록
+        groupNodes.push({
+          id: groupId,
+          type: 'tool',
+          position: getPosition(groupId),
+          data: {
+            label: `${meta.icon} ${meta.displayName}`,
+            toolId: meta.toolId,
+            displayName: meta.displayName,
+            vendor: meta.vendor,
+            icon: meta.icon,
+            accent: meta.accent,
+            role: meta.role,
+            trigger: true,
+            deployStatus: 'active',
+            runtimeHealth: (container as any)?.runtimeHealth ?? 'unknown',
+            collapsed: true,
+            childCount: actualChildCount,
+          },
+        });
+      } else {
+        groupNodes.push({
+          id: groupId,
+          type: 'group',
+          // A-2: 그룹 박스 절대 position = 원래 자식 절대 minX/minY - 패딩
+          position: { x: absMinX - PAD_X, y: absMinY - PAD_TOP },
+          data: {
+            ...meta,
+            // A-3: 그룹 노드에 trigger:true 부여
+            trigger: true,
+            deployStatus: 'active',
+            collapsed: false,
+            childCount: actualChildCount,
+          },
+          ...(({ width: groupWidth, height: groupHeight } as any)),
+        });
+      }
     }
   }
 
