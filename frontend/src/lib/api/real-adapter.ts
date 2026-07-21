@@ -1,6 +1,6 @@
 /* Week 2 ui-backend 실제 어댑터 */
 import { PUBLIC_UI_BACKEND_URL } from '$env/static/public';
-import type { Stage, Run, Document, SearchResult, Dimension, CanvasTopology, PiiCount, TaskInstance } from './types.js';
+import type { Stage, Run, Document, SearchResult, Dimension, CanvasTopology, PiiCount, TaskInstance, LogSource, LogResponse } from './types.js';
 
 const BASE = PUBLIC_UI_BACKEND_URL || 'http://localhost:8001';
 
@@ -57,6 +57,7 @@ export async function fetchDimensions(): Promise<Dimension[]> {
 }
 
 import { realTopology } from '../mock/realTopology.js';
+import { generateLogs } from '../mock/logs.js';
 
 export async function fetchCanvasTopology(): Promise<CanvasTopology> {
   // 파이프라인 토폴로지는 고정 구조 — real 모드에서도 동일한 DAG 그래프 사용
@@ -141,4 +142,13 @@ export async function fetchExecutions(dagId: string, runId: string): Promise<Tas
   const res = await fetch(`${BASE}/executions?${params}`);
   if (!res.ok) throw new Error(`fetchExecutions: ${res.status}`);
   return res.json() as Promise<TaskInstance[]>;
+}
+
+export async function fetchLogs(
+  nodeId: string,
+  source: LogSource,
+  tail: number = 30
+): Promise<LogResponse> {
+  // TODO: 백엔드 /logs 배선 (이번 스코프 제외)
+  return generateLogs({ nodeId, tool: nodeId.replace('node-', ''), source, tail });
 }

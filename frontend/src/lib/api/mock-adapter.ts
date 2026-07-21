@@ -1,5 +1,6 @@
 import { stages, runs, documents, searchResults, dimensions, topology } from '../mock/selectors.js';
-import type { Stage, Run, Document, SearchResult, Dimension, CanvasTopology, PiiCount, TaskInstance } from './types.js';
+import { generateLogs } from '../mock/logs.js';
+import type { Stage, Run, Document, SearchResult, Dimension, CanvasTopology, PiiCount, TaskInstance, LogSource, LogResponse } from './types.js';
 
 export async function fetchStages(): Promise<Stage[]> {
   return stages;
@@ -64,4 +65,12 @@ export function fetchExecutions(_dagId: string, _runId: string): TaskInstance[] 
     { taskId: 'silver_enrich', state: 'in_progress', startDate: null, endDate: null, durationMs: null, tryNumber: 1 },
     { taskId: 'gold_export', state: 'none', startDate: null, endDate: null, durationMs: null, tryNumber: 1 },
   ];
+}
+
+export async function fetchLogs(
+  nodeId: string,
+  source: LogSource,
+  tail: number = 30
+): Promise<LogResponse> {
+  return generateLogs({ nodeId, tool: nodeId.replace('node-', ''), source, tail });
 }
