@@ -108,8 +108,7 @@ export const realTopology: CanvasTopology = {
       role: 'transform',
       tool: 'presidio',
       label: 'Presidio PII',
-      parentId: 'node-airflow-group',
-      group: 'airflow',
+      parentId: 'node-airflow',
       config: {
         dagId: 'silver_2_masking',
         // T1-4: recognizers 실측값, nlpEngine 추가
@@ -123,8 +122,7 @@ export const realTopology: CanvasTopology = {
       role: 'transform',
       tool: 'docling-langchain',
       label: 'Docling Structuring',
-      parentId: 'node-airflow-group',
-      group: 'airflow',
+      parentId: 'node-airflow',
       config: {
         dagId: 'silver_1_structuring',
         // T1-5: chunkSize/chunkOverlap 제거, structuring 성격(RDB→JSON) 반영
@@ -137,8 +135,7 @@ export const realTopology: CanvasTopology = {
       role: 'transform',
       tool: 'kure-embedding',
       label: 'KURE Chunking & Embedding',
-      parentId: 'node-airflow-group',
-      group: 'airflow',
+      parentId: 'node-airflow',
       config: {
         dagId: 'gold_3_chunking',
         // T1-1: modelPath 실측값, outputDim 384, 청킹(섹션 3분할) 담당
