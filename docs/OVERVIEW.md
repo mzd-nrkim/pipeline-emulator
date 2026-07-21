@@ -12,6 +12,10 @@
 - **목적**: 경영진·고객·팀 시연 아티팩트. "파이프라인이 실제로 흐르고, medallion 단계별 증거를 눈으로 확인"시키는 것이 성공 기준.
 - **원본**: `hyundaimotor-lllm` 운영계(NiFi 클러스터 + Airflow Celery + ES 등)를 데모 가치 위주로 경량화해 재현.
 
+![PipeScale 캔버스 뷰 — Bronze→Silver→Gold 파이프라인과 Airflow 오케스트레이션](./pipeline-canvas.png)
+
+> PipeScale 캔버스 뷰: 좌측 수집 → Airflow 오케스트레이션 박스(구조화·마스킹·청킹·보강) → Gold 색인까지 한 화면에 흐름을 시각화.
+
 ---
 
 ## 무엇을 시연하나 (데모 포인트)
@@ -141,6 +145,10 @@ flowchart TD
     G6 --> ES[("Elasticsearch<br/>검색 서빙")]
     G6 --> UI["모니터링 UI"]
 ```
+
+실제 캔버스에서는 위 단계가 도구 노드(수집기·Airflow·마스킹·Mock API·검색·DB)로 가로 흐름으로 렌더된다:
+
+![인프라 흐름 뷰 — 수집→S3→Airflow→마스킹→Mock API→MySQL/색인](./screenshot_2026-07-20_16.54.17.png)
 
 ---
 
