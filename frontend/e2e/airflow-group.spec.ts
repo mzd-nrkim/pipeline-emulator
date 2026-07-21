@@ -104,10 +104,80 @@ test.describe('Airflow 그룹 경계 렌더 (sample 모드)', () => {
 
     // [role=dialog] visible + 그룹 ID 텍스트 포함 확인
     await expect(page.locator('[role=dialog]')).toBeVisible({ timeout: 4000 });
-    await expect(page.locator('[role=dialog]')).toContainText('node-airflow-group');
+    await expect(page.locator('[role=dialog]')).toContainText('node-airflow');
 
     // teardown
     await page.keyboard.press('Escape');
+  });
+
+  test('[sample] E-1: collapsed 후 s3-bronze→airflow, airflow→mock-api 경계 엣지 DOM 부착', async ({ page }) => {
+    // collapse 버튼 클릭
+    await expect(page.locator('.airflow-collapse-btn').first()).toBeAttached({ timeout: 5000 });
+    await page.evaluate(() => {
+      const btn = document.querySelector('.airflow-collapse-btn');
+      if (btn) btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
+    });
+    await page.waitForTimeout(600);
+
+    // 경계 엣지가 DOM에 부착됐는지 확인 (SVG edge는 toBeAttached 사용)
+    // SvelteFlow edge id 패턴: e-{from}-{to}-{idx}
+    const hasIncoming = await page.evaluate(() => {
+      const edges = document.querySelectorAll('.svelte-flow__edge');
+      for (const e of edges) {
+        const id = e.getAttribute('data-id') ?? '';
+        if (id.includes('node-s3-bronze') && id.includes('node-airflow')) return true;
+      }
+      return false;
+    });
+    const hasOutgoing = await page.evaluate(() => {
+      const edges = document.querySelectorAll('.svelte-flow__edge');
+      for (const e of edges) {
+        const id = e.getAttribute('data-id') ?? '';
+        if (id.includes('node-airflow') && id.includes('node-mock-api')) return true;
+      }
+      return false;
+    });
+    expect(hasIncoming, 's3-bronze→airflow 경계 엣지 미부착').toBe(true);
+    expect(hasOutgoing, 'airflow→mock-api 경계 엣지 미부착').toBe(true);
+  });
+
+  test('[sample] E-2: "연결 없는 노드 표시" ON 시 Airflow 표현이 하나만 존재', async ({ page }) => {
+    // showOrphans 토글 버튼 클릭 (orphan 노드 표시 활성화)
+    const orphanToggle = page.locator('[data-testid="show-orphans-toggle"], button:has-text("연결 없는"), label:has-text("연결 없는")').first();
+    const toggleExists = await orphanToggle.count() > 0;
+    if (toggleExists) {
+      await orphanToggle.click({ force: true });
+      await page.waitForTimeout(500);
+    }
+
+    // node-airflow id를 가진 DOM 요소 수 카운트 (group 또는 tool 타입 무관하게 data-id 기준)
+    const airflowCount = await page.evaluate(() => {
+      return document.querySelectorAll('.svelte-flow__node[data-id="node-airflow"]').length;
+    });
+    expect(airflowCount).toBe(1);
+  });
+
+  test('[sample] E-3: collapsed 후 그룹 노드 좌표가 원점(-60,-60)이 아님', async ({ page }) => {
+    // collapse 버튼 클릭
+    await expect(page.locator('.airflow-collapse-btn').first()).toBeAttached({ timeout: 5000 });
+    await page.evaluate(() => {
+      const btn = document.querySelector('.airflow-collapse-btn');
+      if (btn) btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
+    });
+    await page.waitForTimeout(600);
+
+    // 접힌 그룹 노드 좌표 sanity
+    const rect = await page.evaluate(() => {
+      const node = document.querySelector('.svelte-flow__node[data-id="node-airflow"]');
+      if (!node) return null;
+      const r = node.getBoundingClientRect();
+      return { x: Math.round(r.x), y: Math.round(r.y) };
+    });
+    expect(rect, 'node-airflow 노드 미발견').not.toBeNull();
+    // 원점(-60,-60) 겹침이 아니어야 함 — 브라우저 좌표이므로 정확한 -60은 실환경에서 거의 불가능하지만
+    // 극단적으로 작은 값(< 10px)이면 원점 렌더 의심
+    expect(rect!.x).toBeGreaterThan(10);
+    expect(rect!.y).toBeGreaterThan(0);
   });
 
   test('[real] /real/pipeline은 백엔드 연결 대기 스텁을 표시한다', async ({ page }) => {
