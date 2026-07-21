@@ -162,25 +162,20 @@ flowchart LR
 - **BYO를 UI로 시연** — feature-flag 토글(수집기·CDC·검색·마스킹)로 "교체 가능 아키텍처"를 화면에서 보여주는 장치
 
 ```mermaid
-flowchart LR
-    subgraph EMU["에뮬레이터 고유"]
-        E1["medallion DAG ETL"]
-        E2["현대차 충실 재현"]
-        E3["동작 데모 UX · 토글 UI"]
-    end
-    subgraph SHARED["겹침"]
-        S1["SeaweedFS"]
-        S2["BYO·모듈화 철학"]
-        S3["CDC · PII 마스킹"]
-    end
-    subgraph RES["리서치 고유"]
-        R1["Trino federation"]
-        R2["Iceberg + Polaris"]
-        R3["인증·인가·품질"]
-        R4["K8s 설치형 · 시장 전략"]
-    end
-    EMU --- SHARED --- RES
+flowchart TB
+    EMU["🔵 <b>에뮬레이터 고유 · 데모 재현</b><br/>medallion ETL · 현대차 충실 재현 · MySQL Silver/Gold<br/>Elasticsearch · 동작 데모 UX · feature-flag 토글"]
+    SH["🟢 <b>겹침 · 독립적으로 같은 결론</b><br/>SeaweedFS · BYO 모듈화 철학 · CDC(Debezium)<br/>PII 마스킹 · Apache 2.0"]
+    RES["🔴 <b>리서치 고유 · 제품 전략</b><br/>Trino federation · Iceberg · Polaris · 인증·인가·감사<br/>데이터 품질 · K8s Helm 설치형 · 시장·상용화 전략"]
+    EMU ~~~ SH ~~~ RES
+    classDef emu fill:#e3f2fd,stroke:#1565c0,color:#000
+    classDef sh fill:#e8f5e9,stroke:#2e7d32,color:#000,stroke-width:2px
+    classDef res fill:#ffebee,stroke:#c62828,color:#000
+    class EMU emu
+    class SH sh
+    class RES res
 ```
+
+> 위 밴드(에뮬레이터 고유) = §4.3, 가운데 밴드(겹침) = §3, 아래 밴드(리서치 고유) = §4.2. 가운데 겹침 밴드가 두 프로젝트가 맞닿는 교집합이다.
 
 ---
 
