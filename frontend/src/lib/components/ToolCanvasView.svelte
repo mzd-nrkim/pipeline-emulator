@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { SvelteFlow, Background, Controls, BackgroundVariant, type Node as FlowNode, type Edge as FlowEdge } from '@xyflow/svelte';
+  import { SvelteFlow, Background, Controls, Panel, BackgroundVariant, type Node as FlowNode, type Edge as FlowEdge } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import ToolFlowNode from '$lib/components/ToolFlowNode.svelte';
   import AirflowGroupNode from '$lib/components/AirflowGroupNode.svelte';
@@ -37,6 +37,16 @@
           .map((n: any) => n.id)
       : []
   );
+
+  let allCollapsed = $derived(allGroupIds.length > 0 && allGroupIds.every((id: string) => collapsedGroups.has(id)));
+
+  function toggleAllGroups() {
+    if (allCollapsed) {
+      collapsedGroups = new Set();
+    } else {
+      collapsedGroups = new Set(allGroupIds);
+    }
+  }
 
   // topology 교체 시 모든 그룹을 접힘 상태로 리셋
   $effect(() => {
@@ -100,6 +110,17 @@
     <SvelteFlow bind:nodes bind:edges nodeTypes={{ tool: ToolFlowNode as any, group: AirflowGroupNode as any }} edgeTypes={{ 'infra-step': InfraStepEdge as any }} fitView fitViewOptions={{ minZoom: 0.6, maxZoom: 1.2 }} defaultEdgeOptions={defaultEdgeMarkerOptions} onnodeclick={({ node }) => { if (node.type === 'group') return; if ((node.data as any).collapsed === true) { (node.data as any).onToggleCollapse?.(); return; } const clicked = topology.nodes.find(n => n.id === node.id) ?? null; onnodeselect?.(clicked); }}>
       <Background variant={BackgroundVariant.Dots} gap={16} size={1} bgColor="var(--surface-muted)" patternColor="var(--border)" />
       <Controls />
+      {#if view === 'data' && allGroupIds.length > 0}
+        <Panel position="top-right">
+          <button
+            onclick={toggleAllGroups}
+            data-testid="toggle-all-groups"
+            class="px-2 py-1 text-sm bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50"
+          >
+            {allCollapsed ? '▾ 모두 펼치기' : '▸ 모두 접기'}
+          </button>
+        </Panel>
+      {/if}
     </SvelteFlow>
   </div>
 </div>
