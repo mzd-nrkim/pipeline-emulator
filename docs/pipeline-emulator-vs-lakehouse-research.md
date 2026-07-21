@@ -162,20 +162,56 @@ flowchart LR
 - **BYO를 UI로 시연** — feature-flag 토글(수집기·CDC·검색·마스킹)로 "교체 가능 아키텍처"를 화면에서 보여주는 장치
 
 ```mermaid
-flowchart TB
-    EMU["🔵 <b>에뮬레이터 고유 · 데모 재현</b><br/>medallion ETL · 현대차 충실 재현 · MySQL Silver/Gold<br/>Elasticsearch · 동작 데모 UX · feature-flag 토글"]
-    SH["🟢 <b>겹침 · 독립적으로 같은 결론</b><br/>SeaweedFS · BYO 모듈화 철학 · CDC(Debezium)<br/>PII 마스킹 · Apache 2.0"]
-    RES["🔴 <b>리서치 고유 · 제품 전략</b><br/>Trino federation · Iceberg · Polaris · 인증·인가·감사<br/>데이터 품질 · K8s Helm 설치형 · 시장·상용화 전략"]
-    EMU ~~~ SH ~~~ RES
+flowchart LR
+    E1["medallion ETL"]:::emu
+    E2["현대차 충실 재현"]:::emu
+    E3["MySQL Silver/Gold"]:::emu
+    E4["Elasticsearch"]:::emu
+    E5["데모 UX · 토글 UI"]:::emu
+
+    EMU{{"🔵 파이프라인 에뮬레이터<br/>데모 재현"}}:::hubE
+    RES{{"🔴 레이크하우스 리서치<br/>제품 전략"}}:::hubR
+
+    S1(["SeaweedFS"]):::shared
+    S2(["BYO 모듈화 철학"]):::shared
+    S3(["CDC · Debezium"]):::shared
+    S4(["PII 마스킹"]):::shared
+    S5(["Apache 2.0"]):::shared
+
+    R1["Trino federation"]:::res
+    R2["Iceberg · Polaris"]:::res
+    R3["인증·인가·감사"]:::res
+    R4["데이터 품질"]:::res
+    R5["K8s Helm 설치형"]:::res
+    R6["시장·상용화 전략"]:::res
+
+    E1 --- EMU
+    E2 --- EMU
+    E3 --- EMU
+    E4 --- EMU
+    E5 --- EMU
+
+    EMU === S1 === RES
+    EMU === S2 === RES
+    EMU === S3 === RES
+    EMU === S4 === RES
+    EMU === S5 === RES
+
+    RES --- R1
+    RES --- R2
+    RES --- R3
+    RES --- R4
+    RES --- R5
+    RES --- R6
+
+    classDef hubE fill:#1565c0,color:#fff,stroke:#0d47a1,stroke-width:3px
+    classDef hubR fill:#c62828,color:#fff,stroke:#b71c1c,stroke-width:3px
     classDef emu fill:#e3f2fd,stroke:#1565c0,color:#000
-    classDef sh fill:#e8f5e9,stroke:#2e7d32,color:#000,stroke-width:2px
+    classDef shared fill:#c8e6c9,stroke:#2e7d32,color:#000,stroke-width:2px
     classDef res fill:#ffebee,stroke:#c62828,color:#000
-    class EMU emu
-    class SH sh
-    class RES res
 ```
 
-> 위 밴드(에뮬레이터 고유) = §4.3, 가운데 밴드(겹침) = §3, 아래 밴드(리서치 고유) = §4.2. 가운데 겹침 밴드가 두 프로젝트가 맞닿는 교집합이다.
+> **읽는 법**: 파란 허브(에뮬레이터)·빨간 허브(리서치)가 두 프로젝트다. **가는 선으로 한쪽 허브에만 달린 노드 = 그 프로젝트 고유**(왼쪽 파랑 = §4.3 에뮬레이터 고유, 오른쪽 빨강 = §4.2 리서치 고유). **초록 노드는 굵은 선으로 양쪽 허브에 동시에 연결 = 겹침**(§3, 독립적으로 같은 결론에 도달). 즉 가운데를 가로지르는 5개 초록 노드가 교집합이다.
 
 ---
 
