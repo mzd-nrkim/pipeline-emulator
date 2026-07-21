@@ -18,13 +18,15 @@ test.describe('Airflow 그룹 경계 렌더 (sample 모드)', () => {
   });
 
   test('[sample] Airflow 그룹 박스가 데이터흐름 뷰에 렌더된다', async ({ page }) => {
+    // 초기 접힘 상태 → 먼저 모두 펼치기(펼쳐야 그룹 컨테이너 노드가 group 타입으로 렌더됨)
+    await page.locator('[data-testid="toggle-all-groups"]').dispatchEvent('click');
     const groupNode = page.locator('.svelte-flow__node.svelte-flow__node-group');
     await expect(groupNode.first()).toBeAttached({ timeout: 5000 });
   });
 
   test('[sample] docling·presidio·kure가 서로 다른 x좌표로 렌더 (겹침 0)', async ({ page }) => {
     // 초기 접힘 상태 → 먼저 모두 펼치기
-    await page.locator('[data-testid="toggle-all-groups"]').click({ force: true });
+    await page.locator('[data-testid="toggle-all-groups"]').dispatchEvent('click');
     await expect(page.locator('[data-id="node-docling"]').first()).toBeAttached({ timeout: 5000 });
 
     const rects = await page.evaluate((ids: string[]) => {
@@ -47,6 +49,9 @@ test.describe('Airflow 그룹 경계 렌더 (sample 모드)', () => {
   });
 
   test('[sample] 독립 airflow 노드(이중 표현)가 데이터흐름 뷰에 부재', async ({ page }) => {
+    // 초기 접힘 상태 → 먼저 모두 펼치기(펼치면 node-airflow는 group 컨테이너로 렌더되어 비-group 독립 노드로 오인되지 않음)
+    await page.locator('[data-testid="toggle-all-groups"]').dispatchEvent('click');
+    await expect(page.locator('[data-id="node-docling"]').first()).toBeAttached({ timeout: 5000 });
     // node-airflow는 orphan 필터로 data 뷰에서 숨겨짐 (dependency 엣지만 남아 infra 뷰 보존)
     const orphanAirflow = await page.evaluate(() => {
       const nodes = [...document.querySelectorAll('.svelte-flow__node')];
@@ -61,7 +66,7 @@ test.describe('Airflow 그룹 경계 렌더 (sample 모드)', () => {
 
   test('[sample] 그룹 자식 nodeclick → 노드 상세 모달 열림', async ({ page }) => {
     // 초기 접힘 상태 → 먼저 모두 펼치기
-    await page.locator('[data-testid="toggle-all-groups"]').click({ force: true });
+    await page.locator('[data-testid="toggle-all-groups"]').dispatchEvent('click');
     await expect(page.locator('[data-id="node-docling"]').first()).toBeAttached({ timeout: 5000 });
 
     const clicked = await page.evaluate((ids: string[]) => {
@@ -80,7 +85,7 @@ test.describe('Airflow 그룹 경계 렌더 (sample 모드)', () => {
 
   test('[sample] 그룹 collapse 버튼 클릭 → 자식 노드 DOM 미부착 + 재클릭 → 복원', async ({ page }) => {
     // 초기 접힘 상태 → 먼저 모두 펼치기
-    await page.locator('[data-testid="toggle-all-groups"]').click({ force: true });
+    await page.locator('[data-testid="toggle-all-groups"]').dispatchEvent('click');
     await expect(page.locator('[data-id="node-docling"]').first()).toBeAttached({ timeout: 5000 });
 
     // collapse 버튼 클릭 (expanded 뷰의 ▾ 버튼)
@@ -108,6 +113,8 @@ test.describe('Airflow 그룹 경계 렌더 (sample 모드)', () => {
   });
 
   test('[sample] 그룹 헤더 제목 클릭 → 그룹 config 모달 열림', async ({ page }) => {
+    // 초기 접힘 상태 → 먼저 모두 펼치기(그룹 헤더 제목은 펼친 group 노드에만 존재)
+    await page.locator('[data-testid="toggle-all-groups"]').dispatchEvent('click');
     // 그룹 노드의 제목 영역 클릭
     const groupTitle = page.locator('.airflow-group-title').first();
     await expect(groupTitle).toBeAttached({ timeout: 5000 });
@@ -190,11 +197,11 @@ test.describe('Airflow 그룹 경계 렌더 (sample 모드)', () => {
 
   test('[sample] D-2: "모두 펼치기" 버튼 클릭 → 자식 노드 부착 / "모두 접기" 재클릭 → 미부착 (왕복 검증)', async ({ page }) => {
     // 모두 펼치기
-    await page.locator('[data-testid="toggle-all-groups"]').click({ force: true });
+    await page.locator('[data-testid="toggle-all-groups"]').dispatchEvent('click');
     await expect(page.locator('[data-id="node-docling"]').first()).toBeAttached({ timeout: 5000 });
 
     // 모두 접기 (동일 토글 버튼 재클릭)
-    await page.locator('[data-testid="toggle-all-groups"]').click({ force: true });
+    await page.locator('[data-testid="toggle-all-groups"]').dispatchEvent('click');
     await expect(page.locator('[data-id="node-docling"]').first()).not.toBeAttached({ timeout: 5000 });
   });
 

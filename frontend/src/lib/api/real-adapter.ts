@@ -147,8 +147,9 @@ export async function fetchExecutions(dagId: string, runId: string): Promise<Tas
 export async function fetchLogs(
   nodeId: string,
   source: LogSource,
-  tail: number = 30
+  tail: number = 30,
+  opts?: { tool?: string; dagId?: string }
 ): Promise<LogResponse> {
   // TODO: 백엔드 /logs 배선 (이번 스코프 제외)
-  return generateLogs({ nodeId, tool: nodeId.replace('node-', ''), source, tail });
+  return generateLogs({ nodeId, tool: opts?.tool ?? nodeId.replace('node-', ''), source, dagId: opts?.dagId, tail });
 }

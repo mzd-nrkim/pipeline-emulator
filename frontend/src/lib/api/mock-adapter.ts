@@ -70,7 +70,8 @@ export function fetchExecutions(_dagId: string, _runId: string): TaskInstance[] 
 export async function fetchLogs(
   nodeId: string,
   source: LogSource,
-  tail: number = 30
+  tail: number = 30,
+  opts?: { tool?: string; dagId?: string }
 ): Promise<LogResponse> {
-  return generateLogs({ nodeId, tool: nodeId.replace('node-', ''), source, tail });
+  return generateLogs({ nodeId, tool: opts?.tool ?? nodeId.replace('node-', ''), source, dagId: opts?.dagId, tail });
 }
