@@ -148,3 +148,8 @@ export interface GroupMeta {
   childCount: number;
   childIds: string[];
 }
+
+export type LogSource = 'container' | 'airflow';
+export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+export interface LogLine { ts: string; level: LogLevel; message: string; }
+export interface LogResponse { source: LogSource; nodeId: string; lines: LogLine[]; }

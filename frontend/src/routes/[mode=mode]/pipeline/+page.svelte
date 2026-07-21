@@ -4,10 +4,11 @@
   import StatusDot from '$lib/components/StatusDot.svelte';
   import RunHistoryItem from '$lib/components/RunHistoryItem.svelte';
   import ToolCanvasView from '$lib/components/ToolCanvasView.svelte';
-  import type { Stage, Run, CanvasTopology, ToolNode, TaskInstance, GroupMeta } from '$lib/api/types.js';
+  import type { Stage, Run, CanvasTopology, ToolNode, TaskInstance, GroupMeta, LogLine } from '$lib/api/types.js';
   import { getToolEntry } from '$lib/canvas/toolCatalog';
   import * as mockAdapter from '$lib/api/mock-adapter.js';
   import * as realAdapter from '$lib/api/real-adapter.js';
+  import { getExternalLinks } from '$lib/canvas/externalLinks';
   import { Dialog } from 'bits-ui';
 
   let { data }: { data: { stages: Stage[]; runs: Run[]; topology: CanvasTopology } } = $props();
@@ -31,11 +32,39 @@
   let executions = $state<TaskInstance[]>([]);
   let executionsLoading = $state(false);
   let executionsError = $state<string | null>(null);
-  let drawerTab = $state<'node' | 'history'>('history');
+  let drawerTab = $state<'node' | 'history' | 'logs'>('history');
   let liveStageCounts = $state<Record<string, number>>({});
+  let logSource = $state<'container' | 'airflow'>('container');
+  let logLines = $state<LogLine[]>([]);
+  let logLoading = $state(false);
+  let logError = $state<string | null>(null);
+  let logAuto = $state(false);
 
   $effect(() => {
     localConfig = { ...(selectedNode?.config ?? {}) };
+  });
+
+  async function loadLogs() {
+    if (!selectedNode) return;
+    logLoading = true;
+    logError = null;
+    try {
+      const result = await currentAdapter.fetchLogs(selectedNode.id, logSource, 40);
+      logLines = result.lines;
+    } catch (e) {
+      logError = String(e);
+    } finally {
+      logLoading = false;
+    }
+  }
+
+  $effect(() => {
+    if (logAuto && drawerTab === 'logs' && selectedNode) {
+      const id = setInterval(() => {
+        loadLogs();
+      }, 2000);
+      return () => clearInterval(id);
+    }
   });
 
   $effect(() => {
@@ -272,6 +301,15 @@
             >
               실행 이력
             </button>
+            <button
+              type="button"
+              data-testid="drawer-tab-logs"
+              onclick={() => { drawerTab = 'logs'; loadLogs(); }}
+              disabled={!selectedNode}
+              class="px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-tight rounded-xs transition-colors {drawerTab === 'logs' && selectedNode ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground disabled:opacity-40'}"
+            >
+              로그
+            </button>
           </div>
           <Dialog.Close
             class="text-muted-foreground hover:text-foreground text-xs leading-none px-1"
@@ -441,6 +479,19 @@
                       트리거
                     </button>
                   {/if}
+                  <!-- 외부 UI 딥링크 버튼 -->
+                  {#each getExternalLinks(selectedNode) as link}
+                    <a
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener"
+                      data-testid="external-ui-link"
+                      class="flex items-center justify-center w-full px-3 py-1.5 border border-border text-[10px] font-bold uppercase tracking-tight
+                             text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-colors"
+                    >
+                      {link.label}
+                    </a>
+                  {/each}
                   {#if triggeredRunId}
                     <div class="bg-surface-muted p-2 rounded-xs text-[10px] break-all">
                       <span class="text-muted-foreground">dag_run_id</span>
@@ -466,6 +517,61 @@
                   run: {triggeredRunId}
                 {:else}
                   노드를 트리거하면 결과가 여기에 표시됩니다.
+                {/if}
+              </div>
+            </div>
+
+          <!-- 로그 탭 -->
+          {:else if drawerTab === 'logs' && selectedNode}
+            <div class="flex flex-col h-full p-4 gap-3 text-xs font-mono">
+              <!-- 소스 토글 + 컨트롤 -->
+              <div class="flex items-center gap-3 shrink-0">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[10px] text-muted-foreground uppercase tracking-widest">소스</span>
+                  <select
+                    value={logSource}
+                    onchange={(e) => { logSource = (e.currentTarget as HTMLSelectElement).value as 'container' | 'airflow'; loadLogs(); }}
+                    class="bg-surface-muted border border-border rounded-xs px-2 py-0.5 text-[10px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary"
+                  >
+                    <option value="container">container</option>
+                    <option value="airflow">airflow</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onclick={loadLogs}
+                  class="px-2 py-0.5 border border-border text-[10px] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-colors"
+                >
+                  새로고침
+                </button>
+                <label class="flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    bind:checked={logAuto}
+                    class="accent-primary"
+                  />
+                  자동 폴링
+                </label>
+              </div>
+              <!-- 로그 패널 -->
+              <div
+                data-testid="log-panel"
+                class="flex-1 min-h-0 overflow-auto bg-surface-muted border border-border rounded-xs p-2 font-mono text-[10px] leading-relaxed"
+              >
+                {#if logLoading}
+                  <div class="text-muted-foreground">로딩 중…</div>
+                {:else if logError}
+                  <div class="text-status-failed">{logError}</div>
+                {:else if logLines.length === 0}
+                  <div class="text-muted-foreground italic">로그 없음</div>
+                {:else}
+                  {#each logLines as line}
+                    <div class="flex gap-2 py-0.5 border-b border-border/40 last:border-0">
+                      <span class="text-muted-foreground shrink-0">{line.ts}</span>
+                      <span class="shrink-0 font-bold {line.level === 'ERROR' ? 'text-status-failed' : line.level === 'WARN' ? 'text-amber-500' : line.level === 'INFO' ? 'text-primary' : 'text-muted-foreground'}">{line.level}</span>
+                      <span class="break-all text-foreground">{line.message}</span>
+                    </div>
+                  {/each}
                 {/if}
               </div>
             </div>
