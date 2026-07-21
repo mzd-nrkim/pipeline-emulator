@@ -4,7 +4,7 @@
   import StatusDot from '$lib/components/StatusDot.svelte';
   import RunHistoryItem from '$lib/components/RunHistoryItem.svelte';
   import ToolCanvasView from '$lib/components/ToolCanvasView.svelte';
-  import type { Stage, Run, CanvasTopology, ToolNode, TaskInstance } from '$lib/api/types.js';
+  import type { Stage, Run, CanvasTopology, ToolNode, TaskInstance, GroupMeta } from '$lib/api/types.js';
   import { getToolEntry } from '$lib/canvas/toolCatalog';
   import * as mockAdapter from '$lib/api/mock-adapter.js';
   import * as realAdapter from '$lib/api/real-adapter.js';
@@ -21,6 +21,7 @@
   let view = $state<'data' | 'infra'>('data');
   let showOrphans = $state(false);
   let selectedNode = $state<ToolNode | null>(null);
+  let selectedGroup = $state<GroupMeta | null>(null);
   let localConfig = $state<Record<string, unknown>>({});
   let triggeredRunId = $state<string | null>(null);
   let triggerError = $state<string | null>(null);
@@ -49,11 +50,32 @@
 
   function handleNodeSelect(node: ToolNode | null) {
     selectedNode = node;
+    selectedGroup = null;
     triggeredRunId = null;
     triggerError = null;
     configSaved = false;
     configError = null;
     if (node) { drawerTab = 'node'; dialogOpen = true; }
+  }
+
+  function handleGroupSelect(groupId: string) {
+    const groupNode = data.topology.nodes.find(n => n.id === groupId);
+    if (!groupNode) return;
+    const childIds = data.topology.nodes
+      .filter(n => (n as any).parentId === groupId)
+      .map(n => n.id);
+    selectedGroup = {
+      id: groupId,
+      displayName: (groupNode as any).displayName ?? groupId,
+      role: groupNode.role,
+      icon: '🌊',
+      accent: '#017CEE',
+      childCount: childIds.length,
+      childIds,
+    };
+    selectedNode = null;
+    drawerTab = 'node';
+    dialogOpen = true;
   }
 
   async function handleApplyConfig() {
@@ -221,6 +243,7 @@
         {view}
         onnodeselect={handleNodeSelect}
         hideOrphans={!showOrphans}
+        onGroupSelect={handleGroupSelect}
       />
     </div>
 
@@ -238,8 +261,8 @@
             <button
               type="button"
               onclick={() => drawerTab = 'node'}
-              disabled={!selectedNode}
-              class="px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-tight rounded-xs transition-colors {drawerTab === 'node' && selectedNode ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground disabled:opacity-40'}"
+              disabled={!selectedNode && !selectedGroup}
+              class="px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-tight rounded-xs transition-colors {drawerTab === 'node' && (selectedNode || selectedGroup) ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground disabled:opacity-40'}"
             >
               노드 상세
             </button>
@@ -263,7 +286,39 @@
         <div class="flex-1 overflow-auto">
 
           <!-- 노드 상세 탭 -->
-          {#if drawerTab === 'node' && selectedNode}
+          {#if drawerTab === 'node' && selectedGroup && !selectedNode}
+            <div class="p-4 flex flex-col gap-3 text-xs font-mono">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="text-base leading-none">{selectedGroup.icon}</span>
+                  <span class="font-bold text-foreground">{selectedGroup.displayName}</span>
+                </div>
+                <button type="button" onclick={() => selectedGroup = null} class="text-muted-foreground hover:text-foreground" aria-label="그룹 선택 해제">✕</button>
+              </div>
+              <div class="space-y-2">
+                <div>
+                  <span class="text-muted-foreground">id</span>
+                  <span class="ml-2 font-bold">{selectedGroup.id}</span>
+                </div>
+                <div>
+                  <span class="text-muted-foreground">role</span>
+                  <span class="ml-2 font-bold">{selectedGroup.role}</span>
+                </div>
+                <div>
+                  <span class="text-muted-foreground">자식 노드 수</span>
+                  <span class="ml-2 font-bold">{selectedGroup.childCount}</span>
+                </div>
+              </div>
+              <div class="border-t border-border pt-3">
+                <div class="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">자식 노드</div>
+                <ul class="space-y-1">
+                  {#each selectedGroup.childIds as childId}
+                    <li class="text-[11px] font-mono text-foreground">{childId}</li>
+                  {/each}
+                </ul>
+              </div>
+            </div>
+          {:else if drawerTab === 'node' && selectedNode}
             {@const toolEntry = getToolEntry(selectedNode.tool)}
             <div class="p-4 flex flex-col gap-3 text-xs font-mono">
               <div class="flex items-center justify-between">

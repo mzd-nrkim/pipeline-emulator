@@ -138,3 +138,13 @@ export interface CanvasTopology {
   nodes: ToolNode[];
   edges: Edge[];
 }
+
+export interface GroupMeta {
+  id: string;
+  displayName: string;
+  role: string;
+  icon: string;
+  accent: string;
+  childCount: number;
+  childIds: string[];
+}
