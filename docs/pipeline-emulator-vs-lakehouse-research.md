@@ -43,32 +43,35 @@
 
 ```mermaid
 flowchart TB
-    subgraph PROD["🎯 리서치 제품 · 레이크하우스 (코어까지 정의됨)"]
-        direction TB
-        UI["웹 콘솔 · SQL 에디터 · 카탈로그 탐색"]:::core
-        GOV["거버넌스 · 인증·인가·감사 (Keycloak/OPA)"]:::core
-        QE["쿼리 엔진 · Trino federation"]:::core
-        CAT["카탈로그 · Polaris"]:::core
-        TF["테이블 포맷 · Iceberg"]:::core
-        AI["AI 연계 · 임베딩·RAG (#7)"]:::partial
-        MON["모니터링 (#8)"]:::partial
-        ING["수집·정제 · 소스연결·CDC (#1)"]:::emu
-        ST["스토리지 · S3 호환"]:::emu
-    end
+    EMU{{"🔵 에뮬레이터<br/>현대차 재현 데모"}}:::hubE
 
-    EMU{{"🔵 파이프라인 에뮬레이터<br/>현대차 재현 데모"}}:::hub
-    EMU ==>|medallion DAG로 실물 구현| ING
-    EMU ==>|SeaweedFS Bronze| ST
-    EMU -.->|ES, 다음 계획| AI
-    EMU ==>|커스텀 대시보드| MON
+    ST["스토리지 · S3/SeaweedFS"]:::cov
+    ING["수집·정제 · #1 medallion"]:::cov
+    MON["모니터링 · #8 대시보드"]:::cov
+    AI["AI·RAG · #7"]:::part
 
-    classDef hub fill:#1565c0,color:#fff,stroke:#0d47a1,stroke-width:3px
-    classDef emu fill:#c8e6c9,stroke:#2e7d32,color:#000,stroke-width:2px
-    classDef partial fill:#fff3c4,stroke:#f9a825,color:#000
+    RES{{"🎯 리서치 제품<br/>레이크하우스"}}:::hubR
+    CORE["<b>제품 코어 · 에뮬레이터 없음</b><br/>Iceberg · Polaris · Trino<br/>거버넌스 · 웹 콘솔 · 품질"]:::core
+
+    EMU === ST
+    EMU === ING
+    EMU === MON
+    EMU -.->|다음 계획| AI
+
+    ST --- RES
+    ING --- RES
+    MON --- RES
+    AI --- RES
+    RES === CORE
+
+    classDef hubE fill:#1565c0,color:#fff,stroke:#0d47a1,stroke-width:2px
+    classDef hubR fill:#2e7d32,color:#fff,stroke:#1b5e20,stroke-width:2px
+    classDef cov fill:#c8e6c9,stroke:#2e7d32,color:#000,stroke-width:2px
+    classDef part fill:#fff3c4,stroke:#f9a825,color:#000
     classDef core fill:#ffcdd2,stroke:#c62828,color:#000
 ```
 
-> **읽는 법**: 초록(스토리지·수집정제) = 에뮬레이터가 **실물로 덮는** 계층. 노랑(AI·모니터링) = **부분/다음 계획**. 빨강(테이블포맷·카탈로그·쿼리·거버넌스·콘솔) = **리서치 제품의 코어인데 에뮬레이터엔 없는** 계층. 에뮬레이터의 화살표가 스택의 *아래쪽(입력 계층)에만* 닿는다는 점이 핵심이다.
+> **읽는 법**: 위 파랑 허브(에뮬레이터)가 **굵은 선으로 잇는 초록 노드 = 실물로 덮는 조각**(스토리지·수집정제·모니터링). 노랑(AI·RAG)은 다음 계획. 이 조각들이 아래 초록 허브(리서치 제품)로 모이고, 리서치는 여기에 더해 **빨강 = 제품 코어(Iceberg·Polaris·Trino·거버넌스·콘솔)**를 갖는다 — 이 빨강은 **에뮬레이터에 없다**. 즉 에뮬레이터 ⊂ 리서치 제품이며, 겹치는 부분이 위쪽 슬라이스다.
 
 리서치 필요기능 8개에 대한 대응을 세분하면:
 
