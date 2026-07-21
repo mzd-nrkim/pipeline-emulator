@@ -32,15 +32,28 @@ test.describe('Infra View — 인프라 연결 뷰', () => {
     expect(markerCount).toBeGreaterThan(0);
   });
 
-  test('infra-floating 엣지 path가 직선(M ... L ...) 형식이다', async ({ page }) => {
+  test('infra-step 엣지: depth gap > 1 우회 경로 검증 (routeY < 0)', async ({ page }) => {
     await page.getByRole('button', { name: '인프라', exact: true }).click();
     await page.waitForTimeout(500);
-    await expect(page.locator('.svelte-flow__edge').first()).toBeAttached({ timeout: 5000 });
-    const hasLinearPath = await page.evaluate(() => {
-      const paths = [...document.querySelectorAll('.svelte-flow__edge-path')];
-      return paths.some(p => /^M[\d.\s-]+L[\d.\s-]+$/.test((p.getAttribute('d') ?? '').trim()));
+    const infraStepEdges = page.locator('.svelte-flow__edge[data-type="infra-step"]');
+    await expect(infraStepEdges.first()).toBeAttached({ timeout: 5000 });
+    const count = await infraStepEdges.count();
+    expect(count).toBeGreaterThan(0);
+    const hasNegativeY = await page.evaluate(() => {
+      const paths = [...document.querySelectorAll('.svelte-flow__edge[data-type="infra-step"] .svelte-flow__edge-path')];
+      return paths.some(p => {
+        const d = p.getAttribute('d') ?? '';
+        const yCoords = [...d.matchAll(/[A-Z][^A-Z]*/g)]
+          .flatMap(m => {
+            const segment = m[0];
+            const nums = segment.slice(1).trim().split(/[\s,]+/).map(Number);
+            // SVG path: even-indexed after command = x, odd-indexed = y (for absolute commands)
+            return nums.filter((_, i) => i % 2 === 1);
+          });
+        return yCoords.length > 0 && Math.min(...yCoords) < 0;
+      });
     });
-    expect(hasLinearPath).toBe(true);
+    expect(hasNegativeY).toBe(true);
   });
 
   test('ES 노드가 인프라 뷰에 존재함 (force-directed 배치)', async ({ page }) => {

@@ -3,6 +3,8 @@ import { getToolEntry } from './toolCatalog.js';
 
 const COL_GAP = 280;
 const ROW_GAP = 140;
+const ROUTE_Y = -48;
+const EDGE_OFF = 24;
 
 export interface FlowNode {
   id: string;
@@ -168,6 +170,7 @@ export function buildNodesAndEdges(
         : condition
           ? 'edge-label-default'
           : undefined;
+    const depthGap = depth.get(e.to)! - depth.get(e.from)!;
     return {
       id: `e-${e.from}-${e.to}-${i}`,
       source: e.from,
@@ -180,7 +183,11 @@ export function buildNodesAndEdges(
       labelBgStyle: 'fill-opacity: 1;',
       ...(conditionClass ? { labelClassName: conditionClass } : {}),
       ...(condition ? { sourceHandle: `source-${condition}` } : {}),
-      ...(view === 'infra' ? { type: 'smoothstep' } : {}),
+      ...(view === 'infra'
+        ? depthGap > 1
+          ? { type: 'infra-step', data: { routeY: ROUTE_Y } }
+          : { type: 'smoothstep' }
+        : {}),
     };
   });
 
