@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { Handle, Position } from '@xyflow/svelte';
 
   interface Props {
     data: {
@@ -87,6 +88,10 @@
     </div>
   {/if}
 </div>
+
+<!-- collapsed 상태에서 경계 엣지가 연결되도록 source/target handle 제공 -->
+<Handle type="target" position={Position.Left} style="top: 50%; opacity: 0;" />
+<Handle type="source" position={Position.Right} style="top: 50%; opacity: 0;" />
 
 <style>
   .airflow-group-node {
