@@ -610,18 +610,19 @@ describe('buildNodesAndEdges', () => {
   const groupTopology: CanvasTopology = {
     nodes: [
       { id: 'node-airflow',   role: 'transform', tool: 'apache-airflow', config: {}, trigger: true },
-      { id: 'node-docling',   role: 'transform', tool: 'docling-langchain', config: {}, parentId: 'node-airflow-group' },
-      { id: 'node-presidio',  role: 'transform', tool: 'presidio',          config: {}, parentId: 'node-airflow-group' },
-      { id: 'node-kure',      role: 'transform', tool: 'kure-embedding',    config: {}, parentId: 'node-airflow-group' },
+      { id: 'node-docling',   role: 'transform', tool: 'docling-langchain', config: {}, parentId: 'node-airflow' },
+      { id: 'node-presidio',  role: 'transform', tool: 'presidio',          config: {}, parentId: 'node-airflow' },
+      { id: 'node-kure',      role: 'transform', tool: 'kure-embedding',    config: {}, parentId: 'node-airflow' },
+      { id: 'node-s3-bronze', role: 'store',     tool: 's3',                config: {} },
       { id: 'node-mock-api',  role: 'transform', tool: 'presidio',          config: {}, displayNameOverride: 'Mock API' },
       { id: 'node-es',        role: 'index',     tool: 'elasticsearch',     config: {} },
     ],
     edges: [
-      { from: 'node-airflow',  to: 'node-docling',  channels: ['data'], viaTable: 'bronze_structured_raw' } as any,
-      { from: 'node-docling',  to: 'node-presidio', channels: ['data'], viaTable: 'silver_structured_documents' } as any,
-      { from: 'node-presidio', to: 'node-kure',     channels: ['data'], viaTable: 'silver_masked_documents' } as any,
-      { from: 'node-kure',     to: 'node-mock-api', channels: ['data', 'dependency'] as ('data' | 'dependency')[], viaTable: 'gold_chunked_documents' } as any,
-      { from: 'node-mock-api', to: 'node-es',       channels: ['data'], viaTable: 'gold_enriched_documents' } as any,
+      { from: 'node-s3-bronze', to: 'node-docling',  channels: ['data'], viaTable: 'bronze_structured_raw' } as any,
+      { from: 'node-docling',   to: 'node-presidio', channels: ['data'], viaTable: 'silver_structured_documents' } as any,
+      { from: 'node-presidio',  to: 'node-kure',     channels: ['data'], viaTable: 'silver_masked_documents' } as any,
+      { from: 'node-kure',      to: 'node-mock-api', channels: ['data', 'dependency'] as ('data' | 'dependency')[], viaTable: 'gold_chunked_documents' } as any,
+      { from: 'node-mock-api',  to: 'node-es',       channels: ['data'], viaTable: 'gold_enriched_documents' } as any,
     ],
   };
 
@@ -629,18 +630,19 @@ describe('buildNodesAndEdges', () => {
   const reorderedGroupTopology: CanvasTopology = {
     nodes: [
       { id: 'node-airflow',   role: 'transform', tool: 'apache-airflow', config: {}, trigger: true },
-      { id: 'node-presidio',  role: 'transform', tool: 'presidio',          config: {}, parentId: 'node-airflow-group' },
-      { id: 'node-docling',   role: 'transform', tool: 'docling-langchain', config: {}, parentId: 'node-airflow-group' },
-      { id: 'node-kure',      role: 'transform', tool: 'kure-embedding',    config: {}, parentId: 'node-airflow-group' },
+      { id: 'node-presidio',  role: 'transform', tool: 'presidio',          config: {}, parentId: 'node-airflow' },
+      { id: 'node-docling',   role: 'transform', tool: 'docling-langchain', config: {}, parentId: 'node-airflow' },
+      { id: 'node-kure',      role: 'transform', tool: 'kure-embedding',    config: {}, parentId: 'node-airflow' },
+      { id: 'node-s3-bronze', role: 'store',     tool: 's3',                config: {} },
       { id: 'node-mock-api',  role: 'transform', tool: 'presidio',          config: {}, displayNameOverride: 'Mock API' },
       { id: 'node-es',        role: 'index',     tool: 'elasticsearch',     config: {} },
     ],
     edges: [
-      { from: 'node-airflow',  to: 'node-docling',  channels: ['data'], viaTable: 'bronze_structured_raw' } as any,
-      { from: 'node-docling',  to: 'node-presidio', channels: ['data'], viaTable: 'silver_structured_documents' } as any,
-      { from: 'node-presidio', to: 'node-kure',     channels: ['data'], viaTable: 'silver_masked_documents' } as any,
-      { from: 'node-kure',     to: 'node-mock-api', channels: ['data', 'dependency'] as ('data' | 'dependency')[], viaTable: 'gold_chunked_documents' } as any,
-      { from: 'node-mock-api', to: 'node-es',       channels: ['data'], viaTable: 'gold_enriched_documents' } as any,
+      { from: 'node-s3-bronze', to: 'node-docling',  channels: ['data'], viaTable: 'bronze_structured_raw' } as any,
+      { from: 'node-docling',   to: 'node-presidio', channels: ['data'], viaTable: 'silver_structured_documents' } as any,
+      { from: 'node-presidio',  to: 'node-kure',     channels: ['data'], viaTable: 'silver_masked_documents' } as any,
+      { from: 'node-kure',      to: 'node-mock-api', channels: ['data', 'dependency'] as ('data' | 'dependency')[], viaTable: 'gold_chunked_documents' } as any,
+      { from: 'node-mock-api',  to: 'node-es',       channels: ['data'], viaTable: 'gold_enriched_documents' } as any,
     ],
   };
 
@@ -662,21 +664,21 @@ describe('buildNodesAndEdges', () => {
 
   it('Group: data 뷰에서 type:group 노드가 생성된다', () => {
     const { nodes } = buildNodesAndEdges(groupTopology, 'data');
-    const groupNode = nodes.find(n => n.id === 'node-airflow-group');
+    const groupNode = nodes.find(n => n.id === 'node-airflow');
     expect(groupNode).toBeDefined();
     expect(groupNode!.type).toBe('group');
   });
 
   it('Group: group 노드는 nodes 배열 앞에 위치한다', () => {
     const { nodes } = buildNodesAndEdges(groupTopology, 'data');
-    expect(nodes[0].id).toBe('node-airflow-group');
+    expect(nodes[0].id).toBe('node-airflow');
   });
 
   it('Group: 자식 노드에 parentId와 extent가 설정된다', () => {
     const { nodes } = buildNodesAndEdges(groupTopology, 'data');
     const docling = nodes.find(n => n.id === 'node-docling')!;
     expect(docling).toBeDefined();
-    expect(docling.parentId).toBe('node-airflow-group');
+    expect(docling.parentId).toBe('node-airflow');
     expect(docling.extent).toBe('parent');
   });
 
@@ -719,7 +721,7 @@ describe('buildNodesAndEdges', () => {
   it('E-1(non-overlap): 인접 자식 position.x 차이가 COL_GAP(280) — non-overlap 보장', () => {
     const COL_GAP = 280;
     const { nodes } = buildNodesAndEdges(groupTopology, 'data');
-    const childNodes = nodes.filter(n => n.parentId === 'node-airflow-group')
+    const childNodes = nodes.filter(n => n.parentId === 'node-airflow')
       .sort((a, b) => a.position.x - b.position.x);
     expect(childNodes.length).toBeGreaterThanOrEqual(2);
     for (let i = 1; i < childNodes.length; i++) {
@@ -730,7 +732,7 @@ describe('buildNodesAndEdges', () => {
   it('E-1(박스크기): 그룹 박스 width >= 자식 3개 * 노드폭(200) — 전 자식 포함', () => {
     const NODE_WIDTH = 200;
     const { nodes } = buildNodesAndEdges(groupTopology, 'data');
-    const groupNode = nodes.find(n => n.id === 'node-airflow-group')!;
+    const groupNode = nodes.find(n => n.id === 'node-airflow')!;
     expect(groupNode).toBeDefined();
     const groupWidth = (groupNode as any).width as number;
     expect(groupWidth).toBeGreaterThanOrEqual(3 * NODE_WIDTH);
@@ -738,7 +740,7 @@ describe('buildNodesAndEdges', () => {
 
   it('E-1(그룹trigger): 그룹 노드 data.trigger === true', () => {
     const { nodes } = buildNodesAndEdges(groupTopology, 'data');
-    const groupNode = nodes.find(n => n.id === 'node-airflow-group')!;
+    const groupNode = nodes.find(n => n.id === 'node-airflow')!;
     expect(groupNode).toBeDefined();
     expect(groupNode.data.trigger).toBe(true);
   });
@@ -758,11 +760,11 @@ describe('buildNodesAndEdges', () => {
   });
 
   describe('collapsed group', () => {
-    // groupTopology 재사용: node-airflow-group 에 docling, presidio, kure 3개 자식
+    // groupTopology 재사용: node-airflow 에 docling, presidio, kure 3개 자식
     // docling→presidio, presidio→kure 엣지(그룹 내부), kure→mock-api 엣지(그룹 외부)
 
     it('Right: collapsed 시 자식 노드가 결과 배열에 미포함', () => {
-      const collapsedGroups = new Set(['node-airflow-group']);
+      const collapsedGroups = new Set(['node-airflow']);
       const { nodes } = buildNodesAndEdges(groupTopology, 'data', true, collapsedGroups);
       const childIds = ['node-docling', 'node-presidio', 'node-kure'];
       for (const childId of childIds) {
@@ -771,18 +773,18 @@ describe('buildNodesAndEdges', () => {
     });
 
     it('Conformance: collapsed 시 그룹 노드 data.collapsed=true, data.childCount=N', () => {
-      const collapsedGroups = new Set(['node-airflow-group']);
+      const collapsedGroups = new Set(['node-airflow']);
       const { nodes } = buildNodesAndEdges(groupTopology, 'data', true, collapsedGroups);
-      const groupNode = nodes.find(n => n.id === 'node-airflow-group')!;
+      const groupNode = nodes.find(n => n.id === 'node-airflow')!;
       expect(groupNode).toBeDefined();
       expect(groupNode.data.collapsed).toBe(true);
       expect(groupNode.data.childCount).toBe(3);
     });
 
     it('Conformance: collapsed 시 그룹 박스 width=200, height=100', () => {
-      const collapsedGroups = new Set(['node-airflow-group']);
+      const collapsedGroups = new Set(['node-airflow']);
       const { nodes } = buildNodesAndEdges(groupTopology, 'data', true, collapsedGroups);
-      const groupNode = nodes.find(n => n.id === 'node-airflow-group')!;
+      const groupNode = nodes.find(n => n.id === 'node-airflow')!;
       expect(groupNode).toBeDefined();
       expect((groupNode as any).width).toBe(200);
       expect((groupNode as any).height).toBe(100);
@@ -790,7 +792,7 @@ describe('buildNodesAndEdges', () => {
 
     it('Inverse: collapsed=false(expanded) 시 자식 노드 포함·기존 크기 유지', () => {
       const { nodes } = buildNodesAndEdges(groupTopology, 'data', true, new Set());
-      const groupNode = nodes.find(n => n.id === 'node-airflow-group')!;
+      const groupNode = nodes.find(n => n.id === 'node-airflow')!;
       expect(groupNode).toBeDefined();
       expect(groupNode.data.collapsed).toBe(false);
       // expanded 시 자식 노드 모두 포함
@@ -807,7 +809,7 @@ describe('buildNodesAndEdges', () => {
       const COL_GAP = 280;
       // collapsed 상태
       const { nodes: collapsedNodes } = buildNodesAndEdges(
-        groupTopology, 'data', true, new Set(['node-airflow-group'])
+        groupTopology, 'data', true, new Set(['node-airflow'])
       );
       // expanded 상태
       const { nodes: expandedNodes } = buildNodesAndEdges(
@@ -837,9 +839,9 @@ describe('buildNodesAndEdges', () => {
       const twoGroupTopology: CanvasTopology = {
         nodes: [
           { id: 'node-airflow',  role: 'transform', tool: 'apache-airflow',    config: {}, trigger: true },
-          { id: 'node-docling',  role: 'transform', tool: 'docling-langchain',  config: {}, parentId: 'node-airflow-group' },
-          { id: 'node-presidio', role: 'transform', tool: 'presidio',           config: {}, parentId: 'node-airflow-group' },
-          { id: 'node-kure',     role: 'transform', tool: 'kure-embedding',     config: {}, parentId: 'node-airflow-group' },
+          { id: 'node-docling',  role: 'transform', tool: 'docling-langchain',  config: {}, parentId: 'node-airflow' },
+          { id: 'node-presidio', role: 'transform', tool: 'presidio',           config: {}, parentId: 'node-airflow' },
+          { id: 'node-kure',     role: 'transform', tool: 'kure-embedding',     config: {}, parentId: 'node-airflow' },
           { id: 'node-alpha-1',  role: 'transform', tool: 'docling-langchain',  config: {}, parentId: 'node-group-alpha' },
           { id: 'node-alpha-2',  role: 'transform', tool: 'presidio',           config: {}, parentId: 'node-group-alpha' },
         ],
@@ -851,8 +853,8 @@ describe('buildNodesAndEdges', () => {
           { from: 'node-alpha-1',  to: 'node-alpha-2',  channels: ['data'] },
         ],
       };
-      // node-airflow-group만 collapsed
-      const collapsedGroups = new Set(['node-airflow-group']);
+      // node-airflow만 collapsed
+      const collapsedGroups = new Set(['node-airflow']);
       const { nodes } = buildNodesAndEdges(twoGroupTopology, 'data', true, collapsedGroups);
       // collapsed 그룹 자식 제외
       expect(nodes.find(n => n.id === 'node-docling')).toBeUndefined();
@@ -861,6 +863,120 @@ describe('buildNodesAndEdges', () => {
       // 나머지 그룹(node-group-alpha) 자식은 유지
       expect(nodes.find(n => n.id === 'node-alpha-1')).toBeDefined();
       expect(nodes.find(n => n.id === 'node-alpha-2')).toBeDefined();
+    });
+
+    // D-1: Right — 경계 엣지 재배선 존재 단언
+    it('D-1 Right: collapsed 시 s3-bronze→node-airflow, node-airflow→mock-api 재배선 엣지 존재', () => {
+      const collapsedGroups = new Set(['node-airflow']);
+      const { edges } = buildNodesAndEdges(groupTopology, 'data', true, collapsedGroups);
+      const incomingEdge = edges.find(e => e.source === 'node-s3-bronze' && e.target === 'node-airflow');
+      const outgoingEdge = edges.find(e => e.source === 'node-airflow' && e.target === 'node-mock-api');
+      expect(incomingEdge).toBeDefined();
+      expect(outgoingEdge).toBeDefined();
+    });
+
+    // D-2: Inverse — 내부 엣지 미존재 단언
+    it('D-2 Inverse: collapsed 시 내부 엣지(docling→presidio, presidio→kure) 미존재', () => {
+      const collapsedGroups = new Set(['node-airflow']);
+      const { edges } = buildNodesAndEdges(groupTopology, 'data', true, collapsedGroups);
+      const internalEdge1 = edges.find(e => e.source === 'node-docling' && e.target === 'node-presidio');
+      const internalEdge2 = edges.find(e => e.source === 'node-presidio' && e.target === 'node-kure');
+      expect(internalEdge1).toBeUndefined();
+      expect(internalEdge2).toBeUndefined();
+    });
+
+    // D-3: Cardinality — dedupe 단언
+    it('D-3 Cardinality: collapsed 시 동일 (source,target) 엣지 중복 없음', () => {
+      const collapsedGroups = new Set(['node-airflow']);
+      const { edges } = buildNodesAndEdges(groupTopology, 'data', true, collapsedGroups);
+      const edgeKeys = edges.map(e => `${e.source}->${e.target}`);
+      const uniqueKeys = new Set(edgeKeys);
+      expect(edgeKeys.length).toBe(uniqueKeys.size);
+    });
+
+    // D-4: data 뷰에서 node-airflow가 type:'group' 노드로만 등장, type:'tool' leaf 중복 없음
+    it('D-4: data 뷰에서 node-airflow는 type:group 노드로만 존재, type:tool leaf 중복 없음', () => {
+      const { nodes } = buildNodesAndEdges(groupTopology, 'data');
+      const groupNode = nodes.find(n => n.id === 'node-airflow' && n.type === 'group');
+      const leafNode  = nodes.find(n => n.id === 'node-airflow' && n.type === 'tool');
+      expect(groupNode).toBeDefined();
+      expect(leafNode).toBeUndefined();
+    });
+
+    // D-5: collapsed 시 그룹 노드 position이 원점(-60,-60)이 아님
+    it('D-5: collapsed 시 그룹 노드 position이 원점(-60,-60)이 아님', () => {
+      const collapsedGroups = new Set(['node-airflow']);
+      const { nodes } = buildNodesAndEdges(groupTopology, 'data', true, collapsedGroups);
+      const groupNode = nodes.find(n => n.id === 'node-airflow')!;
+      expect(groupNode).toBeDefined();
+      // 원점 겹침 방지: x=-60, y=-60 이 아니어야 함
+      expect(groupNode.position.x).not.toBe(-60);
+      expect(groupNode.position.y).not.toBe(-60);
+    });
+
+    // D-6: 펼침 ↔ 접힘 왕복 후 엣지·자식 원복
+    it('D-6 Inverse: collapsed → expanded 왕복 후 원본 엣지·자식 수 원복', () => {
+      const { nodes: expandedNodes, edges: expandedEdges } = buildNodesAndEdges(groupTopology, 'data', true, new Set());
+      const { nodes: collapsedNodes, edges: collapsedEdges } = buildNodesAndEdges(groupTopology, 'data', true, new Set(['node-airflow']));
+      const { nodes: restoredNodes, edges: restoredEdges } = buildNodesAndEdges(groupTopology, 'data', true, new Set());
+
+      // 자식 원복
+      expect(restoredNodes.find(n => n.id === 'node-docling')).toBeDefined();
+      expect(restoredNodes.find(n => n.id === 'node-presidio')).toBeDefined();
+      expect(restoredNodes.find(n => n.id === 'node-kure')).toBeDefined();
+      // 엣지 수 원복
+      expect(restoredEdges.length).toBe(expandedEdges.length);
+      // collapsed 중간 상태에서는 내부 엣지 제거·재배선으로 수 달라짐
+      expect(collapsedNodes.find(n => n.id === 'node-docling')).toBeUndefined();
+    });
+
+    // D-7: 컨테이너 G↔자식 엣지 self-loop 미생성
+    it('D-7: 컨테이너→자식 엣지(self-loop 후보)가 collapsed 시 self-loop 미생성', () => {
+      // node-airflow → node-docling 엣지(G→child)가 있을 때 collapsed 시 (G,G) self-loop 방지
+      const selfLoopTopology: CanvasTopology = {
+        nodes: [
+          { id: 'node-airflow',   role: 'transform', tool: 'apache-airflow', config: {}, trigger: true },
+          { id: 'node-docling',   role: 'transform', tool: 'docling-langchain', config: {}, parentId: 'node-airflow' },
+          { id: 'node-mock-api',  role: 'transform', tool: 'presidio',          config: {}, displayNameOverride: 'Mock API' },
+        ],
+        edges: [
+          // G → child 엣지: collapsed 시 (G,G) self-loop 후보
+          { from: 'node-airflow', to: 'node-docling',  channels: ['data'] },
+          { from: 'node-docling', to: 'node-mock-api', channels: ['data'] },
+        ],
+      };
+      const collapsedGroups = new Set(['node-airflow']);
+      const { edges } = buildNodesAndEdges(selfLoopTopology, 'data', true, collapsedGroups);
+      const selfLoops = edges.filter(e => e.source === e.target);
+      expect(selfLoops.length).toBe(0);
+    });
+
+    // D-8: infra 뷰 회귀 — node-airflow dependency 엣지·노드 렌더, 자식 parentId 미부여
+    it('D-8: infra 뷰에서 node-airflow가 leaf 노드로 렌더되고 자식에 parentId 미부여', () => {
+      const infraTopology: CanvasTopology = {
+        nodes: [
+          { id: 'node-airflow',  role: 'transform', tool: 'apache-airflow', config: {}, trigger: true },
+          { id: 'node-docling',  role: 'transform', tool: 'docling-langchain', config: {}, parentId: 'node-airflow' },
+          { id: 'node-mysql',    role: 'store',     tool: 'mysql',             config: {} },
+        ],
+        edges: [
+          { from: 'node-mysql',   to: 'node-airflow', channels: ['dependency'] },
+          { from: 'node-docling', to: 'node-mysql',   channels: ['data'] },
+        ],
+      };
+      const { nodes, edges } = buildNodesAndEdges(infraTopology, 'infra');
+      // node-airflow가 leaf(type:'tool')로 렌더됨
+      const airflowNode = nodes.find(n => n.id === 'node-airflow');
+      expect(airflowNode).toBeDefined();
+      expect(airflowNode!.type).toBe('tool');
+      // infra 뷰에서 그룹 노드 미생성
+      expect(nodes.find(n => n.type === 'group')).toBeUndefined();
+      // infra 뷰에서 자식 노드에 parentId 미부여
+      const doclingNode = nodes.find(n => n.id === 'node-docling');
+      expect(doclingNode?.parentId).toBeUndefined();
+      // dependency 엣지 존재
+      const depEdge = edges.find(e => e.source === 'node-mysql' && e.target === 'node-airflow');
+      expect(depEdge).toBeDefined();
     });
   });
 
