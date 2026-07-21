@@ -77,6 +77,14 @@ export function buildNodesAndEdges(
     ? topo.nodes.filter(n => connectedIds.has(n.id))
     : topo.nodes;
 
+  // B-2: data 뷰에서 그룹 컨테이너 노드(자식이 있는 노드)를 leaf 배열에서 제외
+  if (view === 'data') {
+    const containerIds = new Set(
+      topo.nodes.filter(n => (n as any).parentId).map(n => (n as any).parentId as string)
+    );
+    visibleNodes = visibleNodes.filter(n => !containerIds.has(n.id));
+  }
+
   // collapsed 그룹 처리: collapsedGroups에 속한 그룹의 자식 노드 ID set 수집
   const collapsedChildIds = new Set<string>();
   if (collapsedGroups.size > 0) {
@@ -159,11 +167,12 @@ export function buildNodesAndEdges(
       : undefined;
 
     const nodeGroupId = (n as any).parentId as string | undefined;
+    const inDataView = view === 'data';
     return {
       id: n.id,
       type: 'tool',
       position: getPosition(n.id),
-      ...(nodeGroupId ? { parentId: nodeGroupId, extent: 'parent' as const } : {}),
+      ...(inDataView && nodeGroupId ? { parentId: nodeGroupId, extent: 'parent' as const } : {}),
       data: {
         label: `${catalogData.icon} ${catalogData.displayName}\n[${n.role}]`,
         toolId: n.tool,
@@ -177,7 +186,7 @@ export function buildNodesAndEdges(
         runtimeHealth: n.runtimeHealth ?? 'unknown',
         ...(applyMode !== undefined ? { applyMode } : {}),
         ...(outputs !== undefined ? { outputs } : {}),
-        ...(nodeGroupId ? { parentId: nodeGroupId } : {}),
+        ...(inDataView && nodeGroupId ? { parentId: nodeGroupId } : {}),
       },
     };
   });
@@ -224,17 +233,6 @@ export function buildNodesAndEdges(
       if (topo.nodes.some(n => (n as any).parentId === gId)) visibleGroupIds.add(gId);
     }
     const groupParentIds = [...visibleGroupIds];
-    const groupMeta: Record<string, { label: string; toolId: string; displayName: string; vendor: string; icon: string; accent: string; role: string }> = {
-      'node-airflow-group': {
-        label: 'Airflow (CeleryExecutor)',
-        toolId: 'apache-airflow',
-        displayName: 'Airflow (CeleryExecutor)',
-        vendor: 'Apache',
-        icon: '🌊',
-        accent: '#017CEE',
-        role: 'orchestrator',
-      },
-    };
     // 노드 폭 ≈ 200, 패딩: 좌우 60씩, 상하 60/100
     const NODE_WIDTH = 200;
     const PAD_X = 60;
@@ -272,15 +270,27 @@ export function buildNodesAndEdges(
       const groupWidth = (actualChildCount - 1) * COL_GAP + NODE_WIDTH + PAD_X * 2;
       const groupHeight = NODE_HEIGHT + PAD_TOP + PAD_BOTTOM;
 
-      const meta = groupMeta[groupId] ?? {
-        label: groupId,
-        toolId: 'unknown',
-        displayName: groupId,
-        vendor: 'Unknown',
-        icon: '📦',
-        accent: '#888888',
-        role: 'group',
-      };
+      const container = topo.nodes.find(n => n.id === groupId);
+      const containerEntry = getToolEntry(container?.tool ?? '');
+      const meta = containerEntry
+        ? {
+            label: `${containerEntry.icon} ${containerEntry.displayName}`,
+            toolId: container!.tool,
+            displayName: containerEntry.displayName,
+            vendor: containerEntry.vendor,
+            icon: containerEntry.icon,
+            accent: containerEntry.accent,
+            role: (container as any).role ?? 'group',
+          }
+        : {
+            label: '📦 ' + groupId,
+            toolId: 'unknown',
+            displayName: groupId,
+            vendor: 'Unknown',
+            icon: '📦',
+            accent: '#888888',
+            role: 'group',
+          };
       const finalWidth = isCollapsed ? 200 : groupWidth;
       const finalHeight = isCollapsed ? 100 : groupHeight;
       groupNodes.push({
