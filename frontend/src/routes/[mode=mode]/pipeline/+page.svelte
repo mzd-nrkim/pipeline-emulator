@@ -49,7 +49,7 @@
     logLoading = true;
     logError = null;
     try {
-      const result = await currentAdapter.fetchLogs(selectedNode.id, logSource, 40);
+      const result = await currentAdapter.fetchLogs(selectedNode.id, logSource, 40, { tool: selectedNode.tool, dagId: selectedNode.config?.dagId as string | undefined });
       logLines = result.lines;
     } catch (e) {
       logError = String(e);
@@ -92,16 +92,24 @@
       .filter(n => (n as any).parentId === groupId)
       .map(n => n.id);
     if (childIds.length === 0) return;
+    // 그룹 컨테이너는 그 자체가 설정을 가진 ToolNode(예: node-airflow, tool: apache-airflow)다.
+    // 헤더 클릭 시 그 노드를 selectedNode로도 세팅해 오케스트레이터 자체 설정 폼을 패널에 노출한다.
+    const groupNode = data.topology.nodes.find(n => n.id === groupId) ?? null;
+    const groupToolEntry = groupNode ? getToolEntry(groupNode.tool) : undefined;
     selectedGroup = {
       id: groupId,
-      displayName: groupId,
-      role: 'orchestrator',
-      icon: '🌊',
-      accent: '#017CEE',
+      displayName: groupNode?.label ?? groupId,
+      role: groupNode?.role ?? 'orchestrator',
+      icon: groupToolEntry?.icon ?? '🌊',
+      accent: groupToolEntry?.accent ?? '#017CEE',
       childCount: childIds.length,
       childIds,
     };
-    selectedNode = null;
+    selectedNode = groupNode;
+    triggeredRunId = null;
+    triggerError = null;
+    configSaved = false;
+    configError = null;
     drawerTab = 'node';
     dialogOpen = true;
   }
@@ -323,14 +331,14 @@
         <div class="flex-1 overflow-auto">
 
           <!-- 노드 상세 탭 -->
-          {#if drawerTab === 'node' && selectedGroup && !selectedNode}
+          {#if drawerTab === 'node' && selectedGroup}
             <div class="p-4 flex flex-col gap-3 text-xs font-mono">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                   <span class="text-base leading-none">{selectedGroup.icon}</span>
                   <span class="font-bold text-foreground">{selectedGroup.displayName}</span>
                 </div>
-                <button type="button" onclick={() => selectedGroup = null} class="text-muted-foreground hover:text-foreground" aria-label="그룹 선택 해제">✕</button>
+                <button type="button" onclick={() => { selectedGroup = null; selectedNode = null; }} class="text-muted-foreground hover:text-foreground" aria-label="그룹 선택 해제">✕</button>
               </div>
               <div class="space-y-2">
                 <div>
@@ -354,6 +362,9 @@
                   {/each}
                 </ul>
               </div>
+              {#if selectedNode}
+                {@render nodeConfig(selectedNode)}
+              {/if}
             </div>
           {:else if drawerTab === 'node' && selectedNode}
             {@const toolEntry = getToolEntry(selectedNode.tool)}
@@ -391,134 +402,7 @@
                 {/if}
               </div>
 
-              <!-- 설정 폼 -->
-              <div class="border-t border-border pt-3 space-y-2">
-                <div class="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">설정</div>
-                {#if toolEntry && toolEntry.configFields && toolEntry.configFields.length > 0}
-                  {#each toolEntry.configFields as field}
-                    {@const applyMode = field.applyMode ?? 'readonly'}
-                    {@const isDisabled = applyMode === 'readonly'}
-                    <div class="config-field {field.group ? `group-${field.group}` : ''} space-y-0.5">
-                      <div class="flex items-center gap-1.5">
-                        <label class="block text-[11px] text-muted-foreground">{field.label}</label>
-                        {#if applyMode === 'runtime'}
-                          <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[10px] font-bold rounded-xs bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700">🟢 실시간적용</span>
-                        {:else if applyMode === 'restart'}
-                          <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[10px] font-bold rounded-xs bg-yellow-100 text-yellow-700 border border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700">🟡 재기동필요</span>
-                        {:else if applyMode === 'code'}
-                          <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[10px] font-bold rounded-xs bg-blue-100 text-blue-700 border border-blue-300 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700">🔵 코드수정</span>
-                        {:else}
-                          <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[10px] font-bold rounded-xs bg-surface-muted text-muted-foreground border border-border">🔒 읽기전용</span>
-                        {/if}
-                      </div>
-                      {#if field.type === 'text'}
-                        <input type="text" bind:value={localConfig[field.key] as string} placeholder={field.placeholder ?? ''}
-                          disabled={isDisabled}
-                          class="w-full bg-surface-muted border border-border rounded-xs px-2 py-1 text-[11px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary disabled:opacity-50 disabled:cursor-not-allowed" />
-                      {:else if field.type === 'number'}
-                        <input type="number" bind:value={localConfig[field.key] as number}
-                          disabled={isDisabled}
-                          class="w-full bg-surface-muted border border-border rounded-xs px-2 py-1 text-[11px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary disabled:opacity-50 disabled:cursor-not-allowed" />
-                      {:else if field.type === 'select'}
-                        <select bind:value={localConfig[field.key] as string}
-                          disabled={isDisabled}
-                          class="w-full bg-surface-muted border border-border rounded-xs px-2 py-1 text-[11px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary disabled:opacity-50 disabled:cursor-not-allowed">
-                          {#each field.options ?? [] as opt}
-                            <option value={opt}>{opt}</option>
-                          {/each}
-                        </select>
-                      {:else if field.type === 'boolean'}
-                        <div class="flex items-center gap-1.5">
-                          <input type="checkbox" bind:checked={localConfig[field.key] as boolean}
-                            disabled={isDisabled}
-                            class="accent-primary disabled:opacity-50 disabled:cursor-not-allowed" />
-                          <span class="text-[11px] text-muted-foreground">{field.label}</span>
-                        </div>
-                      {/if}
-                      {#if applyMode === 'restart'}
-                        <p class="text-[10px] text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-xs px-1.5 py-0.5 leading-relaxed dark:text-yellow-300 dark:bg-yellow-900/30 dark:border-yellow-800">재기동 후 적용</p>
-                      {:else if applyMode === 'code'}
-                        <p class="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded-xs px-1.5 py-0.5 leading-relaxed dark:text-blue-300 dark:bg-blue-900/30 dark:border-blue-800">DAG 코드 수정 필요</p>
-                      {/if}
-                    </div>
-                  {/each}
-                {:else}
-                  <div class="text-[11px] text-muted-foreground italic">설정 없음</div>
-                {/if}
-              </div>
-
-              <!-- 조작 영역 -->
-              <div class="border-t border-border pt-3 space-y-2">
-                {#if (getToolEntry(selectedNode.tool)?.configFields ?? []).filter(f => (f.applyMode ?? 'readonly') === 'runtime').length > 0}
-                  <button
-                    type="button"
-                    onclick={handleApplyConfig}
-                    class="w-full px-3 py-1.5 border border-primary text-primary text-[10px] font-bold uppercase tracking-tight
-                           hover:bg-primary/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                  >
-                    적용
-                  </button>
-                  {#if configSaved}
-                    <div class="text-[10px] text-status-success">설정이 저장되었습니다.</div>
-                  {/if}
-                  {#if configError}
-                    <div class="bg-status-failed/10 border border-status-failed/30 text-status-failed p-2 rounded-xs text-[10px] break-all">{configError}</div>
-                  {/if}
-                {/if}
-                {#if selectedNode.config?.dagId}
-                  <div class="text-[10px] text-muted-foreground">
-                    DAG: <span class="font-bold text-foreground">{selectedNode.config.dagId}</span>
-                  </div>
-                  {#if currentAdapter}
-                    <button
-                      type="button"
-                      onclick={handleTrigger}
-                      class="w-full px-3 py-1.5 bg-foreground text-background text-[10px] font-bold uppercase tracking-tight
-                             hover:bg-foreground/90 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                    >
-                      트리거
-                    </button>
-                  {/if}
-                  <!-- 외부 UI 딥링크 버튼 -->
-                  {#each getExternalLinks(selectedNode) as link}
-                    <a
-                      href={link.href}
-                      target="_blank"
-                      rel="noopener"
-                      data-testid="external-ui-link"
-                      class="flex items-center justify-center w-full px-3 py-1.5 border border-border text-[10px] font-bold uppercase tracking-tight
-                             text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-colors"
-                    >
-                      {link.label}
-                    </a>
-                  {/each}
-                  {#if triggeredRunId}
-                    <div class="bg-surface-muted p-2 rounded-xs text-[10px] break-all">
-                      <span class="text-muted-foreground">dag_run_id</span>
-                      <span class="ml-1 font-bold text-foreground">{triggeredRunId}</span>
-                    </div>
-                  {/if}
-                  {#if triggerError}
-                    <div class="bg-status-failed/10 border border-status-failed/30 text-status-failed p-2 rounded-xs text-[10px] break-all">
-                      {triggerError}
-                    </div>
-                  {/if}
-                {:else}
-                  <div class="inline-flex items-center gap-1.5 px-2 py-1 bg-surface-muted border border-border rounded-xs text-[10px] text-muted-foreground">
-                    <span class="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 inline-block"></span>
-                    상태 조회 전용 · 실동작은 F2/F3/F7
-                  </div>
-                {/if}
-              </div>
-
-              <!-- 트리거 결과 -->
-              <div class="mt-auto border-t border-border pt-3 text-[10px] text-muted-foreground leading-relaxed">
-                {#if triggeredRunId}
-                  run: {triggeredRunId}
-                {:else}
-                  노드를 트리거하면 결과가 여기에 표시됩니다.
-                {/if}
-              </div>
+              {@render nodeConfig(selectedNode)}
             </div>
 
           <!-- 로그 탭 -->
@@ -803,3 +687,136 @@
     </button>
   </div>
 </div>
+
+<!-- 노드 설정 폼·조작·트리거 — tool 노드 상세와 airflow 그룹 헤더 패널이 공유 -->
+{#snippet nodeConfig(node: ToolNode)}
+  {@const toolEntry = getToolEntry(node.tool)}
+  <!-- 설정 폼 -->
+  <div class="border-t border-border pt-3 space-y-2">
+    <div class="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">설정</div>
+    {#if toolEntry && toolEntry.configFields && toolEntry.configFields.length > 0}
+      {#each toolEntry.configFields as field}
+        {@const applyMode = field.applyMode ?? 'readonly'}
+        {@const isDisabled = applyMode === 'readonly'}
+        <div class="config-field {field.group ? `group-${field.group}` : ''} space-y-0.5">
+          <div class="flex items-center gap-1.5">
+            <label class="block text-[11px] text-muted-foreground">{field.label}</label>
+            {#if applyMode === 'runtime'}
+              <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[10px] font-bold rounded-xs bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700">🟢 실시간적용</span>
+            {:else if applyMode === 'restart'}
+              <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[10px] font-bold rounded-xs bg-yellow-100 text-yellow-700 border border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700">🟡 재기동필요</span>
+            {:else if applyMode === 'code'}
+              <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[10px] font-bold rounded-xs bg-blue-100 text-blue-700 border border-blue-300 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700">🔵 코드수정</span>
+            {:else}
+              <span class="inline-flex items-center gap-0.5 px-1 py-0 text-[10px] font-bold rounded-xs bg-surface-muted text-muted-foreground border border-border">🔒 읽기전용</span>
+            {/if}
+          </div>
+          {#if field.type === 'text'}
+            <input type="text" bind:value={localConfig[field.key] as string} placeholder={field.placeholder ?? ''}
+              disabled={isDisabled}
+              class="w-full bg-surface-muted border border-border rounded-xs px-2 py-1 text-[11px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary disabled:opacity-50 disabled:cursor-not-allowed" />
+          {:else if field.type === 'number'}
+            <input type="number" bind:value={localConfig[field.key] as number}
+              disabled={isDisabled}
+              class="w-full bg-surface-muted border border-border rounded-xs px-2 py-1 text-[11px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary disabled:opacity-50 disabled:cursor-not-allowed" />
+          {:else if field.type === 'select'}
+            <select bind:value={localConfig[field.key] as string}
+              disabled={isDisabled}
+              class="w-full bg-surface-muted border border-border rounded-xs px-2 py-1 text-[11px] font-mono text-foreground focus:outline focus:outline-1 focus:outline-primary disabled:opacity-50 disabled:cursor-not-allowed">
+              {#each field.options ?? [] as opt}
+                <option value={opt}>{opt}</option>
+              {/each}
+            </select>
+          {:else if field.type === 'boolean'}
+            <div class="flex items-center gap-1.5">
+              <input type="checkbox" bind:checked={localConfig[field.key] as boolean}
+                disabled={isDisabled}
+                class="accent-primary disabled:opacity-50 disabled:cursor-not-allowed" />
+              <span class="text-[11px] text-muted-foreground">{field.label}</span>
+            </div>
+          {/if}
+          {#if applyMode === 'restart'}
+            <p class="text-[10px] text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-xs px-1.5 py-0.5 leading-relaxed dark:text-yellow-300 dark:bg-yellow-900/30 dark:border-yellow-800">재기동 후 적용</p>
+          {:else if applyMode === 'code'}
+            <p class="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded-xs px-1.5 py-0.5 leading-relaxed dark:text-blue-300 dark:bg-blue-900/30 dark:border-blue-800">DAG 코드 수정 필요</p>
+          {/if}
+        </div>
+      {/each}
+    {:else}
+      <div class="text-[11px] text-muted-foreground italic">설정 없음</div>
+    {/if}
+  </div>
+
+  <!-- 조작 영역 -->
+  <div class="border-t border-border pt-3 space-y-2">
+    {#if (toolEntry?.configFields ?? []).filter(f => (f.applyMode ?? 'readonly') === 'runtime').length > 0}
+      <button
+        type="button"
+        onclick={handleApplyConfig}
+        class="w-full px-3 py-1.5 border border-primary text-primary text-[10px] font-bold uppercase tracking-tight
+               hover:bg-primary/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+      >
+        적용
+      </button>
+      {#if configSaved}
+        <div class="text-[10px] text-status-success">설정이 저장되었습니다.</div>
+      {/if}
+      {#if configError}
+        <div class="bg-status-failed/10 border border-status-failed/30 text-status-failed p-2 rounded-xs text-[10px] break-all">{configError}</div>
+      {/if}
+    {/if}
+    {#if node.config?.dagId}
+      <div class="text-[10px] text-muted-foreground">
+        DAG: <span class="font-bold text-foreground">{node.config.dagId}</span>
+      </div>
+      {#if currentAdapter}
+        <button
+          type="button"
+          onclick={handleTrigger}
+          class="w-full px-3 py-1.5 bg-foreground text-background text-[10px] font-bold uppercase tracking-tight
+                 hover:bg-foreground/90 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+        >
+          트리거
+        </button>
+      {/if}
+      {#if triggeredRunId}
+        <div class="bg-surface-muted p-2 rounded-xs text-[10px] break-all">
+          <span class="text-muted-foreground">dag_run_id</span>
+          <span class="ml-1 font-bold text-foreground">{triggeredRunId}</span>
+        </div>
+      {/if}
+      {#if triggerError}
+        <div class="bg-status-failed/10 border border-status-failed/30 text-status-failed p-2 rounded-xs text-[10px] break-all">
+          {triggerError}
+        </div>
+      {/if}
+    {:else}
+      <div class="inline-flex items-center gap-1.5 px-2 py-1 bg-surface-muted border border-border rounded-xs text-[10px] text-muted-foreground">
+        <span class="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 inline-block"></span>
+        상태 조회 전용 · 실동작은 F2/F3/F7
+      </div>
+    {/if}
+    <!-- 외부 UI 딥링크 버튼 (dagId 유무 무관 — NiFi 등도 노출) -->
+    {#each getExternalLinks(node) as link}
+      <a
+        href={link.href}
+        target="_blank"
+        rel="noopener"
+        data-testid="external-ui-link"
+        class="flex items-center justify-center w-full px-3 py-1.5 border border-border text-[10px] font-bold uppercase tracking-tight
+               text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-colors"
+      >
+        {link.label}
+      </a>
+    {/each}
+  </div>
+
+  <!-- 트리거 결과 -->
+  <div class="mt-auto border-t border-border pt-3 text-[10px] text-muted-foreground leading-relaxed">
+    {#if triggeredRunId}
+      run: {triggeredRunId}
+    {:else}
+      노드를 트리거하면 결과가 여기에 표시됩니다.
+    {/if}
+  </div>
+{/snippet}

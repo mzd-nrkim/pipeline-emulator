@@ -48,9 +48,15 @@
     }
   }
 
-  // topology 교체 시 모든 그룹을 접힘 상태로 리셋
+  // topology prop 참조가 실제로 바뀔 때만 그룹을 접힘 상태로 리셋
+  let lastTopology: CanvasTopology | undefined = undefined;
   $effect(() => {
-    const ids = allGroupIds; // topology 의존성 트래킹
+    const topo = topology;            // 유일한 추적 의존성
+    if (topo === lastTopology) return;
+    lastTopology = topo;
+    const ids = topo
+      ? topo.nodes.filter((n: any) => topo.nodes.some((c: any) => c.parentId === n.id)).map((n: any) => n.id)
+      : [];
     collapsedGroups = new Set(ids);
   });
 
@@ -111,7 +117,7 @@
       <Background variant={BackgroundVariant.Dots} gap={16} size={1} bgColor="var(--surface-muted)" patternColor="var(--border)" />
       <Controls />
       {#if view === 'data' && allGroupIds.length > 0}
-        <Panel position="top-right">
+        <Panel position="top-left">
           <button
             onclick={toggleAllGroups}
             data-testid="toggle-all-groups"
@@ -129,6 +135,12 @@
   :global(.svelte-flow__edge-path) {
     stroke: var(--muted-foreground);
     stroke-width: 1.5;
+  }
+  /* 그룹 노드(airflow extended)의 SvelteFlow 기본 검은 실선 테두리 제거 —
+     테두리는 AirflowGroupNode의 파란 점선만 남긴다 */
+  :global(.svelte-flow__node-group) {
+    border: none;
+    background: transparent;
   }
   /* 엣지 조건(condition) 라벨 pill 배지 — 토큰·형상은 app.css 전역 스타일로 위임 */
   :global(.svelte-flow__controls) {
