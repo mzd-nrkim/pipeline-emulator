@@ -12,7 +12,7 @@
     triggerNode: (nodeId: string, conf: Record<string, unknown>) => Promise<{ dag_run_id: string }>;
   };
 
-  let { topology, adapter = undefined, stages = [] as Stage[], liveStageCounts = undefined as Record<string, number> | undefined, ontrigger = undefined, view = 'data' as 'data' | 'infra', onnodeselect = undefined, hideOrphans = true }: {
+  let { topology, adapter = undefined, stages = [] as Stage[], liveStageCounts = undefined as Record<string, number> | undefined, ontrigger = undefined, view = 'data' as 'data' | 'infra', onnodeselect = undefined, hideOrphans = true, onGroupSelect = undefined }: {
     topology: CanvasTopology;
     adapter?: Adapter;
     stages?: Stage[];
@@ -21,19 +21,43 @@
     view?: 'data' | 'infra';
     onnodeselect?: (node: ToolNode | null) => void;
     hideOrphans?: boolean;
+    onGroupSelect?: (groupId: string) => void;
   } = $props();
 
   let nodes = $state.raw<FlowNode[]>([]);
   let edges = $state.raw<FlowEdge[]>([]);
 
+  let collapsedGroups = $state(new Set<string>());
+
+  function toggleCollapse(groupId: string) {
+    const next = new Set(collapsedGroups);
+    if (next.has(groupId)) {
+      next.delete(groupId);
+    } else {
+      next.add(groupId);
+    }
+    collapsedGroups = next;
+  }
+
   $effect(() => {
-    const result = buildNodesAndEdges(topology, view, hideOrphans);
-    nodes = liveStageCounts
-      ? result.nodes.map(n => ({
+    const result = buildNodesAndEdges(topology, view, hideOrphans, collapsedGroups);
+    const mappedNodes = result.nodes.map(n => {
+      if (n.type === 'group') {
+        return {
           ...n,
-          data: { ...n.data, liveCount: liveStageCounts?.[n.id] ?? 0 }
-        }))
-      : result.nodes;
+          data: {
+            ...n.data,
+            onTitleClick: () => onGroupSelect?.(n.id),
+            onToggleCollapse: () => toggleCollapse(n.id),
+            ...(liveStageCounts ? { liveCount: liveStageCounts[n.id] ?? 0 } : {}),
+          },
+        };
+      }
+      return liveStageCounts
+        ? { ...n, data: { ...n.data, liveCount: liveStageCounts[n.id] ?? 0 } }
+        : n;
+    });
+    nodes = mappedNodes;
     edges = result.edges;
   });
 </script>
