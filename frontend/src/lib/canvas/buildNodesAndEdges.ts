@@ -218,7 +218,12 @@ export function buildNodesAndEdges(
   const groupNodes: FlowNode[] = [];
   if (view === 'data') {
     // 노드들의 distinct parentId를 수집해 각 그룹 노드 생성 (하드코딩 제거)
-    const groupParentIds = [...new Set(nodes.filter(n => n.parentId).map(n => n.parentId!))];
+    // collapsed 그룹은 자식이 visibleNodes에서 제거됐으므로 topo.nodes에서도 수집
+    const visibleGroupIds = new Set(nodes.filter(n => n.parentId).map(n => n.parentId!));
+    for (const gId of collapsedGroups) {
+      if (topo.nodes.some(n => (n as any).parentId === gId)) visibleGroupIds.add(gId);
+    }
+    const groupParentIds = [...visibleGroupIds];
     const groupMeta: Record<string, { label: string; toolId: string; displayName: string; vendor: string; icon: string; accent: string; role: string }> = {
       'node-airflow-group': {
         label: 'Airflow (CeleryExecutor)',
@@ -237,53 +242,62 @@ export function buildNodesAndEdges(
     const PAD_BOTTOM = 100;
     const NODE_HEIGHT = 100;
     for (const groupId of groupParentIds) {
+      const isCollapsed = collapsedGroups.has(groupId);
       const childNodes = nodes.filter(n => n.parentId === groupId);
+      // collapsed 그룹은 자식이 visibleNodes에서 제거됐으므로 topo.nodes에서 실제 자식 수 산출
+      const actualChildCount = isCollapsed
+        ? topo.nodes.filter(n => (n as any).parentId === groupId).length
+        : childNodes.length;
+
+      if (actualChildCount === 0) continue;
+
+      let absMinX = 0;
+      let absMinY = 0;
+
       if (childNodes.length > 0) {
         // A-2: A-1 전에 원래 절대 좌표(위상정렬 결과)에서 그룹 박스 절대 position 캡처
-        const origXs = childNodes.map(n => n.position.x);
-        const origYs = childNodes.map(n => n.position.y);
-        const absMinX = Math.min(...origXs);
-        const absMinY = Math.min(...origYs);
+        absMinX = Math.min(...childNodes.map(n => n.position.x));
+        absMinY = Math.min(...childNodes.map(n => n.position.y));
 
-        // A-1: 원래 절대 x 기준 오름차순 정렬 (DAG 깊이 = 위상정렬 결과)
-        const sortedChildren = [...childNodes].sort((a, b) => a.position.x - b.position.x);
-        sortedChildren.forEach((child, idx) => {
-          child.position = { x: PAD_X + idx * COL_GAP, y: PAD_TOP };
-        });
-
-        // A-2: 그룹 박스 크기 = 자식 수 기준 (0-origin 상대좌표)
-        const childCount = childNodes.length;
-        const groupWidth = (childCount - 1) * COL_GAP + NODE_WIDTH + PAD_X * 2;
-        const groupHeight = NODE_HEIGHT + PAD_TOP + PAD_BOTTOM;
-
-        const meta = groupMeta[groupId] ?? {
-          label: groupId,
-          toolId: 'unknown',
-          displayName: groupId,
-          vendor: 'Unknown',
-          icon: '📦',
-          accent: '#888888',
-          role: 'group',
-        };
-        const isCollapsed = collapsedGroups.has(groupId);
-        const finalWidth = isCollapsed ? 200 : groupWidth;
-        const finalHeight = isCollapsed ? 100 : groupHeight;
-        groupNodes.push({
-          id: groupId,
-          type: 'group',
-          // A-2: 그룹 박스 절대 position = 원래 자식 절대 minX/minY - 패딩
-          position: { x: absMinX - PAD_X, y: absMinY - PAD_TOP },
-          data: {
-            ...meta,
-            // A-3: 그룹 노드에 trigger:true 부여
-            trigger: true,
-            deployStatus: 'active',
-            collapsed: isCollapsed,
-            childCount: childCount,
-          },
-          ...(({ width: finalWidth, height: finalHeight } as any)),
-        });
+        if (!isCollapsed) {
+          // A-1: 원래 절대 x 기준 오름차순 정렬 (DAG 깊이 = 위상정렬 결과)
+          const sortedChildren = [...childNodes].sort((a, b) => a.position.x - b.position.x);
+          sortedChildren.forEach((child, idx) => {
+            child.position = { x: PAD_X + idx * COL_GAP, y: PAD_TOP };
+          });
+        }
       }
+
+      // A-2: 그룹 박스 크기 = 자식 수 기준 (0-origin 상대좌표)
+      const groupWidth = (actualChildCount - 1) * COL_GAP + NODE_WIDTH + PAD_X * 2;
+      const groupHeight = NODE_HEIGHT + PAD_TOP + PAD_BOTTOM;
+
+      const meta = groupMeta[groupId] ?? {
+        label: groupId,
+        toolId: 'unknown',
+        displayName: groupId,
+        vendor: 'Unknown',
+        icon: '📦',
+        accent: '#888888',
+        role: 'group',
+      };
+      const finalWidth = isCollapsed ? 200 : groupWidth;
+      const finalHeight = isCollapsed ? 100 : groupHeight;
+      groupNodes.push({
+        id: groupId,
+        type: 'group',
+        // A-2: 그룹 박스 절대 position = 원래 자식 절대 minX/minY - 패딩
+        position: { x: absMinX - PAD_X, y: absMinY - PAD_TOP },
+        data: {
+          ...meta,
+          // A-3: 그룹 노드에 trigger:true 부여
+          trigger: true,
+          deployStatus: 'active',
+          collapsed: isCollapsed,
+          childCount: actualChildCount,
+        },
+        ...(({ width: finalWidth, height: finalHeight } as any)),
+      });
     }
   }
 
