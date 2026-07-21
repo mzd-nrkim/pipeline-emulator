@@ -29,6 +29,21 @@
 
   let collapsedGroups = $state(new Set<string>());
 
+  // topology에서 그룹 ID(자식을 가진 노드) 추출
+  let allGroupIds = $derived(
+    topology
+      ? topology.nodes
+          .filter((n: any) => topology.nodes.some((c: any) => c.parentId === n.id))
+          .map((n: any) => n.id)
+      : []
+  );
+
+  // topology 교체 시 모든 그룹을 접힘 상태로 리셋
+  $effect(() => {
+    const ids = allGroupIds; // topology 의존성 트래킹
+    collapsedGroups = new Set(ids);
+  });
+
   function toggleCollapse(groupId: string) {
     const next = new Set(collapsedGroups);
     if (next.has(groupId)) {
