@@ -53,6 +53,17 @@
           },
         };
       }
+      // collapsed 그룹은 type:'tool'로 렌더되므로 onToggleCollapse 배선
+      if ((n.data as any).collapsed === true) {
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            onToggleCollapse: () => toggleCollapse(n.id),
+            ...(liveStageCounts ? { liveCount: liveStageCounts[n.id] ?? 0 } : {}),
+          },
+        };
+      }
       return liveStageCounts
         ? { ...n, data: { ...n.data, liveCount: liveStageCounts[n.id] ?? 0 } }
         : n;
@@ -71,7 +82,7 @@
         인프라 연결 뷰
       </div>
     {/if}
-    <SvelteFlow bind:nodes bind:edges nodeTypes={{ tool: ToolFlowNode as any, group: AirflowGroupNode as any }} edgeTypes={{ 'infra-step': InfraStepEdge as any }} fitView fitViewOptions={{ minZoom: 0.6, maxZoom: 1.2 }} defaultEdgeOptions={defaultEdgeMarkerOptions} onnodeclick={({ node }) => { if (node.type === 'group') return; const clicked = topology.nodes.find(n => n.id === node.id) ?? null; onnodeselect?.(clicked); }}>
+    <SvelteFlow bind:nodes bind:edges nodeTypes={{ tool: ToolFlowNode as any, group: AirflowGroupNode as any }} edgeTypes={{ 'infra-step': InfraStepEdge as any }} fitView fitViewOptions={{ minZoom: 0.6, maxZoom: 1.2 }} defaultEdgeOptions={defaultEdgeMarkerOptions} onnodeclick={({ node }) => { if (node.type === 'group') return; if ((node.data as any).collapsed === true) { (node.data as any).onToggleCollapse?.(); return; } const clicked = topology.nodes.find(n => n.id === node.id) ?? null; onnodeselect?.(clicked); }}>
       <Background variant={BackgroundVariant.Dots} gap={16} size={1} bgColor="var(--surface-muted)" patternColor="var(--border)" />
       <Controls />
     </SvelteFlow>

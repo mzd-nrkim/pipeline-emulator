@@ -83,11 +83,11 @@ test.describe('Airflow 그룹 경계 렌더 (sample 모드)', () => {
     // 자식 노드 미부착 확인
     await expect(page.locator('[data-id="node-docling"]')).not.toBeAttached({ timeout: 3000 });
 
-    // collapsed 카드 → evaluate 클릭으로 expand
-    await expect(page.locator('.airflow-group-collapsed').first()).toBeAttached({ timeout: 3000 });
+    // 접힌 노드(type:tool로 렌더) 클릭 → expand (onnodeclick이 collapsed=true 감지해 toggleCollapse 호출)
+    await expect(page.locator('.svelte-flow__node[data-id="node-airflow"]').first()).toBeAttached({ timeout: 3000 });
     await page.evaluate(() => {
-      const card = document.querySelector('.airflow-group-collapsed');
-      if (card) card.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
+      const node = document.querySelector('.svelte-flow__node[data-id="node-airflow"]');
+      if (node) node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
     });
     await page.waitForTimeout(800);
 

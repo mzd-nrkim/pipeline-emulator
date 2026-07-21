@@ -51,6 +51,8 @@
   const outputs = $derived(d.outputs as string[] | undefined);
 
   const liveCount = $derived(d.liveCount as number | undefined);
+  const collapsed = $derived(d.collapsed as boolean | undefined);
+  const childCount = $derived(d.childCount as number | undefined);
   const outOfTeamScope = $derived(d.outOfTeamScope as boolean | undefined);
   const deployStatus = $derived((d.deployStatus as string | undefined) ?? 'active');
   const category = $derived(d.category as string ?? 'task');
@@ -152,6 +154,9 @@
     {/if}
     {#if liveCount && liveCount > 0}
       <span class="text-[9px] font-mono text-muted-foreground">{liveCount}건</span>
+    {/if}
+    {#if collapsed && childCount}
+      <span class="collapsed-group-badge">▸ {childCount}개</span>
     {/if}
   </div>
 
@@ -274,6 +279,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: var(--node-card-size);
+  }
+
+  .collapsed-group-badge {
+    font-size: 10px;
+    color: oklch(0.45 0.12 230);
+    font-weight: 700;
+    margin-top: 1px;
   }
 
   /* 런타임 헬스 신호등 dot — 좌상단 절대 위치 */
