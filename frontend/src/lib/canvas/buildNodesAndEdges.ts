@@ -28,6 +28,10 @@ export interface FlowNode {
     runtimeHealth: 'up' | 'down' | 'degraded' | 'unknown';
     parentId?: string;
     groupId?: string;
+    collapsed?: boolean;
+    childCount?: number;
+    onTitleClick?: () => void;
+    onToggleCollapse?: () => void;
   };
   parentId?: string;
   extent?: 'parent';
@@ -51,12 +55,13 @@ export interface FlowEdge {
 export function buildNodesAndEdges(
   topo: CanvasTopology,
   view: 'data' | 'infra' = 'data',
-  hideOrphans: boolean = true
+  hideOrphans: boolean = true,
+  collapsedGroups: Set<string> = new Set()
 ): { nodes: FlowNode[]; edges: FlowEdge[] } {
 
   // 1. 채널 필터: 현재 view에 해당하는 채널을 가진 엣지만 포함
   const nodeIdSet = new Set(topo.nodes.map(n => n.id));
-  const visibleEdges = topo.edges.filter(e =>
+  let visibleEdges = topo.edges.filter(e =>
     nodeIdSet.has(e.from) &&
     nodeIdSet.has(e.to) &&
     e.channels.includes(view === 'data' ? 'data' : 'dependency')
@@ -68,9 +73,26 @@ export function buildNodesAndEdges(
     connectedIds.add(e.from);
     connectedIds.add(e.to);
   }
-  const visibleNodes = hideOrphans
+  let visibleNodes = hideOrphans
     ? topo.nodes.filter(n => connectedIds.has(n.id))
     : topo.nodes;
+
+  // collapsed 그룹 처리: collapsedGroups에 속한 그룹의 자식 노드 ID set 수집
+  const collapsedChildIds = new Set<string>();
+  if (collapsedGroups.size > 0) {
+    for (const node of topo.nodes) {
+      const nodeParentId = (node as any).parentId as string | undefined;
+      if (nodeParentId && collapsedGroups.has(nodeParentId)) {
+        collapsedChildIds.add(node.id);
+      }
+    }
+    // visibleNodes에서 collapsed 그룹 자식 제외
+    visibleNodes = visibleNodes.filter(n => !collapsedChildIds.has(n.id));
+    // visibleEdges에서 collapsed 그룹 내부 엣지(양 끝이 모두 collapsed 그룹 자식인 엣지) 제외
+    visibleEdges = visibleEdges.filter(e =>
+      !(collapsedChildIds.has(e.from) && collapsedChildIds.has(e.to))
+    );
+  }
 
   // 3. 배치 계산: data·infra 공통 위상정렬 depth 계층 배치 (LR 방향)
   //    depth = X축(좌→우 의존 방향), 같은 depth = Y축 분산. 결정적·비겹침.
@@ -243,6 +265,9 @@ export function buildNodesAndEdges(
           accent: '#888888',
           role: 'group',
         };
+        const isCollapsed = collapsedGroups.has(groupId);
+        const finalWidth = isCollapsed ? 200 : groupWidth;
+        const finalHeight = isCollapsed ? 100 : groupHeight;
         groupNodes.push({
           id: groupId,
           type: 'group',
@@ -253,8 +278,10 @@ export function buildNodesAndEdges(
             // A-3: 그룹 노드에 trigger:true 부여
             trigger: true,
             deployStatus: 'active',
+            collapsed: isCollapsed,
+            childCount: childCount,
           },
-          ...(({ width: groupWidth, height: groupHeight } as any)),
+          ...(({ width: finalWidth, height: finalHeight } as any)),
         });
       }
     }
