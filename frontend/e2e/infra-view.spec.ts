@@ -35,12 +35,12 @@ test.describe('Infra View — 인프라 연결 뷰', () => {
   test('infra-step 엣지: depth gap > 1 우회 경로 검증 (routeY < 0)', async ({ page }) => {
     await page.getByRole('button', { name: '인프라', exact: true }).click();
     await page.waitForTimeout(500);
-    const infraStepEdges = page.locator('.svelte-flow__edge[data-type="infra-step"]');
+    const infraStepEdges = page.locator('.svelte-flow__edge.infra-step');
     await expect(infraStepEdges.first()).toBeAttached({ timeout: 5000 });
     const count = await infraStepEdges.count();
     expect(count).toBeGreaterThan(0);
     const hasNegativeY = await page.evaluate(() => {
-      const paths = [...document.querySelectorAll('.svelte-flow__edge[data-type="infra-step"] .svelte-flow__edge-path')];
+      const paths = [...document.querySelectorAll('.svelte-flow__edge.infra-step .svelte-flow__edge-path')];
       return paths.some(p => {
         const d = p.getAttribute('d') ?? '';
         const yCoords = [...d.matchAll(/[A-Z][^A-Z]*/g)]

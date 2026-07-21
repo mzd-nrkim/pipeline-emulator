@@ -185,7 +185,7 @@ export function buildNodesAndEdges(
       ...(condition ? { sourceHandle: `source-${condition}` } : {}),
       ...(view === 'infra'
         ? depthGap > 1
-          ? { type: 'infra-step', data: { routeY: ROUTE_Y } }
+          ? { type: 'infra-step', class: 'infra-step', data: { routeY: ROUTE_Y } }
           : { type: 'smoothstep' }
         : {}),
     };
