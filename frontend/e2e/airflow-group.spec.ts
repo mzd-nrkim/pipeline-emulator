@@ -70,6 +70,46 @@ test.describe('Airflow 그룹 경계 렌더 (sample 모드)', () => {
     await expect(page.locator('text=노드 상세')).toBeVisible({ timeout: 4000 });
   });
 
+  test('[sample] 그룹 collapse 버튼 클릭 → 자식 노드 DOM 미부착 + 재클릭 → 복원', async ({ page }) => {
+    // collapse 버튼 클릭 (expanded 뷰의 ▾ 버튼)
+    // evaluate + dispatchEvent 사용: SvelteFlow가 pointermove를 드래그로 해석하는 문제 우회
+    await expect(page.locator('.airflow-collapse-btn').first()).toBeAttached({ timeout: 5000 });
+    await page.evaluate(() => {
+      const btn = document.querySelector('.airflow-collapse-btn');
+      if (btn) btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
+    });
+    await page.waitForTimeout(500);
+
+    // 자식 노드 미부착 확인
+    await expect(page.locator('[data-id="node-docling"]')).not.toBeAttached({ timeout: 3000 });
+
+    // collapsed 카드 → evaluate 클릭으로 expand
+    await expect(page.locator('.airflow-group-collapsed').first()).toBeAttached({ timeout: 3000 });
+    await page.evaluate(() => {
+      const card = document.querySelector('.airflow-group-collapsed');
+      if (card) card.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
+    });
+    await page.waitForTimeout(800);
+
+    // 자식 노드 DOM 부착 복원 확인
+    await expect(page.locator('[data-id="node-docling"]')).toBeAttached({ timeout: 5000 });
+  });
+
+  test('[sample] 그룹 헤더 제목 클릭 → 그룹 config 모달 열림', async ({ page }) => {
+    // 그룹 노드의 제목 영역 클릭
+    const groupTitle = page.locator('.airflow-group-title').first();
+    await expect(groupTitle).toBeAttached({ timeout: 5000 });
+    await groupTitle.click({ force: true });
+    await page.waitForTimeout(300);
+
+    // [role=dialog] visible + 그룹 ID 텍스트 포함 확인
+    await expect(page.locator('[role=dialog]')).toBeVisible({ timeout: 4000 });
+    await expect(page.locator('[role=dialog]')).toContainText('node-airflow-group');
+
+    // teardown
+    await page.keyboard.press('Escape');
+  });
+
   test('[real] /real/pipeline은 백엔드 연결 대기 스텁을 표시한다', async ({ page }) => {
     await page.goto('/real/pipeline');
     await expect(page.getByText('백엔드 연결 대기')).toBeVisible({ timeout: 5000 });

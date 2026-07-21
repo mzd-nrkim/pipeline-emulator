@@ -59,15 +59,14 @@
   }
 
   function handleGroupSelect(groupId: string) {
-    const groupNode = data.topology.nodes.find(n => n.id === groupId);
-    if (!groupNode) return;
     const childIds = data.topology.nodes
       .filter(n => (n as any).parentId === groupId)
       .map(n => n.id);
+    if (childIds.length === 0) return;
     selectedGroup = {
       id: groupId,
-      displayName: (groupNode as any).displayName ?? groupId,
-      role: groupNode.role,
+      displayName: groupId,
+      role: 'orchestrator',
       icon: '🌊',
       accent: '#017CEE',
       childCount: childIds.length,
