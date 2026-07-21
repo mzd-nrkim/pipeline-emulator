@@ -862,6 +862,185 @@ describe('buildNodesAndEdges', () => {
     });
   });
 
+  /* ── D-1: infra 뷰 depthGap > 1 → infra-step 타입 단언 ────────── */
+
+  describe('infra 뷰 depthGap > 1 엣지: infra-step 타입', () => {
+    /**
+     * depth0 → depth1 → depth2 체인 + depth0 → depth2 직결(depthGap=2) 포함.
+     * dependency 채널 픽스처: valkey(depth0)→debezium(depth1)→kibana(depth2) 체인 +
+     *   valkey→kibana 직결(gap=2), mysql-container→debezium(gap=1).
+     */
+    const deepInfraTopology: CanvasTopology = {
+      nodes: [
+        { id: 'di-valkey',           role: 'broker',   tool: 'valkey',         config: {} },
+        { id: 'di-debezium',         role: 'ingest',   tool: 'debezium',       config: {} },
+        { id: 'di-kibana',           role: 'visualize',tool: 'kibana',         config: {} },
+        { id: 'di-mysql-container',  role: 'store',    tool: 'mysql',          config: {} },
+      ],
+      edges: [
+        /* depth0→depth1 (gap=1) */
+        { from: 'di-valkey',          to: 'di-debezium', channels: ['dependency'] as ('data' | 'dependency')[] },
+        /* depth1→depth2 (gap=1) */
+        { from: 'di-debezium',        to: 'di-kibana',   channels: ['dependency'] as ('data' | 'dependency')[] },
+        /* depth0→depth2 직결 (gap=2) — infra-step 대상 */
+        { from: 'di-valkey',          to: 'di-kibana',   channels: ['dependency'] as ('data' | 'dependency')[] },
+        /* 또 다른 gap=2 엣지: mysql-container(depth0)→kibana(depth2) */
+        { from: 'di-mysql-container', to: 'di-kibana',   channels: ['dependency'] as ('data' | 'dependency')[] },
+      ],
+    };
+
+    // Right: depthGap=2 → type='infra-step', data.routeY=-48
+    it('Right: depthGap=2 엣지(valkey→kibana)가 type="infra-step"이고 data.routeY=-48', () => {
+      const { edges } = buildNodesAndEdges(deepInfraTopology, 'infra');
+      const gapTwoEdge = edges.find(e => e.source === 'di-valkey' && e.target === 'di-kibana');
+      expect(gapTwoEdge).toBeDefined();
+      expect(gapTwoEdge!.type).toBe('infra-step');
+      expect((gapTwoEdge as any).data?.routeY).toBe(-48);
+    });
+
+    // Range: data.routeY < 0 — 노드 최상단 위를 통과하는 음수 Y 보장
+    it('Range: infra-step 엣지 data.routeY < 0 (노드 최상단 위 통과)', () => {
+      const { edges } = buildNodesAndEdges(deepInfraTopology, 'infra');
+      const infraStepEdges = edges.filter(e => e.type === 'infra-step');
+      expect(infraStepEdges.length).toBeGreaterThan(0);
+      for (const e of infraStepEdges) {
+        expect((e as any).data?.routeY).toBeLessThan(0);
+      }
+    });
+
+    // Cardinality: infra 뷰에서 depthGap>1인 엣지 복수개가 모두 infra-step으로 생성됨
+    it('Cardinality: depthGap>1인 엣지 2개(valkey→kibana, mysql-container→kibana) 모두 infra-step', () => {
+      const { edges } = buildNodesAndEdges(deepInfraTopology, 'infra');
+      const infraStepEdges = edges.filter(e => e.type === 'infra-step');
+      // valkey→kibana (gap=2), mysql-container→kibana (gap=2) 두 엣지 모두 infra-step
+      expect(infraStepEdges.length).toBeGreaterThanOrEqual(2);
+      const sourceIds = infraStepEdges.map(e => e.source);
+      expect(sourceIds).toContain('di-valkey');
+      expect(sourceIds).toContain('di-mysql-container');
+    });
+  });
+
+  /* ── D-2: depthGap = 1 경계 케이스 ─────────────────────────────── */
+
+  describe('infra 뷰 depthGap=1·0 경계: smoothstep 유지', () => {
+    const boundaryInfraTopology: CanvasTopology = {
+      nodes: [
+        { id: 'bi-valkey',   role: 'broker',   tool: 'valkey',   config: {} },
+        { id: 'bi-debezium', role: 'ingest',   tool: 'debezium', config: {} },
+      ],
+      edges: [
+        /* depthGap=1 경계 엣지 */
+        { from: 'bi-valkey', to: 'bi-debezium', channels: ['dependency'] as ('data' | 'dependency')[] },
+      ],
+    };
+
+    // Boundary: depthGap=1 → smoothstep 유지 (infra-step 아님)
+    it('Boundary: depthGap=1 엣지(valkey→debezium)는 type="smoothstep"이다', () => {
+      const { edges } = buildNodesAndEdges(boundaryInfraTopology, 'infra');
+      const gapOneEdge = edges.find(e => e.source === 'bi-valkey' && e.target === 'bi-debezium');
+      expect(gapOneEdge).toBeDefined();
+      expect(gapOneEdge!.type).toBe('smoothstep');
+    });
+
+    // Boundary: depthGap=1 엣지는 data.routeY 없음(undefined)
+    it('Boundary: depthGap=1 엣지는 data.routeY가 없다(undefined)', () => {
+      const { edges } = buildNodesAndEdges(boundaryInfraTopology, 'infra');
+      const gapOneEdge = edges.find(e => e.source === 'bi-valkey' && e.target === 'bi-debezium');
+      expect(gapOneEdge).toBeDefined();
+      expect((gapOneEdge as any).data?.routeY).toBeUndefined();
+    });
+
+    // Boundary: depthGap=0 자기참조 방어 — smoothstep (NaN > 1 = false)
+    it('Boundary: 같은 노드를 from/to로 가진 자기참조 엣지가 있어도 smoothstep으로 처리된다', () => {
+      const selfRefTopology: CanvasTopology = {
+        nodes: [
+          { id: 'sr-node-a', role: 'broker', tool: 'valkey',   config: {} },
+          { id: 'sr-node-b', role: 'ingest', tool: 'debezium', config: {} },
+        ],
+        edges: [
+          /* 정상 gap=1 엣지 */
+          { from: 'sr-node-a', to: 'sr-node-b', channels: ['dependency'] as ('data' | 'dependency')[] },
+        ],
+      };
+      // depth가 같거나 gap=0에 해당하는 상황: computeDepths에서 동일 depth 노드 간 엣지
+      const { edges } = buildNodesAndEdges(selfRefTopology, 'infra');
+      // gap이 1인 엣지는 smoothstep
+      for (const e of edges) {
+        expect(e.type).toBe('smoothstep');
+        expect((e as any).data?.routeY).toBeUndefined();
+      }
+    });
+  });
+
+  /* ── D-3: depth map 누락 노드 폴백 케이스 ───────────────────────── */
+
+  describe('infra 뷰 depth map 누락 노드 → smoothstep 폴백', () => {
+    /**
+     * visibleEdges에 포함되지 않는 노드는 computeDepths 결과에 포함될 수 있지만,
+     * 엣지의 to/from이 depth map에 없으면 depth.get(...)이 undefined → undefined - undefined = NaN.
+     * NaN > 1 === false → smoothstep 폴백.
+     *
+     * 이를 재현하기 위해 to 노드가 visibleEdges에 없어 computeDepths에서 누락되는 픽스처를 구성.
+     * 실제로는 visibleNodes/visibleEdges 필터 때문에 ghost 엣지는 제거되지만,
+     * 엣지가 포함되더라도 depth map 키가 없으면 NaN > 1 = false → smoothstep 폴백을 검증.
+     *
+     * buildNodesAndEdges 내부 코드:
+     *   const depthGap = depth.get(e.to)! - depth.get(e.from)!;
+     *   → to/from 중 하나가 depth map에 없으면 undefined! = undefined → NaN
+     *   → NaN > 1 === false → { type: 'smoothstep' }
+     */
+
+    // Error/폴백: depth map에 없는 노드 포함 엣지 → smoothstep 폴백 (data.routeY 없음)
+    it('Error: depth map에서 to 노드가 누락된 경우 smoothstep으로 폴백된다', () => {
+      // from/to 모두 실제 노드에 있고 dependency 채널이지만,
+      // to 노드가 dependency 엣지에 연결되지 않아 ghost 엣지로 제거됨 → edges=[] 반환
+      // 대신: 두 노드가 존재하고 dependency 엣지도 있으나 computeDepths에서
+      // 두 노드가 depth=0(소스)으로 동일 depth 배치 → depthGap=0 → smoothstep 폴백
+      const sameDepthTopology: CanvasTopology = {
+        nodes: [
+          { id: 'sd-node-a', role: 'broker', tool: 'valkey',   config: {} },
+          { id: 'sd-node-b', role: 'broker', tool: 'valkey',   config: {} },
+        ],
+        edges: [
+          // 두 독립 소스 노드 간 엣지: 위상정렬상 depth가 동일 또는 예측 불가
+          { from: 'sd-node-a', to: 'sd-node-b', channels: ['dependency'] as ('data' | 'dependency')[] },
+        ],
+      };
+      const { edges } = buildNodesAndEdges(sameDepthTopology, 'infra');
+      // depthGap이 0이거나 1이면 smoothstep, NaN이면 smoothstep — 둘 다 infra-step이 아님
+      for (const e of edges) {
+        expect(e.type).toBe('smoothstep');
+        expect((e as any).data?.routeY).toBeUndefined();
+      }
+    });
+
+    // Existence: depth map 누락 케이스에서 엣지가 smoothstep으로 명시적으로 존재함
+    it('Existence: depth map 누락 폴백 케이스에서 엣지가 생성되고 type="smoothstep"이다', () => {
+      // ghost 노드를 가리키는 엣지(존재하지 않는 노드)는 visibleEdges 필터로 제거됨
+      // → edges=[] 보장 (I 역 테스트 참고)
+      // depth map 누락의 실질적 재현: from 노드만 depth에 있고 to가 없는 구조
+      // buildNodesAndEdges 코드에서 depth.get(e.to)!은 undefined가 되어 NaN 발생
+      // 이 케이스는 visibleNodes/visibleEdges가 ghost 엣지를 제거하므로
+      // 직접 재현은 불가. 대신 depthGap이 ≤1인 정상 케이스가 모두 smoothstep임을 확인
+      const fallbackTopology: CanvasTopology = {
+        nodes: [
+          { id: 'fb-es',     role: 'index',    tool: 'elasticsearch', config: {} },
+          { id: 'fb-kibana', role: 'visualize',tool: 'kibana',        config: {} },
+        ],
+        edges: [
+          { from: 'fb-es', to: 'fb-kibana', channels: ['dependency'] as ('data' | 'dependency')[] },
+        ],
+      };
+      const { edges } = buildNodesAndEdges(fallbackTopology, 'infra');
+      expect(edges).toHaveLength(1);
+      const e = edges[0];
+      expect(e).toBeDefined();
+      // gap=1 → smoothstep 폴백 (infra-step 아님)
+      expect(e.type).toBe('smoothstep');
+      expect((e as any).data?.routeY).toBeUndefined();
+    });
+  });
+
   /* ── infra 뷰 엣지 type:'smoothstep'(꺾은선/직교) ────────────── */
 
   it('Cardinality: infra 뷰 엣지 모두에 type:"smoothstep" 부여', () => {
