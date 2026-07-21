@@ -51,7 +51,13 @@ flowchart TB
     AI["AI·RAG · #7"]:::part
 
     RES{{"🎯 리서치 제품<br/>레이크하우스"}}:::hubR
-    CORE["<b>제품 코어 · 에뮬레이터 없음</b><br/>Iceberg · Polaris · Trino<br/>거버넌스 · 웹 콘솔 · 품질"]:::core
+
+    C1["Iceberg<br/>테이블 포맷 #2"]:::core
+    C2["Polaris<br/>카탈로그 #4"]:::core
+    C3["Trino<br/>쿼리·federation #3"]:::core
+    C4["거버넌스<br/>인증·인가 #5"]:::core
+    C5["웹 콘솔<br/>SQL·탐색"]:::core
+    C6["데이터 품질 #6"]:::core
 
     EMU === ST
     EMU === ING
@@ -62,7 +68,13 @@ flowchart TB
     ING --- RES
     MON --- RES
     AI --- RES
-    RES === CORE
+
+    RES === C1
+    RES === C2
+    RES === C3
+    RES === C4
+    RES === C5
+    RES === C6
 
     classDef hubE fill:#1565c0,color:#fff,stroke:#0d47a1,stroke-width:2px
     classDef hubR fill:#2e7d32,color:#fff,stroke:#1b5e20,stroke-width:2px
@@ -71,7 +83,7 @@ flowchart TB
     classDef core fill:#ffcdd2,stroke:#c62828,color:#000
 ```
 
-> **읽는 법**: 위 파랑 허브(에뮬레이터)가 **굵은 선으로 잇는 초록 노드 = 실물로 덮는 조각**(스토리지·수집정제·모니터링). 노랑(AI·RAG)은 다음 계획. 이 조각들이 아래 초록 허브(리서치 제품)로 모이고, 리서치는 여기에 더해 **빨강 = 제품 코어(Iceberg·Polaris·Trino·거버넌스·콘솔)**를 갖는다 — 이 빨강은 **에뮬레이터에 없다**. 즉 에뮬레이터 ⊂ 리서치 제품이며, 겹치는 부분이 위쪽 슬라이스다.
+> **읽는 법**: 위 파랑 허브(에뮬레이터)가 **굵은 선으로 잇는 초록 노드 = 실물로 덮는 조각**(스토리지·수집정제·모니터링). 노랑(AI·RAG)은 다음 계획. 이 조각들이 가운데 초록 허브(리서치 제품)로 모이고, 리서치는 여기에 더해 아래 **빨강 노드 6개 = 제품 코어**를 각각 갖는다 — Iceberg·Polaris·Trino·거버넌스·웹 콘솔·품질, **모두 에뮬레이터에 없다**. 즉 에뮬레이터 ⊂ 리서치 제품이며, 겹치는 부분은 위쪽 슬라이스뿐이다.
 
 리서치 필요기능 8개에 대한 대응을 세분하면:
 
