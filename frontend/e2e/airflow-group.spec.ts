@@ -23,6 +23,10 @@ test.describe('Airflow 그룹 경계 렌더 (sample 모드)', () => {
   });
 
   test('[sample] docling·presidio·kure가 서로 다른 x좌표로 렌더 (겹침 0)', async ({ page }) => {
+    // 초기 접힘 상태 → 먼저 모두 펼치기
+    await page.locator('[data-testid="toggle-all-groups"]').click({ force: true });
+    await expect(page.locator('[data-id="node-docling"]').first()).toBeAttached({ timeout: 5000 });
+
     const rects = await page.evaluate((ids: string[]) => {
       return ids.map(id => {
         const el = document.querySelector(`.svelte-flow__node[data-id="${id}"]`);
@@ -56,6 +60,10 @@ test.describe('Airflow 그룹 경계 렌더 (sample 모드)', () => {
   });
 
   test('[sample] 그룹 자식 nodeclick → 노드 상세 모달 열림', async ({ page }) => {
+    // 초기 접힘 상태 → 먼저 모두 펼치기
+    await page.locator('[data-testid="toggle-all-groups"]').click({ force: true });
+    await expect(page.locator('[data-id="node-docling"]').first()).toBeAttached({ timeout: 5000 });
+
     const clicked = await page.evaluate((ids: string[]) => {
       for (const id of ids) {
         const el = document.querySelector(`.svelte-flow__node[data-id="${id}"]`);
@@ -71,6 +79,10 @@ test.describe('Airflow 그룹 경계 렌더 (sample 모드)', () => {
   });
 
   test('[sample] 그룹 collapse 버튼 클릭 → 자식 노드 DOM 미부착 + 재클릭 → 복원', async ({ page }) => {
+    // 초기 접힘 상태 → 먼저 모두 펼치기
+    await page.locator('[data-testid="toggle-all-groups"]').click({ force: true });
+    await expect(page.locator('[data-id="node-docling"]').first()).toBeAttached({ timeout: 5000 });
+
     // collapse 버튼 클릭 (expanded 뷰의 ▾ 버튼)
     // evaluate + dispatchEvent 사용: SvelteFlow가 pointermove를 드래그로 해석하는 문제 우회
     await expect(page.locator('.airflow-collapse-btn').first()).toBeAttached({ timeout: 5000 });
@@ -111,12 +123,8 @@ test.describe('Airflow 그룹 경계 렌더 (sample 모드)', () => {
   });
 
   test('[sample] E-1: collapsed 후 s3-bronze→airflow, airflow→mock-api 경계 엣지 DOM 부착', async ({ page }) => {
-    // collapse 버튼 클릭
-    await expect(page.locator('.airflow-collapse-btn').first()).toBeAttached({ timeout: 5000 });
-    await page.evaluate(() => {
-      const btn = document.querySelector('.airflow-collapse-btn');
-      if (btn) btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
-    });
+    // 초기 접힘 상태 → 경계 엣지는 접힘 상태에서 이미 존재해야 하므로 그대로 검증
+    // (개별 collapse 버튼 없이도 초기 collapsed 상태에서 경계 엣지가 부착됨)
     await page.waitForTimeout(600);
 
     // 경계 엣지가 DOM에 부착됐는지 확인 (SVG edge는 toBeAttached 사용)
@@ -158,12 +166,7 @@ test.describe('Airflow 그룹 경계 렌더 (sample 모드)', () => {
   });
 
   test('[sample] E-3: collapsed 후 그룹 노드 좌표가 원점(-60,-60)이 아님', async ({ page }) => {
-    // collapse 버튼 클릭
-    await expect(page.locator('.airflow-collapse-btn').first()).toBeAttached({ timeout: 5000 });
-    await page.evaluate(() => {
-      const btn = document.querySelector('.airflow-collapse-btn');
-      if (btn) btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
-    });
+    // 초기 접힘 상태 → 이미 collapsed이므로 그대로 검증
     await page.waitForTimeout(600);
 
     // 접힌 그룹 노드 좌표 sanity
@@ -178,6 +181,21 @@ test.describe('Airflow 그룹 경계 렌더 (sample 모드)', () => {
     // 극단적으로 작은 값(< 10px)이면 원점 렌더 의심
     expect(rect!.x).toBeGreaterThan(10);
     expect(rect!.y).toBeGreaterThan(0);
+  });
+
+  test('[sample] D-1: 초기 진입 시 그룹 자식 노드(node-docling)가 DOM에 미부착', async ({ page }) => {
+    // beforeEach 완료 시점 — 초기 접힘 상태이므로 자식 노드는 DOM에 없어야 함
+    await expect(page.locator('[data-id="node-docling"]').first()).not.toBeAttached();
+  });
+
+  test('[sample] D-2: "모두 펼치기" 버튼 클릭 → 자식 노드 부착 / "모두 접기" 재클릭 → 미부착 (왕복 검증)', async ({ page }) => {
+    // 모두 펼치기
+    await page.locator('[data-testid="toggle-all-groups"]').click({ force: true });
+    await expect(page.locator('[data-id="node-docling"]').first()).toBeAttached({ timeout: 5000 });
+
+    // 모두 접기 (동일 토글 버튼 재클릭)
+    await page.locator('[data-testid="toggle-all-groups"]').click({ force: true });
+    await expect(page.locator('[data-id="node-docling"]').first()).not.toBeAttached({ timeout: 5000 });
   });
 
   test('[real] /real/pipeline은 백엔드 연결 대기 스텁을 표시한다', async ({ page }) => {
