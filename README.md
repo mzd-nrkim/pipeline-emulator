@@ -7,15 +7,18 @@
 ## 빠른 시작
 
 ```bash
-# 원클릭 기동 (헬스체크까지 대기) — 발표·시연이면 이걸 쓴다
-./scripts/demo/start-demo.sh
+# 시연·발표용 (샘플 모드) — vite dev 하나면 된다. Docker 불필요
+./scripts/demo/start-sample.sh
+# → http://localhost:5173/sample/pipeline
 
-# 상태 진단 / 폴백(녹화 영상)
-./scripts/demo/check-demo.sh
-./scripts/demo/fallback-demo.sh
+# 실제 파이프라인까지 돌리는 데모 (Docker 6개 필요)
+./scripts/demo/real-mode/start-demo.sh
+./scripts/demo/real-mode/check-demo.sh     # 진단
 ```
 
-수동으로 띄우려면:
+> `/sample/pipeline`은 mock-adapter를 쓴다. 백엔드를 호출하지 않으므로 Docker가 꺼져 있어도 화면은 정상이다. 자세한 내용은 [데모 기동 가이드](./docs/데모_기동_가이드.md) 참조.
+
+백엔드까지 수동으로 띄우려면:
 
 ```bash
 # 1. 백엔드 스택 기동 (기본 6개 서비스)
