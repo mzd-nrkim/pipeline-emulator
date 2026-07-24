@@ -7,6 +7,17 @@
 ## 빠른 시작
 
 ```bash
+# 원클릭 기동 (헬스체크까지 대기) — 발표·시연이면 이걸 쓴다
+./scripts/demo/start-demo.sh
+
+# 상태 진단 / 폴백(녹화 영상)
+./scripts/demo/check-demo.sh
+./scripts/demo/fallback-demo.sh
+```
+
+수동으로 띄우려면:
+
+```bash
 # 1. 백엔드 스택 기동 (기본 6개 서비스)
 docker compose up -d
 
@@ -32,6 +43,7 @@ cd frontend && npm install && npm run dev
 | 목적 | 문서 |
 |------|------|
 | **프로젝트 개요** (5분 소개) | [docs/OVERVIEW.md](./docs/OVERVIEW.md) |
+| **🚨 발표 당일 기동·장애 대처** | [docs/데모_기동_가이드.md](./docs/데모_기동_가이드.md) |
 | 시연 순서·대사·체크리스트 | [docs/demo-scenario.md](./docs/demo-scenario.md) |
 | 설계 결정·원본→에뮬레이터 대체·로드맵 | [docs/pipeline-emulator-decisions.md](./docs/pipeline-emulator-decisions.md) |
 | 개발 규칙·테스트·포트 맵 | [CLAUDE.md](./CLAUDE.md) |

@@ -24,3 +24,8 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+*.mp4
+*.webm
+
+# 데모 기동 로그 (scripts/demo/start-demo.sh)
+.demo-logs/
